@@ -26,7 +26,7 @@
  */
 namespace OCA\EAS\Utile\Wbxml;
 
-class Stream implements \Serializable
+class StreamBase implements \Serializable
 {
     /**
      * Stream resource.

@@ -60,7 +60,8 @@ class ConfigurationService {
 		'account_server' => '',
 		'account_id' => '',
 		'account_secret' => '',
-		'account_protocol' => 'Exchange2007',
+		'account_deviceid' => '',
+		'account_devicekey' => '',
 		'account_connected' => '0',
 		'account_harmonization_state' => '0',
 		'account_harmonization_start' => '0',
@@ -145,7 +146,8 @@ class ConfigurationService {
 		// retrieve user authentication parameters
 		$parameters = [];
 		$parameters['account_server'] = $this->retrieveUserValue($uid, 'account_server');
-		$parameters['account_protocol'] = $this->retrieveUserValue($uid, 'account_protocol');
+		$parameters['account_deviceid'] = $this->retrieveUserValue($uid, 'account_deviceid');
+		$parameters['account_devicekey'] = $this->retrieveUserValue($uid, 'account_devicekey');
 		$parameters['account_id'] = $this->retrieveUserValue($uid, 'account_id');
 		$parameters['account_secret'] = $this->_cs->decrypt($this->retrieveUserValue($uid, 'account_secret'));
 		// return configuration parameters
@@ -166,13 +168,14 @@ class ConfigurationService {
 	 * 
 	 * @return void
 	 */
-	public function depositAuthenticationBasic(string $uid, string $server, string $protocol, string $id, string $secret): void {
+	public function depositAuthenticationBasic(string $uid, string $server, string $deviceid, string $devicekey, string $accountid, string $accountsecret): void {
 		
 		// deposit user authentication parameters
 		$this->depositUserValue($uid, 'account_server', $server);
-		$this->depositUserValue($uid, 'account_protocol', $protocol);
-		$this->depositUserValue($uid, 'account_id', $id);
-		$this->depositUserValue($uid, 'account_secret', $this->_cs->encrypt($secret));
+		$this->depositUserValue($uid, 'account_deviceid', $deviceid);
+		$this->depositUserValue($uid, 'account_devicekey', $devicekey);
+		$this->depositUserValue($uid, 'account_id', $accountid);
+		$this->depositUserValue($uid, 'account_secret', $this->_cs->encrypt($accountsecret));
 		
 	}
 

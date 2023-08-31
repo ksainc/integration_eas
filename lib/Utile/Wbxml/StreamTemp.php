@@ -22,7 +22,7 @@
  */
 namespace OCA\EAS\Utile\Wbxml;
 
-class StreamTemp extends Stream
+class StreamTemp extends StreamBase
 {
     /**
      * Constructor.
@@ -33,7 +33,7 @@ class StreamTemp extends Stream
      *                 the PHP temporary stream.
      * </pre>
      *
-     * @throws Horde_Stream_Exception
+     * @throws Exception
      */
     public function __construct(array $opts = array())
     {
@@ -41,7 +41,7 @@ class StreamTemp extends Stream
     }
 
     /**
-     * @throws Horde_Stream_Exception
+     * @throws Exception
      */
     protected function _init()
     {
@@ -51,7 +51,7 @@ class StreamTemp extends Stream
         }
 
         if (($this->stream = @fopen($cmd, 'r+')) === false) {
-            throw new Horde_Stream_Exception('Failed to open temporary memory stream.');
+            throw new \Exception('Failed to open temporary memory stream.');
         }
     }
 

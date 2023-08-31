@@ -1,5 +1,5 @@
 <?php
-namespace OCA\EAS\Utile\Wbxml;
+namespace OCA\EAS\Utile\Wbxml2;
 
 class WBXML{
 
@@ -105,6 +105,7 @@ class WBXML{
 	 * @throws WBXMLException
 	 */
 	public function deserializeStream($stream): void{
+		// version version
 		$version = $this->readByte($stream);
 		if($version!==self::VERSION_1_0 && $version!==self::VERSION_1_1 && $version!==self::VERSION_1_2 && $version!==self::VERSION_1_3){
 			throw new WBXMLException('Version not supported');
@@ -115,9 +116,9 @@ class WBXML{
 		if($publicid===0){
 			$index = $this->readMultibyteUnsignedInt($stream);
 		}
-
+		// read character type
 		$charset = $this->readMultibyteUnsignedInt($stream);
-
+		// read lenght
 		$length = $this->readMultibyteUnsignedInt($stream);
 		$strtbl = [];
 		for($i=0;$i<$length;$i++){
@@ -129,7 +130,7 @@ class WBXML{
 
 		$body = [];
 
-		for($i=0;$i<2000;$i++){
+		while(!feof($stream)){
 			try{
 				$b = $this->readByte($stream);
 			}catch(WBXMLException $e){
@@ -140,71 +141,72 @@ class WBXML{
 			$content = null;
 
 			switch($b){
-				case 0x00:{
+				case WBXML::SWITCH_PAGE:{
 					$token = 'SWITCH_PAGE';
-					try{
+					//try{
 						$content = $this->readByte($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
-				case 0x01:{
+				case WBXML::END:{
 					$token = 'END';
 					break;
 				}
-				case 0x02:{
+				case WBXML::ENTITY:{
 					$token = 'ENTITY';
-					try{
+					//try{
 						$content = $this->readMultibyteUnsignedInt($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
-				case 0x03:{
+				case WBXML::STR_I:{
 					$token = 'STR_I';
-					try{
+					//try{
 						$content = $this->readTerminatedString($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
-				case 0x04:{
+				case WBXML::LITERAL:{
 					$token = 'LITERAL';
-					try{
+					//try{
 						$content = $this->readMultibyteUnsignedInt($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
 				##########################################
 				case 0x40:{
 					$token = 'EXT_I_0';
-					try{
+					//try{
 						$content = $this->readTerminatedString($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
 				case 0x41:{
 					$token = 'EXT_I_1';
-					try{
+					//try{
 						$content = $this->readTerminatedString($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
 				case 0x42:{
-					$token = 'EXT_I_2';try{
+					$token = 'EXT_I_2';
+					//try{
 						$content = $this->readTerminatedString($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
 				case 0x43:{
@@ -218,38 +220,38 @@ class WBXML{
 				##########################################
 				case 0x80:{
 					$token = 'EXT_T_0';
-					try{
+					//try{
 						$content = $this->readMultibyteUnsignedInt($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
 				case 0x81:{
 					$token = 'EXT_T_1';
-					try{
+					//try{
 						$content = $this->readMultibyteUnsignedInt($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
 				case 0x82:{
 					$token = 'EXT_T_2';
-					try{
+					//try{
 						$content = $this->readMultibyteUnsignedInt($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
 				case 0x83:{
 					$token = 'STR_T';
-					try{
+					//try{
 						$content = $this->readMultibyteUnsignedInt($stream);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
 				case 0x84:{
@@ -271,12 +273,12 @@ class WBXML{
 				}
 				case 0xC3:{
 					$token = 'OPAQUE';
-					try{
+					//try{
 						$length = $this->readMultibyteUnsignedInt($stream);
 						$content = $this->readOpaque($stream,$length);
-					}catch(WBXMLException $e){
+					//}catch(WBXMLException $e){
 
-					}
+					//}
 					break;
 				}
 				case 0xC4:{

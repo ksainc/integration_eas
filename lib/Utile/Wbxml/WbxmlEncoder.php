@@ -104,7 +104,7 @@ class WbxmlEncoder extends Wbxml
         $this->multipart = $multipart;
         if ($multipart) {
             $this->_tempStream = $this->_stream;
-            $this->_stream = new \OCA\EAS\Utile\Wbxml\Stream\StreamTemp();
+            $this->_stream = new StreamTemp();
         }
         $this->outputWbxmlHeader();
     }

@@ -25,7 +25,7 @@
  */
 namespace OCA\EAS\Utile\Wbxml;
 
-class StreamExisting extends Stream
+class StreamExisting extends StreamBase
 {
     /**
      * Constructor.
@@ -38,7 +38,7 @@ class StreamExisting extends Stream
     public function __construct(array $opts = array())
     {
         if (!isset($opts['stream']) || !is_resource($opts['stream'])) {
-            throw new InvalidArgumentException('Need a stream resource.');
+            throw new \InvalidArgumentException('Need a stream resource.');
         }
 
         $this->stream = $opts['stream'];
