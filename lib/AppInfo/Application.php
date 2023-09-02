@@ -66,7 +66,7 @@ use OCA\EAS\Notification\Notifier;
  */
 class Application extends App implements IBootstrap {
     // assign application identification
-    public const APP_ID = 'integration_ews';
+    public const APP_ID = 'integration_eas';
 
     public function __construct(array $urlParams = []) {
         parent::__construct(self::APP_ID, $urlParams);
