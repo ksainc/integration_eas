@@ -86,121 +86,155 @@ try {
 
 	$account = $ConfigurationService->retrieveAuthenticationBasic($uid);
 
-	$uriBase = 'https://' . $account['account_server'] . '/Microsoft-Server-ActiveSync';
-	$uriQuery = '?DeviceType=NextCloudEAS&DeviceId=' . $account['account_deviceid'] . '&User=' . $account['account_id'];
-
-	$http = array(
-		'User-Agent' => 'User-Agent: NextCloudEAS/1.0 (1.0; x64)', // 'User-Agent: Outlook/16.0 (16.0.16626.20086; x64)'
-		'Connection' => 'Connection: Keep-Alive',
-		'Content-Type' => 'Content-Type: application/vnd.ms-sync.wbxml',
-		'MS-ASProtocolVersion' => 'MS-ASProtocolVersion: 16.1',
-		'X-MS-PolicyKey' => 'X-MS-PolicyKey: ' . $account['account_devicekey'],
-		'Authorization' => 'Authorization: Basic ' . base64_encode($account['account_id'] . ':' . $account['account_secret'])
+	// construct remote data store client
+	$EasClient = new \OCA\EAS\Utile\Eas\EasClient(
+		$account['account_server'], 
+		new \OCA\EAS\Utile\Eas\EasAuthenticationBasic($account['account_bauth_id'], $account['account_bauth_secret']),
+		$account['account_deviceid'],
+		$account['account_devicekey'],
+		$account['account_deviceversion']
 	);
 
 	// Load From File
-	$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync', 'r');
-	$msg_ref_raw = stream_get_contents($stream);
-	fclose($stream);
-	//$msg_ref_obj = $EasXmlDecoder->stringToObject($msg_ref_raw);
+	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync', 'r');
+	//$msg_ref_raw = stream_get_contents($stream);
+	//$msg_ref_obj = $EasXmlDecoder->streamToObject($stream);
+	//fclose($stream);
 	//$msg_ref_hex = unpack('H*', $msg_ref_raw);
 
-	$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync2', 'r');
-	$msg2_ref_raw = stream_get_contents($stream);
-	fclose($stream);
-	$msg2_ref_obj = $EasXmlDecoder->stringToObject($msg2_ref_raw);
-	$msg2_ref_hex = unpack('H*', $msg2_ref_raw);
+	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync2', 'r');
+	//$msg2_ref_raw = stream_get_contents($stream);
+	//fclose($stream);
+	//$msg2_ref_obj = $EasXmlDecoder->stringToObject($msg2_ref_raw);
+	//$msg2_ref_hex = unpack('H*', $msg2_ref_raw)[1];
 
 	//$msg_ref_hex = '03016a00455c4f4b03564430794d44497a4d446b774d5651794d6a55774e4456614f3155394d44744750545537545430784f444d314d546b37557a30774f773d3d000152033100015e03310001135503353000015758033500010018450331000100114546033200010101010101';
 	//$msg_ref_raw = pack('H*', $msg_ref_hex);
 	//$msg_ref_obj = $EasXmlDecoder->stringToObject($msg_ref_raw);
 
-	// construct object
-	$ch = curl_init();
-	// set options
-	curl_setopt($ch, CURLOPT_URL, $uriBase);
-	curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-	curl_setopt($ch, CURLOPT_HEADER, true);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, array_values($http));
-	// Send Options Request
-	curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "OPTIONS");
-	$response = curl_exec($ch);
+	// perform initial connect
+	$EasClient->performConnect();
 
 	// construct folder sync request
-	$msg_fs_obj = new \stdClass();
-	$msg_fs_obj->FolderSync = new \OCA\EAS\Utile\Eas\EasXmlObject('FolderHierarchy');
-	$msg_fs_obj->FolderSync->SyncKey = new \OCA\EAS\Utile\Eas\EasXmlProperty('FolderHierarchy', 0);
+	$msg_fs_rq_o = new \stdClass();
+	$msg_fs_rq_o->FolderSync = new \OCA\EAS\Utile\Eas\EasObject('FolderHierarchy');
+	$msg_fs_rq_o->FolderSync->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('FolderHierarchy', 0);
 
-	$msg_fs_raw = $EasXmlEncoder->stringFromObject($msg_fs_obj);
-	$msg_fs_hex = unpack('H*', $msg_fs_raw);
+	$msg_fs_rq_r = $EasXmlEncoder->stringFromObject($msg_fs_rq_o);
+	$msg_fs_rq_h = unpack('H*', $msg_fs_rq_r)[1];
+
+	// perform command
+	$msg_fs_rp_r = $EasClient->performFolderSync($msg_fs_rq_r);
+	$msg_fs_rp_o = $EasXmlDecoder->stringToObject($msg_fs_rp_r);
 
 	/*
 	// construct folder sync request
 	$stream = fopen('php://temp', 'r+');
 	$WbxmlEncoder = new \OCA\EAS\Utile\Wbxml\WbxmlEncoder($stream);
 	$WbxmlEncoder->StartWBXML();
-	$WbxmlEncoder->startTag('FolderHierarchy:FolderSync');
-	$WbxmlEncoder->startTag('FolderHierarchy:SyncKey');
+	// Start Sync Command Tag
+	$WbxmlEncoder->startTag('Synchronize');
+
+	// Start Collections Tag
+	$WbxmlEncoder->startTag('Folders');
+	// Start Collection Tag
+	$WbxmlEncoder->startTag('Folder');
+
+	// SyncKey Property
+	$WbxmlEncoder->startTag('SyncKey');
 	$WbxmlEncoder->content(0);
 	$WbxmlEncoder->endTag();
+	// CollectionId Property
+	$WbxmlEncoder->startTag('FolderId');
+	$WbxmlEncoder->content(8);
 	$WbxmlEncoder->endTag();
+	// GetChanges Property
+	$WbxmlEncoder->startTag('GetChanges');
+	$WbxmlEncoder->content(0);
+	$WbxmlEncoder->endTag();
+	// DeletesAsMoves Property
+	$WbxmlEncoder->startTag('DeletesAsMoves');
+	$WbxmlEncoder->content(0);
+	$WbxmlEncoder->endTag();
+	// WindowSize Property
+	$WbxmlEncoder->startTag('WindowSize');
+	$WbxmlEncoder->content(32);
+	$WbxmlEncoder->endTag();
+
+	// Start Options Tag
+	$WbxmlEncoder->startTag('Options');
+	// WindowSize Property
+	$WbxmlEncoder->startTag('FilterType');
+	$WbxmlEncoder->content(0);
+	$WbxmlEncoder->endTag();
+
+	// Start BodyPreference Tag
+	$WbxmlEncoder->startTag('AirSyncBase:BodyPreference');
+	// Type Property
+	$WbxmlEncoder->startTag('AirSyncBase:Type');
+	$WbxmlEncoder->content(1);
+	$WbxmlEncoder->endTag();
+	// Type Property
+	$WbxmlEncoder->startTag('AirSyncBase:AllOrNone');
+	$WbxmlEncoder->content(1);
+	$WbxmlEncoder->endTag();
+	// End BodyPreference Tag
+	$WbxmlEncoder->endTag();
+
+	// End Options Tag
+	$WbxmlEncoder->endTag();
+
+	// End Collection Tag
+	$WbxmlEncoder->endTag();
+	// End Collections Tag
+	$WbxmlEncoder->endTag();
+
+	// WindowSize Propery
+	$WbxmlEncoder->startTag('WindowSize');
+	$WbxmlEncoder->content(32);
+	$WbxmlEncoder->endTag();
+
+	// End Sync Command Tag
+	$WbxmlEncoder->endTag();
+
 	// retrieve data from stream
 	rewind($stream);
-	$msg2_fs_raw = stream_get_contents($stream);
+	$msg_ref_raw = stream_get_contents($stream);
 	fclose($stream);
-	$msg2_fs_hex = unpack('H*', $msg2_fs_raw);
+	$msg_ref_hex = unpack('H*', $msg_ref_raw)[1];
 	*/
 
-	// send folder sync request
-	curl_setopt($ch, CURLOPT_URL, $uriBase . $uriQuery . '&Cmd=FolderSync');
-	curl_setopt($ch, CURLOPT_CUSTOMREQUEST, null);
-	curl_setopt($ch, CURLOPT_POST, true);
-	curl_setopt($ch, CURLOPT_POSTFIELDS, $msg_fs_raw);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, array_values($http));
-	$response = curl_exec($ch);
-
-	// Then, after your curl_exec call:
-	$size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-	$__last_headers = substr($response, 0, $size);
-	$__last_response = substr($response, $size);
-	
-	$message = $EasXmlDecoder->stringToObject($__last_response);
-
 	// construct folder sync request
-	$msg_sync_o = new \stdClass();
-	$msg_sync_o->Sync = new \OCA\EAS\Utile\Eas\EasXmlObject('AirSync');
-	$msg_sync_o->Sync->Collections = new \OCA\EAS\Utile\Eas\EasXmlObject('AirSync');
-	$msg_sync_o->Sync->Collections->Collection = new \OCA\EAS\Utile\Eas\EasXmlObject('AirSync');
-	$msg_sync_o->Sync->Collections->Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSync', '0');
-	$msg_sync_o->Sync->Collections->Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSync', '8');
-	$msg_sync_o->Sync->Collections->Collection->GetChanges = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSync', '0');
-	$msg_sync_o->Sync->Collections->Collection->DeletesAsMoves = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSync', '0');
-	$msg_sync_o->Sync->Collections->Collection->WindowSize = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSync', '32');
-	$msg_sync_o->Sync->Collections->Collection->Options = new \OCA\EAS\Utile\Eas\EasXmlObject('AirSync');
-	$msg_sync_o->Sync->Collections->Collection->Options->FilterType = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSync', '0');
-	//$msg_sync_o->Sync->Collections->Collection->Options->MIMESupport = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSync', 2);
-	//$msg_sync_o->Sync->Collections->Collection->Options->MIMETruncation = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSync', 8);
-	$msg_sync_o->Sync->Collections->Collection->Options->BodyPreference = new \OCA\EAS\Utile\Eas\EasXmlObject('AirSyncBase');
-	$msg_sync_o->Sync->Collections->Collection->Options->BodyPreference->Type = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSyncBase', '1');
-	$msg_sync_o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSyncBase', '1');
-	$msg_sync_o->Sync->WindowSize = new \OCA\EAS\Utile\Eas\EasXmlProperty('AirSync', 32);
+	$msg_sync_rq_o = new \stdClass();
+	$msg_sync_rq_o->Sync = new \OCA\EAS\Utile\Eas\EasObject('AirSync');
+	$msg_sync_rq_o->Sync->Collections = new \OCA\EAS\Utile\Eas\EasObject('AirSync');
+	$msg_sync_rq_o->Sync->Collections->Collection = new \OCA\EAS\Utile\Eas\EasObject('AirSync');
+	$msg_sync_rq_o->Sync->Collections->Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
+	$msg_sync_rq_o->Sync->Collections->Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 8);
+	$msg_sync_rq_o->Sync->Collections->Collection->GetChanges = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
+	$msg_sync_rq_o->Sync->Collections->Collection->DeletesAsMoves = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
+	$msg_sync_rq_o->Sync->Collections->Collection->WindowSize = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 32);
+	$msg_sync_rq_o->Sync->Collections->Collection->Options = new \OCA\EAS\Utile\Eas\EasObject('AirSync');
+	$msg_sync_rq_o->Sync->Collections->Collection->Options->FilterType = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
+	//$msg_sync_rq_o->Sync->Collections->Collection->Options->MIMESupport = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 2);
+	//$msg_sync_rq_o->Sync->Collections->Collection->Options->MIMETruncation = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 8);
+	$msg_sync_rq_o->Sync->Collections->Collection->Options->BodyPreference = new \OCA\EAS\Utile\Eas\EasObject('AirSyncBase');
+	$msg_sync_rq_o->Sync->Collections->Collection->Options->BodyPreference->Type = new \OCA\EAS\Utile\Eas\EasProperty('AirSyncBase', 1);
+	$msg_sync_rq_o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new \OCA\EAS\Utile\Eas\EasProperty('AirSyncBase', 1);
+	$msg_sync_rq_o->Sync->WindowSize = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 32);
 
-	$msg_sync_raw = $EasXmlEncoder->stringFromObject($msg_sync_o);
+	$msg_sync_rq_r = $EasXmlEncoder->stringFromObject($msg_sync_rq_o);
+	$msg_sync_rq_h = unpack('H*', $msg_sync_rq_r)[1];
 
-	// send sync request
-	curl_setopt($ch, CURLOPT_URL, $uriBase . $uriQuery . '&Cmd=Sync');
-	curl_setopt($ch, CURLOPT_CUSTOMREQUEST, null);
-	curl_setopt($ch, CURLOPT_POST, true);
-	curl_setopt($ch, CURLOPT_POSTFIELDS, $msg_sync_raw);
-	curl_setopt($ch, CURLOPT_HTTPHEADER, array_values($http));
-	$response = curl_exec($ch);
+	/*
+	if ($msg_ref_raw != $msg_sync_raw) {
+		throw new Exception("Messages do not match!!", 1);
+	}
+	*/
 
-	// Then, after your curl_exec call:
-	$size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-	$__last_headers = substr($response, 0, $size);
-	$__last_response = substr($response, $size);
-	
-	$message = $EasXmlDecoder->stringToObject($__last_response);
+	// perform command
+	$msg_sync_rp_r = $EasClient->performSync($msg_sync_rq_r);
+	$msg_sync_rp_h = $EasXmlDecoder->stringToObject($msg_sync_rp_r);
 	
 	/*
 	// construct folder sync request
@@ -258,15 +292,15 @@ try {
 	// construct folder sync request
 	$o = new \stdClass();
 	$o->Message = new \stdClass();
-	$o->Message->Provision = new \OCA\EAS\Utile\Eas\EasXmlObject('Provision');
-	$o->Message->Provision->DeviceInformation = new \OCA\EAS\Utile\Eas\EasXmlObject('Settings');
-	$o->Message->Provision->DeviceInformation->Set = new \OCA\EAS\Utile\Eas\EasXmlObject('Settings');
-	$o->Message->Provision->DeviceInformation->Set->Model = new \OCA\EAS\Utile\Eas\EasXmlProperty('Settings', 'NextCloudEAS');
-	$o->Message->Provision->DeviceInformation->Set->FriendlyName = new \OCA\EAS\Utile\Eas\EasXmlProperty('Settings', 'NextCloud EAS Connector');
-	$o->Message->Provision->DeviceInformation->Set->UserAgent = new \OCA\EAS\Utile\Eas\EasXmlProperty('Settings', 'NextCloudEAS/1.0 (1.0; x64)');
-	$o->Message->Provision->Policies = new \OCA\EAS\Utile\Eas\EasXmlObject('Provision');
-	$o->Message->Provision->Policies->Policy = new \OCA\EAS\Utile\Eas\EasXmlObject('Provision');
-	$o->Message->Provision->Policies->Policy->PolicyType = new \OCA\EAS\Utile\Eas\EasXmlProperty('Provision', 'MS-EAS-Provisioning-WBXML');
+	$o->Message->Provision = new \OCA\EAS\Utile\Eas\EasObject('Provision');
+	$o->Message->Provision->DeviceInformation = new \OCA\EAS\Utile\Eas\EasObject('Settings');
+	$o->Message->Provision->DeviceInformation->Set = new \OCA\EAS\Utile\Eas\EasObject('Settings');
+	$o->Message->Provision->DeviceInformation->Set->Model = new \OCA\EAS\Utile\Eas\EasProperty('Settings', 'NextCloudEAS');
+	$o->Message->Provision->DeviceInformation->Set->FriendlyName = new \OCA\EAS\Utile\Eas\EasProperty('Settings', 'NextCloud EAS Connector');
+	$o->Message->Provision->DeviceInformation->Set->UserAgent = new \OCA\EAS\Utile\Eas\EasProperty('Settings', 'NextCloudEAS/1.0 (1.0; x64)');
+	$o->Message->Provision->Policies = new \OCA\EAS\Utile\Eas\EasObject('Provision');
+	$o->Message->Provision->Policies->Policy = new \OCA\EAS\Utile\Eas\EasObject('Provision');
+	$o->Message->Provision->Policies->Policy->PolicyType = new \OCA\EAS\Utile\Eas\EasProperty('Provision', 'MS-EAS-Provisioning-WBXML');
 
 	$message2 = $EasXmlEncoder->stringFromObject($o->Message);
 	//$message2_decoded = $EasXmlDecoder->stringToObject($message2);

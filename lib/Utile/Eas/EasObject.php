@@ -25,18 +25,14 @@ declare(strict_types=1);
 
 namespace OCA\EAS\Utile\Eas;
 
-class EasXmlProperty
+class EasObject
 {
     private ?string $_namespace = null;
-    private mixed $_contents = null;
-    private bool $_opaque = false;
 
     /*Constructor method with arguments*/
-    public function __construct(string $namespace, mixed $content, bool $opaque = false)
+    public function __construct(string $namespace = null)
     {
         $this->_namespace = $namespace;
-        $this->_contents = $content;
-        $this->_opaque = $opaque;
     }
 
     public function getNamespace(): string {
@@ -45,26 +41,6 @@ class EasXmlProperty
 
     public function setNamespace(string $namespace): void {
         $this->_namespace = $namespace;
-    }
-
-    public function getContents(): mixed {
-        return $this->_contents;
-    }
-    
-    public function setContents(mixed $content): void {
-        $this->_contents = $content;
-    }
-
-    public function hasContents(): bool {
-        return isset($this->_contents);
-    }
-
-    public function getOpaque(): bool {
-        return $this->_opaque;
-    }
-    
-    public function setOpaque(bool $opaque): void {
-        $this->_opaque = $opaque;
     }
 
 }

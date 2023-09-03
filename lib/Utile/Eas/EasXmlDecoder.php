@@ -897,7 +897,7 @@ class EasXmlDecoder{
      */
     protected function _readBodyToObject($stream, $page): mixed {
 		// construct object place holder
-		$node = new EasXmlObject();
+		$node = new EasObject();
 
 		while(!feof($stream)) {
 			
@@ -986,17 +986,17 @@ class EasXmlDecoder{
 
 						if (is_array($node->{$token})) {
 							// add object as property
-							if ($o instanceof EasXmlObject) {
+							if ($o instanceof EasObject) {
 								$node->{$token}[] = $o;
 							} else {
-								$node->{$token}[] = new EasXmlProperty($namespace, $o);
+								$node->{$token}[] = new EasProperty($namespace, $o);
 							}
 						} else {
 							// add object as property
-							if ($o instanceof EasXmlObject) {
+							if ($o instanceof EasObject) {
 								$node->{$token} = $o;
 							} else {
-								$node->{$token} = new EasXmlProperty($namespace, $o);
+								$node->{$token} = new EasProperty($namespace, $o);
 							}
 						}
 					}

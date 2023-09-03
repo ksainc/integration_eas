@@ -34,8 +34,8 @@ class EasXmlEncoder{
 	/**
 	 * TODO: Add encode from xml
 	 */
-
-	/**
+	
+	 /**
      * namespace definitions to wbxml codes
      *
      * @var array
@@ -859,7 +859,8 @@ class EasXmlEncoder{
         $this->_writeMBUInt($stream, EasXml::ENCODING);
         $this->_writeMBUInt($stream, 0);
 		// write body
-		$this->_writeBodyFromObject($stream, $object, 0);
+		$page = 0;
+		$this->_writeBodyFromObject($stream, $object, $page);
 
 	}
 
@@ -871,7 +872,7 @@ class EasXmlEncoder{
 	 * @param $page		namespace code page
 	 * 
      */
-    private function _writeBodyFromObject($stream, $object, $page): void {
+    private function _writeBodyFromObject($stream, $object, &$page): void {
 
 		foreach (get_object_vars($object) as $token => $property) {
 
@@ -887,7 +888,7 @@ class EasXmlEncoder{
 				$this->_writeByte($stream, $page);
 			}
 
-			if ($property instanceof EasXmlObject) {
+			if ($property instanceof EasObject) {
 				
 				// write node start
         		$this->_writeNodeStart($stream, $page, $token, true, false);
@@ -897,7 +898,7 @@ class EasXmlEncoder{
 				$this->_writeNodeEnd($stream);
 
 			}
-			elseif ($property instanceof EasXmlProperty) {
+			elseif ($property instanceof EasProperty) {
 
 				if ($property->hasContents()) {
 					// write node start
@@ -1037,90 +1038,5 @@ class EasXmlEncoder{
         fwrite($stream, $content);
 
     }
-
-	/**
-	 * @param string $input
-	 * @param int $version
-	 * @return string|null
-	 * @throws WBXMLException
-	 */
-	public function encode(string $input,$version=0x03): ?string{
-		$wbxml = new WBXML;
-		$wbxml->setVersion($version);
-		$wbxml->setPublicId(0x01);
-		$wbxml->setIsIndex(false);
-		$wbxml->setCharset(0x6A);
-		$wbxml->setStringTable([]);
-
-		$xml = new DOMDocument();
-		if(@!$xml->loadXML($input)){
-			throw new WBXMLException('Invalid XML');
-		}
-		$arr = $this->xmlToArray($xml->firstChild,$this->codepages);
-
-		$wbxml->setBody($arr);
-
-		return $wbxml->serialize();
-	}
-
-	/**
-	 * @param $stream
-	 * @return string|null
-	 * @throws WBXMLException
-	 */
-	public function encodeStream($stream): ?string{
-		return $this->encode(stream_get_contents($stream));
-	}
-
-	private $page = 0;
-
-	private function xmlToArray(DOMNode $node,$codepages): array{
-		$arr = [];
-
-		if($node->hasChildNodes()){
-			$tag = $this->getTagId($node,$codepages);
-			if($this->page!==$tag[0]){
-				$this->page = $tag[0];
-				$arr[] = [self::SWITCH_PAGE,$this->page];
-			}
-			$arr[] = [null,$tag[1],'OPEN'];
-//			if($node->hasAttributes()){
-//				//TODO Attributes
-//			}
-			foreach($node->childNodes AS $childNode){
-				$addArr = $this->xmlToArray($childNode,$codepages);
-				foreach($addArr AS $add){
-					$arr[] = $add;
-				}
-			}
-			$arr[] = [self::END];
-		}else{
-			if($node->nodeType===XML_CDATA_SECTION_NODE){
-				/**@var DOMCdataSection $node*/
-				$str = trim($node->data);
-				if($str!==''){
-					$arr[] = [self::OPAQUE,$node->data];
-				}
-			}
-			if($node->nodeType===XML_TEXT_NODE){
-				$str = trim($node->nodeValue);
-				if($str!==''){
-					$arr[] = [self::STR_I,$node->nodeValue];
-				}
-			}else{
-				$tag = $this->getTagId($node,$codepages);
-				if($this->page!==$tag[0]){
-					$this->page = $tag[0];
-					$arr[] = [self::SWITCH_PAGE,$this->page];
-				}
-				$arr[] = [null,$tag[1],'SELF'];
-//				if($node->hasAttributes()){
-//					//TODO Attributes
-//				}
-			}
-		}
-
-		return $arr;
-	}
 
 }

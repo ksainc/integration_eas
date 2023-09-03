@@ -146,10 +146,11 @@ class ConfigurationService {
 		// retrieve user authentication parameters
 		$parameters = [];
 		$parameters['account_server'] = $this->retrieveUserValue($uid, 'account_server');
+		$parameters['account_bauth_id'] = $this->retrieveUserValue($uid, 'account_bauth_id');
+		$parameters['account_bauth_secret'] = $this->_cs->decrypt($this->retrieveUserValue($uid, 'account_bauth_secret'));
 		$parameters['account_deviceid'] = $this->retrieveUserValue($uid, 'account_deviceid');
 		$parameters['account_devicekey'] = $this->retrieveUserValue($uid, 'account_devicekey');
-		$parameters['account_id'] = $this->retrieveUserValue($uid, 'account_id');
-		$parameters['account_secret'] = $this->_cs->decrypt($this->retrieveUserValue($uid, 'account_secret'));
+		$parameters['account_deviceversion'] = $this->retrieveUserValue($uid, 'account_deviceversion');
 		// return configuration parameters
 		return $parameters;
 
@@ -168,14 +169,15 @@ class ConfigurationService {
 	 * 
 	 * @return void
 	 */
-	public function depositAuthenticationBasic(string $uid, string $server, string $deviceid, string $devicekey, string $accountid, string $accountsecret): void {
+	public function depositAuthenticationBasic(string $uid, string $server, string $accountid, string $accountsecret, string $deviceid, string $devicekey, string $deviceversion): void {
 		
 		// deposit user authentication parameters
 		$this->depositUserValue($uid, 'account_server', $server);
+		$this->depositUserValue($uid, 'account_bauth_id', $accountid);
+		$this->depositUserValue($uid, 'account_bauth_secret', $this->_cs->encrypt($accountsecret));
 		$this->depositUserValue($uid, 'account_deviceid', $deviceid);
 		$this->depositUserValue($uid, 'account_devicekey', $devicekey);
-		$this->depositUserValue($uid, 'account_id', $accountid);
-		$this->depositUserValue($uid, 'account_secret', $this->_cs->encrypt($accountsecret));
+		$this->depositUserValue($uid, 'account_deviceversion', $deviceversion);
 		
 	}
 
@@ -193,10 +195,12 @@ class ConfigurationService {
 		// retrieve user authentication parameters
 		$parameters = [];
 		$parameters['account_server'] = $this->retrieveUserValue($uid, 'account_server');
-		$parameters['account_protocol'] = $this->retrieveUserValue($uid, 'account_protocol');
 		$parameters['account_oauth_access'] = $this->_cs->decrypt($this->retrieveUserValue($uid, 'account_oauth_access'));
 		$parameters['account_oauth_expiry'] = $this->retrieveUserValue($uid, 'account_oauth_expiry');
 		$parameters['account_oauth_refresh'] = $this->_cs->decrypt($this->retrieveUserValue($uid, 'account_oauth_refresh'));
+		$parameters['account_deviceid'] = $this->retrieveUserValue($uid, 'account_deviceid');
+		$parameters['account_devicekey'] = $this->retrieveUserValue($uid, 'account_devicekey');
+		$parameters['account_deviceversion'] = $this->retrieveUserValue($uid, 'account_deviceversion');
 		// return configuration parameters
 		return $parameters;
 
@@ -215,14 +219,16 @@ class ConfigurationService {
 	 * 
 	 * @return void
 	 */
-	public function depositAuthenticationOAuth(string $uid, string $server, string $protocol, string $token, string $expiry, string $refresh): void {
+	public function depositAuthenticationOAuth(string $uid, string $server, string $token, string $expiry, string $refresh, string $deviceid, string $devicekey, string $deviceversion): void {
 		
 		// deposit user oauth authentication parameters
 		$this->depositUserValue($uid, 'account_server', $server);
-		$this->depositUserValue($uid, 'account_protocol', $protocol);
 		$this->depositUserValue($uid, 'account_oauth_access', $this->_cs->encrypt($token));
 		$this->depositUserValue($uid, 'account_oauth_expiry', $expiry);
 		$this->depositUserValue($uid, 'account_oauth_refresh', $this->_cs->encrypt($refresh));
+		$this->depositUserValue($uid, 'account_deviceid', $deviceid);
+		$this->depositUserValue($uid, 'account_devicekey', $devicekey);
+		$this->depositUserValue($uid, 'account_deviceversion', $deviceversion);
 
 	}
 
