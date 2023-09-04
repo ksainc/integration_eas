@@ -37,8 +37,8 @@ use OCA\DAV\CardDAV\CardDavBackend;
 use OCA\DAV\CalDAV\CalDavBackend;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Components\EWS\Autodiscover;
-use OCA\EAS\Components\EWS\EWSClient;
+//use OCA\EAS\Utile\EWS\Autodiscover;
+use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Service\ConfigurationService;
 use OCA\EAS\Service\CorrelationsService;
 use OCA\EAS\Service\ContactsService;
@@ -117,12 +117,11 @@ class CoreService {
 	 */
 	private $LocalTasksStore;
 	/**
-	 * @var EWSClient
+	 * @var EasClient
 	 */
 	private $RemoteStore;
 
-	public function __construct (string $appName,
-								LoggerInterface $logger,
+	public function __construct (LoggerInterface $logger,
 								IJobList $TaskService,
 								INotificationManager $notificationManager,
 								ConfigurationService $ConfigurationService,
@@ -290,7 +289,7 @@ class CoreService {
 		// evaluate validate flag
 		if (in_array("VALIDATE", $flags)) {
 			// construct remote data store client
-			$RemoteStore = new EWSClient(
+			$RemoteStore = new EasClient(
 				$account_server, 
 				new \OCA\EAS\Components\EWS\AuthenticationBasic($account_id, $account_secret), 
 				'Exchange2007');
@@ -566,30 +565,22 @@ class CoreService {
 		// construct response object
 		$response = ['ContactCollections' => [], 'EventCollections' => [], 'TaskCollections' => []];
 		// retrieve remote collections
-		if ($this->ConfigurationService->isContactsAppAvailable()) {
-			// assign remote data store
-			$this->RemoteContactsService->DataStore = $RemoteStore;
-			// retrieve remote personal collections
-			$response['ContactCollections'] = array_merge($response['ContactCollections'], $this->RemoteContactsService->listCollections('U', 'Personal - '));
-			// retrieve remote public collections
-			$response['ContactCollections'] = array_merge($response['ContactCollections'], $this->RemoteContactsService->listCollections('P', 'Public - '));
+		$data = $this->RemoteCommonService->fetchFolders($EasClient);
+
+		foreach ($data->Collections as $Collection) {
+			switch ($variable) {
+				case RemoteCommonService::CONTACTS_COLLECTION_TYPE:
+					$response->ContactCollections[] = ['id'=>$Collection->Id, 'name'=>$$Collection->Name->getContents(),'count'=>''];
+					break;
+				case RemoteCommonService::CALENDAR_COLLECTION_TYPE:
+					$response->EventCollections[] = ['id'=>$Collection->Id, 'name'=>$$Collection->Name->getContents(),'count'=>''];
+					break;
+				case RemoteCommonService::TASKS_COLLECTION_TYPE:
+					$response->TaskCollections[] = ['id'=>$Collection->Id, 'name'=>$$Collection->Name->getContents(),'count'=>''];
+					break;
+			}
 		}
-		if ($this->ConfigurationService->isCalendarAppAvailable()) {
-			// assign remote data store
-			$this->RemoteEventsService->DataStore = $RemoteStore;
-			// retrieve remote personal collections
-			$response['EventCollections'] = array_merge($response['EventCollections'], $this->RemoteEventsService->listCollections('U', 'Personal - '));
-			// retrieve remote public collections
-			$response['EventCollections'] = array_merge($response['EventCollections'], $this->RemoteEventsService->listCollections('P', 'Public - '));
-		}
-		if ($this->ConfigurationService->isTasksAppAvailable()) {
-			// assign remote data store
-			$this->RemoteTasksService->DataStore = $RemoteStore;
-			// retrieve remote personal collections
-			$response['TaskCollections'] = array_merge($response['TaskCollections'], $this->RemoteTasksService->listCollections('U', 'Personal - '));
-			// retrieve remote public collections
-			$response['TaskCollections'] = array_merge($response['TaskCollections'], $this->RemoteTasksService->listCollections('P', 'Public - '));
-		}
+
 		// return response
 		return $response;
 
@@ -762,11 +753,11 @@ class CoreService {
 	 * 
 	 * @param string $uid	nextcloud user id
 	 * 
-	 * @return EWSClient
+	 * @return EasClient
 	 */
-	public function createClient(string $uid): EWSClient {
+	public function createClient(string $uid): EasClient {
 
-		if (!$this->RemoteStore instanceof EWSClient) {
+		if (!$this->RemoteStore instanceof EasClient) {
 			switch ($this->ConfigurationService->retrieveProvider($uid)) {
 				case ConfigurationService::ProviderMS365:
 					// retrieve connection information
@@ -778,7 +769,7 @@ class CoreService {
 						$ac = $this->ConfigurationService->retrieveAuthenticationOAuth($uid);
 					}
 					// construct remote data store client
-					$this->RemoteStore = new EWSClient(
+					$this->RemoteStore = new EasClient(
 						$ac['account_server'], 
 						new \OCA\EAS\Components\EWS\AuthenticationBearer($ac['account_oauth_access']), 
 						$ac['account_protocol']);
@@ -787,7 +778,7 @@ class CoreService {
 					// retrieve connection information
 					$ac = $this->ConfigurationService->retrieveAuthenticationBasic($uid);
 					// construct remote data store client
-					$this->RemoteStore = new EWSClient(
+					$this->RemoteStore = new EasClient(
 						$ac['account_server'], 
 						new \OCA\EAS\Components\EWS\AuthenticationBasic($ac['account_id'], $ac['account_secret']), 
 						$ac['account_protocol']);
@@ -804,11 +795,11 @@ class CoreService {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param EWSClient $Client	nextcloud user id
+	 * @param EasClient $Client	nextcloud user id
 	 * 
 	 * @return void
 	 */
-	public function destroyClient(EWSClient $Client): void {
+	public function destroyClient(EasClient $Client): void {
 		
 		// destory remote data store client
 		$Client = null;
@@ -833,7 +824,7 @@ class CoreService {
 		$notification->setApp(Application::APP_ID)
 			->setUser($uid)
 			->setDateTime(new DateTime())
-			->setObject('ews', 'ews')
+			->setObject('eas', 'eas')
 			->setSubject($subject, $params);
 		// submit notification
 		$this->notificationManager->notify($notification);

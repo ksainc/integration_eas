@@ -22,18 +22,18 @@
 -->
 
 <template>
-	<div id="ews_settings" class="section">
-		<div class="ews-section-heading">
-			<EwsIcon :size="32" /><h2> {{ t('integration_ews', 'EWS Connector') }}</h2>
+	<div id="eas_settings" class="section">
+		<div class="eas-section-heading">
+			<EwsIcon :size="32" /><h2> {{ t('integration_eas', 'EWS Connector') }}</h2>
 		</div>
 		<p class="settings-hint">
-			{{ t('integration_ews', 'Select the system settings for Exchange Integration') }}
+			{{ t('integration_eas', 'Select the system settings for Exchange Integration') }}
 		</p>
 		<div class="fields">
 			<div>
 				<div class="line">
 					<label>
-						{{ t('integration_ews', 'Synchronization Mode') }}
+						{{ t('integration_eas', 'Synchronization Mode') }}
 					</label>
 					<NcSelect v-model="state.harmonization_mode"
 						:reduce="item => item.id"
@@ -41,85 +41,85 @@
 				</div>
 				<div v-if="state.harmonization_mode === 'A'" class="line">
 					<label>
-						{{ t('integration_ews', 'Synchronization Thread Duration') }}
+						{{ t('integration_eas', 'Synchronization Thread Duration') }}
 					</label>
-					<input id="ews-thread-duration"
+					<input id="eas-thread-duration"
 						v-model="state.harmonization_thread_duration"
 						type="text"
 						:autocomplete="'off'"
 						:autocorrect="'off'"
 						:autocapitalize="'none'">
 					<label>
-						{{ t('integration_ews', 'Seconds') }}
+						{{ t('integration_eas', 'Seconds') }}
 					</label>
 				</div>
 				<div v-if="state.harmonization_mode === 'A'" class="line">
 					<label>
-						{{ t('integration_ews', 'Synchronization Thread Pause') }}
+						{{ t('integration_eas', 'Synchronization Thread Pause') }}
 					</label>
-					<input id="ews-thread-pause"
+					<input id="eas-thread-pause"
 						v-model="state.harmonization_thread_pause"
 						type="text"
 						:autocomplete="off"
 						:autocorrect="off"
 						:autocapitalize="none">
 					<label>
-						{{ t('integration_ews', 'Seconds') }}
+						{{ t('integration_eas', 'Seconds') }}
 					</label>
 				</div>
 			</div>
 			<br>
 			<div>
 				<p class="settings-hint">
-					{{ t('integration_ews', 'Microsoft 365 Authentication Settings') }}
+					{{ t('integration_eas', 'Microsoft 365 Authentication Settings') }}
 				</p>
 				<div class="line">
-					<label for="ews-microsoft-tenant-id">
+					<label for="eas-microsoft-tenant-id">
 						<EwsIcon />
-						{{ t('integration_ews', 'Tenant ID') }}
+						{{ t('integration_eas', 'Tenant ID') }}
 					</label>
-					<input id="ews-microsoft-tenant-id"
+					<input id="eas-microsoft-tenant-id"
 						v-model="state.ms365_tenant_id"
 						type="text"
-						:placeholder="t('integration_ews', '')"
+						:placeholder="t('integration_eas', '')"
 						autocomplete="off"
 						autocorrect="off"
 						autocapitalize="none">
 				</div>
 				<div class="line">
-					<label for="ews-microsoft-application-id">
+					<label for="eas-microsoft-application-id">
 						<EwsIcon />
-						{{ t('integration_ews', 'Application ID') }}
+						{{ t('integration_eas', 'Application ID') }}
 					</label>
-					<input id="ews-microsoft-application-id"
+					<input id="eas-microsoft-application-id"
 						v-model="state.ms365_application_id"
 						type="text"
-						:placeholder="t('integration_ews', '')"
+						:placeholder="t('integration_eas', '')"
 						autocomplete="off"
 						autocorrect="off"
 						autocapitalize="none">
 				</div>
 				<div class="line">
-					<label for="ews-microsoft-application-secret">
+					<label for="eas-microsoft-application-secret">
 						<EwsIcon />
-						{{ t('integration_ews', 'Application Secret') }}
+						{{ t('integration_eas', 'Application Secret') }}
 					</label>
-					<input id="ews-microsoft-application-secret"
+					<input id="eas-microsoft-application-secret"
 						v-model="state.ms365_application_secret"
 						type="password"
-						:placeholder="t('integration_ews', '')"
+						:placeholder="t('integration_eas', '')"
 						autocomplete="off"
 						autocorrect="off"
 						autocapitalize="none">
 				</div>
 			</div>
 			<br>
-			<div class="ews-actions">
+			<div class="eas-actions">
 				<NcButton @click="onSaveClick()">
 					<template #icon>
 						<CheckIcon />
 					</template>
-					{{ t('integration_ews', 'Save') }}
+					{{ t('integration_eas', 'Save') }}
 				</NcButton>
 			</div>
 		</div>
@@ -153,7 +153,7 @@ export default {
 	data() {
 		return {
 			readonly: true,
-			state: loadState('integration_ews', 'admin-configuration'),
+			state: loadState('integration_eas', 'admin-configuration'),
 		}
 	},
 
@@ -172,14 +172,14 @@ export default {
 					ms365_application_secret: this.state.ms365_application_secret,
 				},
 			}
-			const url = generateUrl('/apps/integration_ews/admin-configuration')
+			const url = generateUrl('/apps/integration_eas/admin-configuration')
 			axios.put(url, req)
 				.then((response) => {
-					showSuccess(t('integration_ews', 'EWS admin configuration saved'))
+					showSuccess(t('integration_eas', 'EWS admin configuration saved'))
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Failed to save EWS admin configuration')
+						t('integration_eas', 'Failed to save EWS admin configuration')
 						+ ': ' + error.response.request.responseText
 					)
 				})
@@ -191,13 +191,13 @@ export default {
 </script>
 
 <style scoped lang="scss">
-#ews_settings {
-	.ews-section-heading {
+#eas_settings {
+	.eas-section-heading {
 		display:inline-block;
 		vertical-align:middle;
 	}
 
-	.ews-connected {
+	.eas-connected {
 		display: flex;
 		align-items: center;
 
@@ -207,7 +207,7 @@ export default {
 		}
 	}
 
-	.ews-collectionlist-item {
+	.eas-collectionlist-item {
 		display: flex;
 		align-items: center;
 
@@ -217,7 +217,7 @@ export default {
 		}
 	}
 
-	.ews-actions {
+	.eas-actions {
 		display: flex;
 		align-items: center;
 	}

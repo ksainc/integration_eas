@@ -1,8 +1,8 @@
-# EWS Connector in Nextcloud
+# Exchange EAS Connector (Exchange Active Sync) in Nextcloud
 
-EWS (Exchange Web Services) integration allows you to automatically bidirectionally synchronize your Nextcloud calendars and contacts with an external EWS protocol capable system like Microsoft Exchange, Kerio Connect, etc
+EAS (Exchange Active Sync) integration allows you to automatically bidirectionally synchronize your Nextcloud calendars and contacts with an external EAS protocol capable system like Microsoft Exchange, Kerio Connect, etc
 
-![EWS Connector](https://github.com/ksainc/integration_ews/blob/62a4ae5081526009e310ea9e9734809a769697cf/img/EWS%20Notification%20Screen.png?raw=true 'Notifications')
+![Exchange EAS Connector](https://github.com/ksainc/integration_eas/blob/62a4ae5081526009e310ea9e9734809a769697cf/img/EAS%20Notification%20Screen.png?raw=true 'Notifications')
 
 ## How to use
 
@@ -10,11 +10,11 @@ Before proceeding further please make sure you read the following sections, Requ
 
 After the app is installed and enabled in Nextcloud you should have a new section call "Connected Accounts" under "Personal Settings", if you don't see it refresh the browser window.
 
-![EWS Connector](https://github.com/ksainc/integration_ews/blob/969e0f6a2bfe28e4197c0cc941333a43fce25b5c/img/EWS%20Initial%20Screen.png?raw=true 'Initial Configuration')
+![Exchange EAS Connector](https://github.com/ksainc/integration_eas/blob/969e0f6a2bfe28e4197c0cc941333a43fce25b5c/img/EAS%20Initial%20Screen.png?raw=true 'Initial Configuration')
 
 On the initial screen you will be asked for the account information (hostname, username, password) for the remote system. After filling in the required information, press the "Connect" button. The app will then attempt an initial connection to the remote system, if successful, it will retrieve a list of all available calendars and contacts folders from the remote system, and display them below the authentication section.
 
-![EWS Connector](https://github.com/ksainc/integration_ews/blob/969e0f6a2bfe28e4197c0cc941333a43fce25b5c/img/EWS%20Connected%20Screen.png?raw=true 'Correlation Configuration')
+![Exchange EAS Connector](https://github.com/ksainc/integration_eas/blob/969e0f6a2bfe28e4197c0cc941333a43fce25b5c/img/EAS%20Connected%20Screen.png?raw=true 'Correlation Configuration')
 
 Once your accounts is connected and the remote calendars and contacts folders are listed similar to the image above. The next step is to create some correlations (associations/relations/links) between the local and remote, calendar or contacts collections by clicking the link icon beside the remote collection name and selecting the local calendar or contacts address book to associate with and click save. PLEASE READ THE WARNING BELOW BEFORE CLICK SAVE
 
@@ -24,7 +24,7 @@ This is an initial release. Although the app has been thoroughly tested in our e
 
 ## How it works
 
-The app has two modes of operation, passive and active mode, which are controllable from the Nextcloud administration section "EWS Connector".
+The app has two modes of operation, passive and active mode, which are controllable from the Nextcloud administration section "Exchange EAS Connector".
 
 ##### Passive Mode
 
@@ -62,7 +62,7 @@ This app has some minimal requirements for passive synchronization and a few mor
 
 It will be available through the Nextcloud app store soon.
 
-But at the moment this app needs to be installed manually by coping all the files to the Nextcloud apps folder (Installation Folder)/apps/integration_ews. Make sure to change the owner of the files to same user as your server.
+But at the moment this app needs to be installed manually by coping all the files to the Nextcloud apps folder (Installation Folder)/apps/integration_eas. Make sure to change the owner of the files to same user as your server.
 
 Once the files are in place, proceed to the apps administration screen and enable it.
 
@@ -80,7 +80,7 @@ The following is a very long list of things that work and limitations.
 - Personal and Public Tasks Syncronization
 - Mail App Integration
 
-About 95% of the properties between Nextcloud and EWS are transferable and supported for both Contacts, Calendars and Tasks, some properties are limited due to the limitations of both systems.
+About 95% of the properties between Nextcloud and EAS are transferable and supported for both Contacts, Calendars and Tasks, some properties are limited due to the limitations of both systems.
 
 ### Contacts
 
@@ -103,17 +103,17 @@ The following is a list of contacts properties that translate and are transfered
 | Occupation - Role | Supported |  |
 | Partner | Supported |  |
 | Anniversary Day | Supported |  |
-| Physical Address(es) | Limited | EWS Limitation<br />1x Work, 1x Home, 1x Other  |
-| Email Address(es) | Limited | EWS Limitation  
+| Physical Address(es) | Limited | EAS Limitation<br />1x Work, 1x Home, 1x Other  |
+| Email Address(es) | Limited | EAS Limitation  
 1x Work, 1x Home, 1x Other  |
-| Phone Number(s) | Limited | EWS Limitation  
+| Phone Number(s) | Limited | EAS Limitation  
 2x Work, 1x Work Fax, 2x Home, 1x Home Fax, 1x Other, 1x Mobile, 1x Car, 1x Pager |
 | Categories | Supported |  |
 | Notes | Supported |  |
 | Attachment(s) | Not Supported | Will be implemented in future version |
 | Instant messaging | Not Supported | Will be implemented in future version |
 
-Any features or properties, not listed in this list are either not supported due to limitations of EWS or not implemented at this time.
+Any features or properties, not listed in this list are either not supported due to limitations of EAS or not implemented at this time.
 
 ###   
 Calendars
@@ -136,16 +136,16 @@ Calendars
 | Attendee(s) - Required | Supported |  |
 | Attendee(s) - Optional | Supported |  |
 | Attendee(s) - Responses | Supported |  |
-| Reminders | Limited | EWS Limitaion<br />Single Reminder Before Event |
+| Reminders | Limited | EAS Limitaion<br />Single Reminder Before Event |
 | Recurrence - Daily | Supported |  |
 | Recurrence  - Weekly | Supported |  |
-| Recurrence  - Monthly Absolute | Limited | EWS Limitation<br />Limited to single day of the month |
+| Recurrence  - Monthly Absolute | Limited | EAS Limitation<br />Limited to single day of the month |
 | Recurrence  - Monthly Relative | Supported |  |
-| Recurrence  - Yearly Absolute | Limited | EWS Limitation<br />Limited to single month of the year |
-| Recurrence  - Yearly Relative | Limited | EWS Limitation  
+| Recurrence  - Yearly Absolute | Limited | EAS Limitation<br />Limited to single month of the year |
+| Recurrence  - Yearly Relative | Limited | EAS Limitation  
 Limited to single month of the year |
 | Recurrence  - End | Supported |  |
-| Reminders | Limited | EWS Limitation<br />Relative And Absolute with negative value only. Absolute is converted to Relative. |
+| Reminders | Limited | EAS Limitation<br />Relative And Absolute with negative value only. Absolute is converted to Relative. |
 
 ## Future Features
 - Add Notes Syncronization Support

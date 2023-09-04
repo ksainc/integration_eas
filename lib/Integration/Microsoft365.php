@@ -57,7 +57,7 @@ class Microsoft365 {
                 'client_secret' => $asecret,
                 'grant_type' => 'authorization_code',
                 'scope' => 'https://outlook.office.com/EWS.AccessAsUser.All offline_access',
-                'redirect_uri' => $UrlGenerator->getAbsoluteURL('/apps/integration_ews/connect-ms365'),
+                'redirect_uri' => $UrlGenerator->getAbsoluteURL('/apps/integration_eas/connect-ms365'),
                 'code' => $code,
             ],
         ]);
@@ -134,7 +134,7 @@ class Microsoft365 {
 				'?client_id=' . urlencode($aid) . 
 				'&response_type=code' . 
 				'&scope=' . urlencode('https://outlook.office.com/EWS.AccessAsUser.All') .
-				'&redirect_uri=' . urlencode($UrlGenerator->getAbsoluteURL('/apps/integration_ews/connect-ms365'));
+				'&redirect_uri=' . urlencode($UrlGenerator->getAbsoluteURL('/apps/integration_eas/connect-ms365'));
             }
 
 }

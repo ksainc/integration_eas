@@ -36,7 +36,7 @@ use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\CorrelationsService;
 use OCA\EAS\Service\Local\LocalContactsService;
 use OCA\EAS\Service\Remote\RemoteContactsService;
-use OCA\EAS\Components\EWS\EWSClient;
+use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Objects\ContactObject;
 use OCA\EAS\Objects\HarmonizationStatisticsObject;
 
@@ -62,7 +62,7 @@ class ContactsService {
 	 */
 	private $LocalStore;
 	/**
-	 * @var EWSClient
+	 * @var EasClient
 	 */
 	public $RemoteStore;
 	/**
@@ -333,7 +333,7 @@ class ContactsService {
 			if ($this->Configuration->ContactsPrevalence == 'L' || 
 			($this->Configuration->ContactsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 				// delete all previous attachment(s) in remote store
-				// work around for missing update command in ews
+				// work around for missing update command in eas
 				$this->RemoteContactsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 				// update remote object
 				$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -453,7 +453,7 @@ class ContactsService {
 				if ($this->Configuration->ContactsPrevalence == 'L' || 
 				($this->Configuration->ContactsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteContactsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -482,7 +482,7 @@ class ContactsService {
 				if ($this->Configuration->ContactsPrevalence == 'L' || 
 				   ($this->Configuration->ContactsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteContactsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -506,7 +506,7 @@ class ContactsService {
 			elseif ($ci instanceof \OCA\EAS\Db\Correlation && 
 					$ro->State == $ci->getrostate()) {
 				// delete all previous attachment(s) in remote store
-				// work around for missing update command in ews
+				// work around for missing update command in eas
 				$this->RemoteContactsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 				// update remote object
 				$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -645,7 +645,7 @@ class ContactsService {
 			if ($this->Configuration->ContactsPrevalence == 'L' || 
 			   ($this->Configuration->ContactsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 				// delete all previous attachment(s) in remote store
-				// work around for missing update command in ews
+				// work around for missing update command in eas
 				$this->RemoteContactsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 				// update remote object
 				$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -760,7 +760,7 @@ class ContactsService {
 				if ($this->Configuration->ContactsPrevalence == 'L' || 
 				   ($this->Configuration->ContactsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteContactsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -789,7 +789,7 @@ class ContactsService {
 				if ($this->Configuration->ContactsPrevalence == 'L' || 
 				   ($this->Configuration->ContactsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteContactsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -926,7 +926,7 @@ class ContactsService {
 
 		// create local collection
 		if (!isset($lcid)) {
-			$lco = $this->LocalContactsService->createCollection($configuration->UserId, 'ews-test', 'EWS Contacts', true);
+			$lco = $this->LocalContactsService->createCollection($configuration->UserId, 'eas-test', 'EWS Contacts', true);
 			$lcid = $lco->Id;
 		}
 		
@@ -1028,7 +1028,7 @@ class ContactsService {
 		$ro = $this->RemoteContactsService->fetchCollectionItem($ro->ID);
 		// update remote contact
 		// delete all previous attachment(s) in remote store
-		// work around for missing update command in ews
+		// work around for missing update command in eas
 		$this->RemoteContactsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 		$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $co);
 

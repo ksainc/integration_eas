@@ -31,9 +31,9 @@ class TimeZoneEWS {
 	
 	/**
      * table of EWS (Microsoft/Windows) time zones information
-     * @var array $ewszones
+     * @var array $easzones
      */
-	private static $ewszones = [
+	private static $easzones = [
 		[
 			'Id' => 'AUS Central Standard Time',
 			'Name' => '(UTC+09:30) Darwin',
@@ -1017,7 +1017,7 @@ class TimeZoneEWS {
 	];
 		
 	/*
-	private static $ewszones = [
+	private static $easzones = [
 		array( 'id' => 'AUS Central Standard Time', 'StandardName' => 'Standard', 'StandardBias' => '-PT9H30M0S', 'StandardOffset' => '+09:30', 'DaylightStartMonth' => '', 'DaylightStartDay' => '', 'DaylightStartWeeK' => '', 'DaylightStartTime' => '', 'DaylightName' => '', 'DaylightBias' => '', 'DaylightOffset' => '', 'DaylightEndMonth' => '', 'DaylightEndDay' => '', 'DaylightEndWeek' => '', 'DaylightEndTime' => '' ), 
 		// Aus Central W. Standard Time
 		array( 'id' => 'AUS Eastern Standard Time', 'StandardName' => 'Standard', 'StandardBias' => '-PT10H0M0S', 'StandardOffset' => '+10:00', 'DaylightStartMonth' => '10', 'DaylightStartDay' => 'Sunday', 'DaylightStartWeeK' => '1', 'DaylightStartTime' => 'PT2H0M0S', 'DaylightName' => 'Daylight', 'DaylightBias' => '-PT11H0M0S', 'DaylightOffset' => '+11:00', 'DaylightEndMonth' => '4', 'DaylightEndDay' => 'Sunday', 'DaylightEndWeek' => '1', 'DaylightEndTime' => 'PT3H0M0S' ), 
@@ -1176,9 +1176,9 @@ class TimeZoneEWS {
 
 	/**
      * conversion table of IANA time zones to EWS (Microsoft/Windows) time zones
-     * @var array $ewstoiana
+     * @var array $eastoiana
      */
-	private static $ianatoews = [
+	private static $ianatoeas = [
 		'Africa/Abidjan' => 'Greenwich Standard Time',
 		'Africa/Accra' => 'Greenwich Standard Time',
 		'Africa/Addis_Ababa' => 'E. Africa Standard Time',
@@ -1640,9 +1640,9 @@ class TimeZoneEWS {
 
 	/**
      * conversion table of EWS (Microsoft/Windows) time zones to IANA time zones
-     * @var array $ewstoiana
+     * @var array $eastoiana
      */
-	private static $ewstoiana = [
+	private static $eastoiana = [
 		'AUS Central Standard Time' => 'Australia/Darwin',
 		// Aus Central W. Standard Time
 		'AUS Eastern Standard Time' => 'Australia/Sydney',
@@ -1794,15 +1794,15 @@ class TimeZoneEWS {
      * 
      * @since Release 1.0.0
      * 
-     * @param string $name  ews time zone name
+     * @param string $name  eas time zone name
      * 
      * @return object time zone information object on success, or null on failure
      */ 
     public static function find(?string $name) : ?object {
 
-		$r = array_search($name, array_column(self::$ewszones, 'Id'));
+		$r = array_search($name, array_column(self::$easzones, 'Id'));
 		if (isset($r)) {
-			$zone = (object) self::$ewszones[$r];
+			$zone = (object) self::$easzones[$r];
 			$zone->Periods = json_decode($zone->Periods);
 			$zone->Transitions = json_decode($zone->Transitions);
 			$zone->TransitionsGroups = json_decode($zone->TransitionsGroups);
@@ -1824,8 +1824,8 @@ class TimeZoneEWS {
      */ 
 	public static function fromIANA(?string $name): ?string {
 
-		if (isset(self::$ianatoews[$name])) {
-			return self::$ianatoews[$name];
+		if (isset(self::$ianatoeas[$name])) {
+			return self::$ianatoeas[$name];
 		} else {
 			return null;
 		}
@@ -1837,14 +1837,14 @@ class TimeZoneEWS {
      * 
      * @since Release 1.0.0
      * 
-     * @param string $name  ews time zone name
+     * @param string $name  eas time zone name
      * 
      * @return string valid IANA time zone name on success, or null on failure
      */ 
 	public static function toIANA(?string $name): ?string {
 
-		if (isset(self::$ewstoiana[$name])) {
-			return self::$ewstoiana[$name];
+		if (isset(self::$eastoiana[$name])) {
+			return self::$eastoiana[$name];
 		} else {
 			return null;
 		}
@@ -1880,15 +1880,15 @@ class TimeZoneEWS {
      * 
      * @since Release 1.0.0
      * 
-     * @param string $name  ews time zone name
+     * @param string $name  eas time zone name
      * 
      * @return DateTimeZone valid DateTimeZone object on success, or null on failure
      */ 
 	public static function toDateTimeZone(string $name): ?DateTimeZone {
 
 		// evaluate if name exists in conversion table
-		if (isset(self::$ewstoiana[$name])) {
-			$zone = @timezone_open(self::$ewstoiana[$name]);
+		if (isset(self::$eastoiana[$name])) {
+			$zone = @timezone_open(self::$eastoiana[$name]);
 		}
 		// otherwise attempt to convert time zone name
 		else {

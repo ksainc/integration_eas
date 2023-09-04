@@ -44,7 +44,7 @@ class Disconnect extends Command {
 
 	protected function configure() {
 		$this
-			->setName('ews:disconnect')
+			->setName('eas:disconnect')
 			->setDescription('Disconnects a user from an EWS Server')
             ->addArgument('user',
 				InputArgument::REQUIRED,

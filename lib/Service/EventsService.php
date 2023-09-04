@@ -37,7 +37,7 @@ use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\CorrelationsService;
 use OCA\EAS\Service\Local\LocalEventsService;
 use OCA\EAS\Service\Remote\RemoteEventsService;
-use OCA\EAS\Components\EWS\EWSClient;
+use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Objects\EventObject;
 use OCA\EAS\Objects\HarmonizationStatisticsObject;
 
@@ -67,7 +67,7 @@ class EventsService {
 	 */
 	private $LocalFileStore;
 	/**
-	 * @var EWSClient
+	 * @var EasClient
 	 */
 	public $RemoteStore;
 	/**
@@ -356,7 +356,7 @@ class EventsService {
 			if ($this->Configuration->EventsPrevalence == 'L' || 
 			($this->Configuration->EventsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 				// delete all previous attachment(s) in remote store
-				// work around for missing update command in ews
+				// work around for missing update command in eas
 				$this->RemoteEventsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 				// update remote object
 				$ro = $this->RemoteEventsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -473,7 +473,7 @@ class EventsService {
 				if ($this->Configuration->EventsPrevalence == 'L' || 
 					($this->Configuration->EventsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteEventsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteEventsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -502,7 +502,7 @@ class EventsService {
 				if ($this->Configuration->EventsPrevalence == 'L' || 
 				   ($this->Configuration->EventsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteEventsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteEventsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -526,7 +526,7 @@ class EventsService {
 			elseif ($ci instanceof \OCA\EAS\Db\Correlation && 
 					$ro->State == $ci->getrostate()) {
 				// delete all previous attachment(s) in remote store
-				// work around for missing update command in ews
+				// work around for missing update command in eas
 				$this->RemoteEventsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 				// update remote object
 				$ro = $this->RemoteEventsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -665,7 +665,7 @@ class EventsService {
 			if ($this->Configuration->EventsPrevalence == 'L' || 
 			   ($this->Configuration->EventsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 				// delete all previous attachment(s) in remote store
-				// work around for missing update command in ews
+				// work around for missing update command in eas
 				$this->RemoteEventsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 				// update remote object
 				$ro = $this->RemoteEventsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -780,7 +780,7 @@ class EventsService {
 				if ($this->Configuration->EventsPrevalence == 'L' || 
 					($this->Configuration->EventsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteEventsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteEventsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -809,7 +809,7 @@ class EventsService {
 				if ($this->Configuration->EventsPrevalence == 'L' || 
 				   ($this->Configuration->EventsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteEventsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteEventsService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -953,7 +953,7 @@ class EventsService {
 
 		// create local collection
 		if (!isset($lcid)) {
-			$lco = $this->LocalEventsService->createCollection($configuration->UserId, 'ews-test', 'EWS Calendar', true);
+			$lco = $this->LocalEventsService->createCollection($configuration->UserId, 'eas-test', 'EWS Calendar', true);
 			$lcid = $lco->Id;
 		}
 		// create remote collection
@@ -1071,7 +1071,7 @@ class EventsService {
 		$ro = $this->RemoteEventsService->fetchCollectionItem($ro->ID);
 		// update remote event
 		// delete all previous attachment(s) in remote store
-		// work around for missing update command in ews
+		// work around for missing update command in eas
 		$this->RemoteEventsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 		$ro = $this->RemoteEventsService->updateCollectionItem($rcid, $ro->ID, $eo);
 		

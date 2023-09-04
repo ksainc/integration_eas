@@ -1,6 +1,6 @@
 // import { loadState } from '@nextcloud/initial-state'
 
-// const state = loadState('integration_ews', 'popup-data')
+// const state = loadState('integration_eas', 'popup-data')
 
 if (window.opener) {
 	window.opener.postMessage('Success')

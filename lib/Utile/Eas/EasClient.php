@@ -408,7 +408,7 @@ class EasClient
 
     }
 
-    public function performCommand($data): null|string {
+    public function performCommand($message): null|string {
         // clear last headers and response
         $this->_ResponseHeaders = '';
         $this->_ResponseData = '';
@@ -421,8 +421,8 @@ class EasClient
 
         curl_setopt($this->_client, CURLOPT_HTTPHEADER, array_values($this->_TransportHeader));
         // set request data
-        if (!empty($data)) {
-            curl_setopt($this->_client, CURLOPT_POSTFIELDS, $request);
+        if (!empty($message)) {
+            curl_setopt($this->_client, CURLOPT_POSTFIELDS, $message);
         }
         // execute request
         $this->_ResponseData = curl_exec($this->_client);
@@ -479,6 +479,13 @@ class EasClient
     public function performFolderSync($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=FolderSync';
+        return $this->performCommand($data);
+
+    }
+
+    public function performGetItemEstimate($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=GetItemEstimate';
         return $this->performCommand($data);
 
     }

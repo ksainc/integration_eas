@@ -44,7 +44,7 @@ class Connect extends Command {
 
 	protected function configure() {
 		$this
-			->setName('ews:connect')
+			->setName('eas:connect')
 			->setDescription('Connects a user to EWS Server')
             ->addArgument('user',
 				InputArgument::REQUIRED,

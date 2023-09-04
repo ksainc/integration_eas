@@ -40,7 +40,7 @@ try {
 	// evaluate if script was started from console
 	if (php_sapi_name() == 'cli') {
 		$executionMode = 'C';
-		$logger->info('Test running, as console script', ['app' => 'integration_ews']);
+		$logger->info('Test running, as console script', ['app' => 'integration_eas']);
 		echo 'Test running, as console script' . PHP_EOL;
 	}
 
@@ -64,21 +64,22 @@ try {
 	
 	// evaluate, if user name is present
 	if (empty($uid)) {
-		$logger->info('Test ended, missing required parameters', ['app' => 'integration_ews']);
+		$logger->info('Test ended, missing required parameters', ['app' => 'integration_eas']);
 		echo 'Test ended, missing required parameters' . PHP_EOL;
 		exit(0);
 	}
 
-	$logger->info('Test started for ' . $uid, ['app' => 'integration_ews']);
+	$logger->info('Test started for ' . $uid, ['app' => 'integration_eas']);
 	echo 'Test started for ' . $uid . PHP_EOL;
 
 	// load all apps to get all api routes properly setup
-	OC_App::loadApps();
+	//OC_App::loadApps();
 	
 	// initilize required services
 	$ConfigurationService = \OC::$server->get(\OCA\EAS\Service\ConfigurationService::class);
-	//$CoreService = \OC::$server->get(\OCA\EAS\Service\CoreService::class);
+	$CoreService = \OC::$server->get(\OCA\EAS\Service\CoreService::class);
 	//$HarmonizationService = \OC::$server->get(\OCA\EAS\Service\HarmonizationService::class);
+	$RemoteCommonService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteCommonService::class);
 
 	// construct decoder
 	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
@@ -115,17 +116,12 @@ try {
 	// perform initial connect
 	$EasClient->performConnect();
 
-	// construct folder sync request
-	$msg_fs_rq_o = new \stdClass();
-	$msg_fs_rq_o->FolderSync = new \OCA\EAS\Utile\Eas\EasObject('FolderHierarchy');
-	$msg_fs_rq_o->FolderSync->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('FolderHierarchy', 0);
+	$msg_fs_rp_o = $RemoteCommonService->fetchFolders($EasClient);
 
-	$msg_fs_rq_r = $EasXmlEncoder->stringFromObject($msg_fs_rq_o);
-	$msg_fs_rq_h = unpack('H*', $msg_fs_rq_r)[1];
-
-	// perform command
-	$msg_fs_rp_r = $EasClient->performFolderSync($msg_fs_rq_r);
-	$msg_fs_rp_o = $EasXmlDecoder->stringToObject($msg_fs_rp_r);
+	exit;
+	//$SyncKey = $msg_fs_rp_o->Message->FolderSync->SyncKey->getContents();
+	$SyncKey = 0;
+	$CollectionId = 8;
 
 	/*
 	// construct folder sync request
@@ -204,27 +200,24 @@ try {
 	$msg_ref_hex = unpack('H*', $msg_ref_raw)[1];
 	*/
 
-	// construct folder sync request
+	// construct Sync request
 	$msg_sync_rq_o = new \stdClass();
 	$msg_sync_rq_o->Sync = new \OCA\EAS\Utile\Eas\EasObject('AirSync');
 	$msg_sync_rq_o->Sync->Collections = new \OCA\EAS\Utile\Eas\EasObject('AirSync');
 	$msg_sync_rq_o->Sync->Collections->Collection = new \OCA\EAS\Utile\Eas\EasObject('AirSync');
-	$msg_sync_rq_o->Sync->Collections->Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
-	$msg_sync_rq_o->Sync->Collections->Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 8);
-	$msg_sync_rq_o->Sync->Collections->Collection->GetChanges = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
-	$msg_sync_rq_o->Sync->Collections->Collection->DeletesAsMoves = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
+	$msg_sync_rq_o->Sync->Collections->Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', $SyncKey);
+	$msg_sync_rq_o->Sync->Collections->Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', $CollectionId);
+	$msg_sync_rq_o->Sync->Collections->Collection->GetChanges = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 1);
+	$msg_sync_rq_o->Sync->Collections->Collection->DeletesAsMoves = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 1);
 	$msg_sync_rq_o->Sync->Collections->Collection->WindowSize = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 32);
 	$msg_sync_rq_o->Sync->Collections->Collection->Options = new \OCA\EAS\Utile\Eas\EasObject('AirSync');
-	$msg_sync_rq_o->Sync->Collections->Collection->Options->FilterType = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
+	//$msg_sync_rq_o->Sync->Collections->Collection->Options->FilterType = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
 	//$msg_sync_rq_o->Sync->Collections->Collection->Options->MIMESupport = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 2);
 	//$msg_sync_rq_o->Sync->Collections->Collection->Options->MIMETruncation = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 8);
 	$msg_sync_rq_o->Sync->Collections->Collection->Options->BodyPreference = new \OCA\EAS\Utile\Eas\EasObject('AirSyncBase');
 	$msg_sync_rq_o->Sync->Collections->Collection->Options->BodyPreference->Type = new \OCA\EAS\Utile\Eas\EasProperty('AirSyncBase', 1);
 	$msg_sync_rq_o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new \OCA\EAS\Utile\Eas\EasProperty('AirSyncBase', 1);
-	$msg_sync_rq_o->Sync->WindowSize = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 32);
-
-	$msg_sync_rq_r = $EasXmlEncoder->stringFromObject($msg_sync_rq_o);
-	$msg_sync_rq_h = unpack('H*', $msg_sync_rq_r)[1];
+	//$msg_sync_rq_o->Sync->WindowSize = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 32);
 
 	/*
 	if ($msg_ref_raw != $msg_sync_raw) {
@@ -232,10 +225,49 @@ try {
 	}
 	*/
 
+	// encode command
+	$msg_sync_rq_r = $EasXmlEncoder->stringFromObject($msg_sync_rq_o);
+	// convert raw command to hex
+	//$msg_sync_rq_h = unpack('H*', $msg_sync_rq_r)[1];
 	// perform command
 	$msg_sync_rp_r = $EasClient->performSync($msg_sync_rq_r);
-	$msg_sync_rp_h = $EasXmlDecoder->stringToObject($msg_sync_rp_r);
+	// convert raw command to hex
+	//$msg_sync_rq_h = unpack('H*', $msg_sync_rq_r)[1];
+	// decode command
+	$msg_sync_rp_o = $EasXmlDecoder->stringToObject($msg_sync_rp_r);
+
+	// retrieve sync key
+	$SyncKey = $msg_sync_rp_o->Message->Sync->Collections->Collection->SyncKey->getContents();
+
+	// construct GetItemEstimate request
+	$msg_ie_rq_o = new \stdClass();
+	$msg_ie_rq_o->GetItemEstimate = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
+	$msg_ie_rq_o->GetItemEstimate->Collections = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
+	$msg_ie_rq_o->GetItemEstimate->Collections->Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
+	$msg_ie_rq_o->GetItemEstimate->Collections->Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', $CollectionId);
+	$msg_ie_rq_o->GetItemEstimate->Collections->Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', $SyncKey);
+
+	$msg_ie_rq_r = $EasXmlEncoder->stringFromObject($msg_ie_rq_o);
+	$msg_ie_rq_h = unpack('H*', $msg_fs_rq_r)[1];
+	// perform command
+	$msg_ie_rp_r = $EasClient->performGetItemEstimate($msg_ie_rq_r);
+	$msg_ie_rp_o = $EasXmlDecoder->stringToObject($msg_ie_rp_r);
+
+	// construst FolderSync command
+	// set sync key for sync command
+	$msg_sync_rq_o->Sync->Collections->Collection->SyncKey->setContents($SyncKey);
+	// encode command
+	//$msg_sync_rq_r = $EasXmlEncoder->stringFromObject($msg_sync_rq_o);
+	// convert raw command to hex
+	$msg_sync_rq_h = unpack('H*', $msg_sync_rq_r)[1];
+	// perform command
+	$msg_sync_rp_r = $EasClient->performSync($msg_sync_rq_r);
+	// convert raw command to hex
+	//$msg_sync_rq_h = unpack('H*', $msg_sync_rq_r)[1];
+	// decode command
+	$msg_sync_rp_o = $EasXmlDecoder->stringToObject($msg_sync_rp_r);
 	
+	$test = '';
 	/*
 	// construct folder sync request
 	$stream = fopen('php://temp', 'r+');
@@ -422,19 +454,19 @@ try {
 
 	*/
 
-	$logger->info('Test ended for ' . $uid, ['app' => 'integration_ews']);
+	$logger->info('Test ended for ' . $uid, ['app' => 'integration_eas']);
 	echo 'Test ended for ' . $uid . PHP_EOL;
 
 	exit();
 /*
 } catch (Exception $ex) {
-	$logger->logException($ex, ['app' => 'integration_ews']);
-	$logger->info('Test ended unexpectedly', ['app' => 'integration_ews']);
+	$logger->logException($ex, ['app' => 'integration_eas']);
+	$logger->info('Test ended unexpectedly', ['app' => 'integration_eas']);
 	echo $ex . PHP_EOL;
 	exit(1);
 } catch (Error $ex) {
-	$logger->logException($ex, ['app' => 'integration_ews']);
-	$logger->info('Test ended unexpectedly', ['app' => 'integration_ews']);
+	$logger->logException($ex, ['app' => 'integration_eas']);
+	$logger->info('Test ended unexpectedly', ['app' => 'integration_eas']);
 	echo $ex . PHP_EOL;
 	exit(1);
 }

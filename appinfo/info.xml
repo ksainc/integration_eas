@@ -1,27 +1,27 @@
 <?xml version="1.0"?>
 <info xmlns:xsi= "http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
     <id>integration_eas</id>
-    <name>EAS Connector</name>
+    <name>Exchange EAS Connector (Exchange Active Sync)</name>
     <summary>Exchange Server data sync with Nextcloud</summary>
-    <description><![CDATA[EWS Connector allows you to automatically sync your calendars and contacts with Nextcloud.]]></description>
+    <description><![CDATA[Exchange EAS Connector (Exchange Active Sync) allows you to automatically sync your calendars and contacts with Nextcloud.]]></description>
     <version>1.0.0-alpha</version>
     <licence>agpl</licence>
     <author mail="krupinski01@gmail.com">Sebastian Krupinski</author>
     <namespace>EAS</namespace>
     <documentation>
-        <developer>https://github.com/ksainc/integration_ews</developer>
+        <developer>https://github.com/ksainc/integration_eas</developer>
     </documentation>
     <category>integration</category>
     <website>https://github.com/ksainc/integration_eas</website>
     <discussion>https://github.com/ksainc/integration_eas/issues</discussion>
     <bugs>https://github.com/ksainc/integration_eas/issues</bugs>
     <repository>https://github.com/ksainc/integration_eas</repository>
-    <screenshot>https://github.com/ksainc/integration_eas/blob/main/img/EWS%20Notification%20Screen.png?raw=true</screenshot>
+    <screenshot>https://github.com/ksainc/integration_eas/blob/main/img/EAS%20Notification%20Screen.png?raw=true</screenshot>
     <dependencies>
         <php min-version="8.0" max-version="8.2"  min-int-size="64" />
-        <database min-version="9.4">pgsql</database>
+        <database>pgsql</database>
         <database>sqlite</database>
-        <database min-version="5.5">mysql</database>
+        <database>mysql</database>
         <command>php</command>
         <command>ps</command>
         <command>kill</command>

@@ -26,4 +26,4 @@ $appId = OCA\EAS\AppInfo\Application::APP_ID;
 \OCP\Util::addScript($appId, $appId . '-popupSuccess');
 ?>
 
-<div id="ews_settings"></div>
+<div id="eas_settings"></div>

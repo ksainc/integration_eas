@@ -37,7 +37,7 @@ use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\CorrelationsService;
 use OCA\EAS\Service\Local\LocalTasksService;
 use OCA\EAS\Service\Remote\RemoteTasksService;
-use OCA\EAS\Components\EWS\EWSClient;
+use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Objects\TaskObject;
 use OCA\EAS\Objects\HarmonizationStatisticsObject;
 
@@ -67,7 +67,7 @@ class TasksService {
 	 */
 	private $LocalFileStore;
 	/**
-	 * @var EWSClient
+	 * @var EasClient
 	 */
 	public $RemoteStore;
 	/**
@@ -351,7 +351,7 @@ class TasksService {
 				if ($this->Configuration->TasksPrevalence == 'L' || 
 					($this->Configuration->TasksPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteTasksService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteTasksService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -380,7 +380,7 @@ class TasksService {
 				if ($this->Configuration->TasksPrevalence == 'L' || 
 				   ($this->Configuration->TasksPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteTasksService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteTasksService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -404,7 +404,7 @@ class TasksService {
 			elseif ($ci instanceof \OCA\EAS\Db\Correlation && 
 					$ro->State == $ci->getrostate()) {
 				// delete all previous attachment(s) in remote store
-				// work around for missing update command in ews
+				// work around for missing update command in eas
 				$this->RemoteTasksService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 				// update remote object
 				$ro = $this->RemoteTasksService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -545,7 +545,7 @@ class TasksService {
 				if ($this->Configuration->TasksPrevalence == 'L' || 
 					($this->Configuration->TasksPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteTasksService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteTasksService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -574,7 +574,7 @@ class TasksService {
 				if ($this->Configuration->TasksPrevalence == 'L' || 
 				   ($this->Configuration->TasksPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
 					// delete all previous attachment(s) in remote store
-					// work around for missing update command in ews
+					// work around for missing update command in eas
 					$this->RemoteTasksService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
 					// update remote object
 					$ro = $this->RemoteTasksService->updateCollectionItem($rcid, $ro->ID, $lo);
@@ -718,7 +718,7 @@ class TasksService {
 
 		// create local collection
 		if (!isset($lcid)) {
-			$lco = $this->LocalTasksService->createCollection($configuration->UserId, 'ews-test', 'EWS Tasks', true);
+			$lco = $this->LocalTasksService->createCollection($configuration->UserId, 'eas-test', 'EWS Tasks', true);
 			$lcid = $lco->Id;
 		}
 		// create remote collection

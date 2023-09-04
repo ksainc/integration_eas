@@ -22,16 +22,16 @@
 -->
 
 <template>
-	<div id="ews_settings" class="section">
-		<div class="ews-section-heading">
-			<EwsIcon :size="32" /><h2> {{ t('integration_ews', 'EWS Connector') }}</h2>
+	<div id="eas_settings" class="section">
+		<div class="eas-section-heading">
+			<EwsIcon :size="32" /><h2> {{ t('integration_eas', 'EWS Connector') }}</h2>
 		</div>
-		<div class="ews-content">
-			<h3>{{ t('integration_ews', 'Authentication') }}</h3>
+		<div class="eas-content">
+			<h3>{{ t('integration_eas', 'Authentication') }}</h3>
 			<div v-if="state.account_connected !== '1'">
 				<div>
 					<label>
-						{{ t('integration_ews', 'Provider ') }}
+						{{ t('integration_eas', 'Provider ') }}
 					</label>
 					<NcSelect v-model="state.account_provider"
 						:reduce="item => item.id"
@@ -41,115 +41,115 @@
 				<div v-if="state.account_provider == 'MS365'">
 					<div class="fields">
 						<div v-if="state.system_ms365_authrization_uri === ''">
-							{{ t('integration_ews', 'No Microsoft Exchange 365 configuration missing. Ask your Nextcloud administrator to configure Microsoft Exchange 365 connected accounts admin section.') }}
+							{{ t('integration_eas', 'No Microsoft Exchange 365 configuration missing. Ask your Nextcloud administrator to configure Microsoft Exchange 365 connected accounts admin section.') }}
 						</div>
-						<div v-else class="ews-connect-ms365">
+						<div v-else class="eas-connect-ms365">
 							<label>
-								{{ t('integration_ews', 'Press connect and enter your account information') }}
+								{{ t('integration_eas', 'Press connect and enter your account information') }}
 							</label>
 							<NcButton @click="onConnectMS365Click">
 								<template #icon>
 									<CheckIcon />
 								</template>
-								{{ t('integration_ews', 'Connect') }}
+								{{ t('integration_eas', 'Connect') }}
 							</NcButton>
 						</div>
 					</div>
 				</div>
 				<div v-else>
 					<div class="settings-hint">
-						{{ t('integration_ews', 'Enter your Exchange Server and account information then press connect.') }}
+						{{ t('integration_eas', 'Enter your Exchange Server and account information then press connect.') }}
 					</div>
 					<div class="fields">
 						<div class="line">
-							<label for="ews-account-id">
+							<label for="eas-account-id">
 								<EwsIcon />
-								{{ t('integration_ews', 'Account ID') }}
+								{{ t('integration_eas', 'Account ID') }}
 							</label>
-							<input id="ews-account-id"
+							<input id="eas-account-id"
 								v-model="state.account_id"
 								type="text"
-								:placeholder="t('integration_ews', 'Authentication ID for your EWS Account')"
+								:placeholder="t('integration_eas', 'Authentication ID for your EWS Account')"
 								autocomplete="off"
 								autocorrect="off"
 								autocapitalize="none">
 						</div>
 						<div class="line">
-							<label for="ews-account-secret">
+							<label for="eas-account-secret">
 								<EwsIcon />
-								{{ t('integration_ews', 'Account Secret') }}
+								{{ t('integration_eas', 'Account Secret') }}
 							</label>
-							<input id="ews-account-secret"
+							<input id="eas-account-secret"
 								v-model="state.account_secret"
 								type="password"
-								:placeholder="t('integration_ews', 'Authentication secret for your EWS Account')"
+								:placeholder="t('integration_eas', 'Authentication secret for your EWS Account')"
 								autocomplete="off"
 								autocorrect="off"
 								autocapitalize="none">
 						</div>
 						<div v-if="configureManually" class="line">
-							<label for="ews-server">
+							<label for="eas-server">
 								<EwsIcon />
-								{{ t('integration_ews', 'Account Server') }}
+								{{ t('integration_eas', 'Account Server') }}
 							</label>
-							<input id="ews-server"
+							<input id="eas-server"
 								v-model="state.account_server"
 								type="text"
-								:placeholder="t('integration_ews', 'Account Server Address')"
+								:placeholder="t('integration_eas', 'Account Server Address')"
 								autocomplete="off"
 								autocorrect="off"
 								autocapitalize="none">
 						</div>
 						<div>
 							<NcCheckboxRadioSwitch :checked.sync="configureManually" type="switch">
-								{{ t('integration_ews', 'Configure server manually') }}
+								{{ t('integration_eas', 'Configure server manually') }}
 							</NcCheckboxRadioSwitch>
 						</div>
 						<div>
 							<NcCheckboxRadioSwitch :checked.sync="configureMail" type="switch">
-								{{ t('integration_ews', 'Configure mail app on successful connection') }}
+								{{ t('integration_eas', 'Configure mail app on successful connection') }}
 							</NcCheckboxRadioSwitch>
 						</div>
 						<div class="line">
-							<label class="ews-connect">
+							<label class="eas-connect">
 								&nbsp;
 							</label>
 							<NcButton @click="onConnectAlternateClick">
 								<template #icon>
 									<CheckIcon />
 								</template>
-								{{ t('integration_ews', 'Connect') }}
+								{{ t('integration_eas', 'Connect') }}
 							</NcButton>
 						</div>
 					</div>
 				</div>
 			</div>
 			<div v-else>
-				<div class="ews-connected">
+				<div class="eas-connected">
 					<EwsIcon />
 					<label>
-						{{ t('integration_ews', 'Connected as {0} to {1}', {0:state.account_id, 1:state.account_server}) }}
+						{{ t('integration_eas', 'Connected as {0} to {1}', {0:state.account_id, 1:state.account_server}) }}
 					</label>
 					<NcButton @click="onDisconnectClick">
 						<template #icon>
 							<CloseIcon />
 						</template>
-						{{ t('integration_ews', 'Disconnect') }}
+						{{ t('integration_eas', 'Disconnect') }}
 					</NcButton>
 				</div>
 				<div>
-					{{ t('integration_ews', 'Synchronization was last started on ') }} {{ formatDate(state.account_harmonization_start) }}
-					{{ t('integration_ews', 'and finished on ') }} {{ formatDate(state.account_harmonization_end) }}
+					{{ t('integration_eas', 'Synchronization was last started on ') }} {{ formatDate(state.account_harmonization_start) }}
+					{{ t('integration_eas', 'and finished on ') }} {{ formatDate(state.account_harmonization_end) }}
 				</div>
 				<br>
-				<div class="ews-correlations-contacts">
-					<h3>{{ t('integration_ews', 'Contacts') }}</h3>
+				<div class="eas-correlations-contacts">
+					<h3>{{ t('integration_eas', 'Contacts') }}</h3>
 					<div class="settings-hint">
-						{{ t('integration_ews', 'Select the remote contacts folder(s) you wish to synchronize by pressing the link button next to the contact folder name and selecting the local contacts address book to synchronize to.') }}
+						{{ t('integration_eas', 'Select the remote contacts folder(s) you wish to synchronize by pressing the link button next to the contact folder name and selecting the local contacts address book to synchronize to.') }}
 					</div>
 					<div v-if="state.system_contacts == 1">
 						<ul v-if="availableRemoteContactCollections.length > 0">
-							<li v-for="ritem in availableRemoteContactCollections" :key="ritem.id" class="ews-collectionlist-item">
+							<li v-for="ritem in availableRemoteContactCollections" :key="ritem.id" class="eas-collectionlist-item">
 								<ContactIcon />
 								<label>
 									{{ ritem.name }} ({{ ritem.count }} Contacts)
@@ -175,33 +175,33 @@
 							</li>
 						</ul>
 						<div v-else-if="availableRemoteContactCollections.length == 0">
-							{{ t('integration_ews', 'No contacts collections where found in the connected account.') }}
+							{{ t('integration_eas', 'No contacts collections where found in the connected account.') }}
 						</div>
 						<div v-else>
-							{{ t('integration_ews', 'Loading contacts collections from the connected account.') }}
+							{{ t('integration_eas', 'Loading contacts collections from the connected account.') }}
 						</div>
 						<br>
 						<div>
 							<label>
-								{{ t('integration_ews', 'Synchronize ') }}
+								{{ t('integration_eas', 'Synchronize ') }}
 							</label>
 							<NcSelect v-model="state.contacts_harmonize"
 								:reduce="item => item.id"
 								:options="[{label: 'Never', id: '-1'}, {label: 'Manually', id: '0'}, {label: 'Automatically', id: '5'}]" />
 							<label>
-								{{ t('integration_ews', 'and if there is a conflict') }}
+								{{ t('integration_eas', 'and if there is a conflict') }}
 							</label>
 							<NcSelect v-model="state.contacts_prevalence"
 								:reduce="item => item.id"
 								:options="[{label: 'Remote', id: 'R'}, {label: 'Local', id: 'L'}, {label: 'Chronology', id: 'C'}]" />
 							<label>
-								{{ t('integration_ews', 'prevails') }}
+								{{ t('integration_eas', 'prevails') }}
 							</label>
 						</div>
 						<br>
 						<div v-if="false" style="display: flex">
 							<label>
-								{{ t('integration_ews', 'Syncronized these local actions to the Remote system') }}
+								{{ t('integration_eas', 'Syncronized these local actions to the Remote system') }}
 							</label>
 							<NcCheckboxRadioSwitch :checked.sync="state.contacts_actions_local" value="c" name="contacts_actions_local">
 								Create
@@ -215,7 +215,7 @@
 						</div>
 						<div v-if="false" style="display: flex">
 							<label>
-								{{ t('integration_ews', 'Syncronized these remote actions to the local system') }}
+								{{ t('integration_eas', 'Syncronized these remote actions to the local system') }}
 							</label>
 							<NcCheckboxRadioSwitch :checked.sync="state.contacts_actions_remote" value="c" name="contacts_actions_remote">
 								Create
@@ -229,18 +229,18 @@
 						</div>
 					</div>
 					<div v-else>
-						{{ t('integration_ews', 'The contacts app is either disabled or not installed. Please contact your administrator to install or enable the app.') }}
+						{{ t('integration_eas', 'The contacts app is either disabled or not installed. Please contact your administrator to install or enable the app.') }}
 					</div>
 					<br>
 				</div>
-				<div class="ews-correlations-events">
-					<h3>{{ t('integration_ews', 'Calendars') }}</h3>
+				<div class="eas-correlations-events">
+					<h3>{{ t('integration_eas', 'Calendars') }}</h3>
 					<div class="settings-hint">
-						{{ t('integration_ews', 'Select the remote calendar(s) you wish to synchronize by pressing the link button next to the calendars name and selecting the local calendar to synchronize to.') }}
+						{{ t('integration_eas', 'Select the remote calendar(s) you wish to synchronize by pressing the link button next to the calendars name and selecting the local calendar to synchronize to.') }}
 					</div>
 					<div v-if="state.system_events == 1">
 						<ul v-if="availableRemoteEventCollections.length > 0">
-							<li v-for="ritem in availableRemoteEventCollections" :key="ritem.id" class="ews-collectionlist-item">
+							<li v-for="ritem in availableRemoteEventCollections" :key="ritem.id" class="eas-collectionlist-item">
 								<CalendarIcon />
 								<label>
 									{{ ritem.name }} ({{ ritem.count }} Events)
@@ -266,33 +266,33 @@
 							</li>
 						</ul>
 						<div v-else-if="availableRemoteEventCollections.length == 0">
-							{{ t('integration_ews', 'No events collections where found in the connected account.') }}
+							{{ t('integration_eas', 'No events collections where found in the connected account.') }}
 						</div>
 						<div v-else>
-							{{ t('integration_ews', 'Loading events collections from the connected account.') }}
+							{{ t('integration_eas', 'Loading events collections from the connected account.') }}
 						</div>
 						<br>
 						<div>
 							<label>
-								{{ t('integration_ews', 'Synchronize ') }}
+								{{ t('integration_eas', 'Synchronize ') }}
 							</label>
 							<NcSelect v-model="state.events_harmonize"
 								:reduce="item => item.id"
 								:options="[{label: 'Never', id: '-1'}, {label: 'Manually', id: '0'}, {label: 'Automatically', id: '5'}]" />
 							<label>
-								{{ t('integration_ews', 'and if there is a conflict') }}
+								{{ t('integration_eas', 'and if there is a conflict') }}
 							</label>
 							<NcSelect v-model="state.events_prevalence"
 								:reduce="item => item.id"
 								:options="[{label: 'Remote', id: 'R'}, {label: 'Local', id: 'L'}, {label: 'Chronology', id: 'C'}]" />
 							<label>
-								{{ t('integration_ews', 'prevails') }}
+								{{ t('integration_eas', 'prevails') }}
 							</label>
 						</div>
 						<br>
 						<div v-if="false" style="display: flex">
 							<label>
-								{{ t('integration_ews', 'Syncronized these local actions to the Remote system') }}
+								{{ t('integration_eas', 'Syncronized these local actions to the Remote system') }}
 							</label>
 							<NcCheckboxRadioSwitch :checked.sync="state.events_actions_local" value="c" name="events_actions_local">
 								Create
@@ -306,7 +306,7 @@
 						</div>
 						<div v-if="false" style="display: flex">
 							<label>
-								{{ t('integration_ews', 'Syncronized these remote actions to the local system') }}
+								{{ t('integration_eas', 'Syncronized these remote actions to the local system') }}
 							</label>
 							<NcCheckboxRadioSwitch :checked.sync="state.events_actions_remote" value="c" name="events_actions_remote">
 								Create
@@ -320,18 +320,18 @@
 						</div>
 					</div>
 					<div v-else>
-						{{ t('integration_ews', 'The contacts app is either disabled or not installed. Please contact your administrator to install or enable the app.') }}
+						{{ t('integration_eas', 'The contacts app is either disabled or not installed. Please contact your administrator to install or enable the app.') }}
 					</div>
 					<br>
 				</div>
-				<div class="ews-correlations-tasks">
-					<h3>{{ t('integration_ews', 'Tasks') }}</h3>
+				<div class="eas-correlations-tasks">
+					<h3>{{ t('integration_eas', 'Tasks') }}</h3>
 					<div class="settings-hint">
-						{{ t('integration_ews', 'Select the remote Task(s) folder you wish to synchronize by pressing the link button next to the folder name and selecting the local calendar to synchronize to.') }}
+						{{ t('integration_eas', 'Select the remote Task(s) folder you wish to synchronize by pressing the link button next to the folder name and selecting the local calendar to synchronize to.') }}
 					</div>
 					<div v-if="state.system_tasks == 1">
 						<ul v-if="availableRemoteTaskCollections.length > 0">
-							<li v-for="ritem in availableRemoteTaskCollections" :key="ritem.id" class="ews-collectionlist-item">
+							<li v-for="ritem in availableRemoteTaskCollections" :key="ritem.id" class="eas-collectionlist-item">
 								<CalendarIcon />
 								<label>
 									{{ ritem.name }} ({{ ritem.count }} Tasks)
@@ -357,33 +357,33 @@
 							</li>
 						</ul>
 						<div v-else-if="availableRemoteTaskCollections.length == 0">
-							{{ t('integration_ews', 'No tasks collections where found in the connected account.') }}
+							{{ t('integration_eas', 'No tasks collections where found in the connected account.') }}
 						</div>
 						<div v-else>
-							{{ t('integration_ews', 'Loading tasks collections from the connected account.') }}
+							{{ t('integration_eas', 'Loading tasks collections from the connected account.') }}
 						</div>
 						<br>
 						<div>
 							<label>
-								{{ t('integration_ews', 'Synchronize ') }}
+								{{ t('integration_eas', 'Synchronize ') }}
 							</label>
 							<NcSelect v-model="state.tasks_harmonize"
 								:reduce="item => item.id"
 								:options="[{label: 'Never', id: '-1'}, {label: 'Manually', id: '0'}, {label: 'Automatically', id: '5'}]" />
 							<label>
-								{{ t('integration_ews', 'and if there is a conflict') }}
+								{{ t('integration_eas', 'and if there is a conflict') }}
 							</label>
 							<NcSelect v-model="state.tasks_prevalence"
 								:reduce="item => item.id"
 								:options="[{label: 'Remote', id: 'R'}, {label: 'Local', id: 'L'}, {label: 'Chronology', id: 'C'}]" />
 							<label>
-								{{ t('integration_ews', 'prevails') }}
+								{{ t('integration_eas', 'prevails') }}
 							</label>
 						</div>
 						<br>
 						<div v-if="false" style="display: flex">
 							<label>
-								{{ t('integration_ews', 'Syncronized these local actions to the Remote system') }}
+								{{ t('integration_eas', 'Syncronized these local actions to the Remote system') }}
 							</label>
 							<NcCheckboxRadioSwitch :checked.sync="state.tasks_actions_local" value="c" name="tasks_actions_local">
 								Create
@@ -397,7 +397,7 @@
 						</div>
 						<div v-if="false" style="display: flex">
 							<label>
-								{{ t('integration_ews', 'Syncronized these remote actions to the local system') }}
+								{{ t('integration_eas', 'Syncronized these remote actions to the local system') }}
 							</label>
 							<NcCheckboxRadioSwitch :checked.sync="state.tasks_actions_remote" value="c" name="tasks_actions_remote">
 								Create
@@ -411,34 +411,34 @@
 						</div>
 					</div>
 					<div v-else>
-						{{ t('integration_ews', 'The contacts app is either disabled or not installed. Please contact your administrator to install or enable the app.') }}
+						{{ t('integration_eas', 'The contacts app is either disabled or not installed. Please contact your administrator to install or enable the app.') }}
 					</div>
 					<br>
 				</div>
-				<div class="ews-actions">
+				<div class="eas-actions">
 					<NcButton @click="onSaveClick()">
 						<template #icon>
 							<CheckIcon />
 						</template>
-						{{ t('integration_ews', 'Save') }}
+						{{ t('integration_eas', 'Save') }}
 					</NcButton>
 					<NcButton @click="onHarmonizeClick()">
 						<template #icon>
 							<LinkIcon />
 						</template>
-						{{ t('integration_ews', 'Sync') }}
+						{{ t('integration_eas', 'Sync') }}
 					</NcButton>
 					<NcButton @click="onTestClick('C')">
 						<template #icon>
 							<LinkIcon />
 						</template>
-						{{ t('integration_ews', 'Create Test Data') }}
+						{{ t('integration_eas', 'Create Test Data') }}
 					</NcButton>
 					<NcButton @click="onTestClick('D')">
 						<template #icon>
 							<LinkIcon />
 						</template>
-						{{ t('integration_ews', 'Delete Test Data') }}
+						{{ t('integration_eas', 'Delete Test Data') }}
 					</NcButton>
 				</div>
 			</div>
@@ -489,7 +489,7 @@ export default {
 	data() {
 		return {
 			readonly: true,
-			state: loadState('integration_ews', 'user-configuration'),
+			state: loadState('integration_eas', 'user-configuration'),
 			// contacts
 			availableRemoteContactCollections: [],
 			availableLocalContactCollections: [],
@@ -531,7 +531,7 @@ export default {
 			}
 		},
 		onConnectAlternateClick() {
-			const uri = generateUrl('/apps/integration_ews/connect-alternate')
+			const uri = generateUrl('/apps/integration_eas/connect-alternate')
 			const data = {
 				params: {
 					account_id: this.state.account_id,
@@ -551,7 +551,7 @@ export default {
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Failed to authenticate with EWS server')
+						t('integration_eas', 'Failed to authenticate with EWS server')
 						+ ': ' + error.response?.request?.responseText
 					)
 				})
@@ -571,7 +571,7 @@ export default {
 			})
 		},
 		onDisconnectClick() {
-			const uri = generateUrl('/apps/integration_ews/disconnect')
+			const uri = generateUrl('/apps/integration_eas/disconnect')
 			axios.get(uri)
 				.then((response) => {
 					showSuccess(('Successfully disconnected from EWS account'))
@@ -593,7 +593,7 @@ export default {
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Failed to disconnect from EWS account')
+						t('integration_eas', 'Failed to disconnect from EWS account')
 						+ ': ' + error.response?.request?.responseText
 					)
 				})
@@ -618,20 +618,20 @@ export default {
 			this.depositCorrelations()
 		},
 		onHarmonizeClick() {
-			const uri = generateUrl('/apps/integration_ews/harmonize')
+			const uri = generateUrl('/apps/integration_eas/harmonize')
 			axios.get(uri)
 				.then((response) => {
 					showSuccess('Synchronization Successful')
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Synchronization Failed')
+						t('integration_eas', 'Synchronization Failed')
 						+ ': ' + error.response?.request?.responseText
 					)
 				})
 		},
 		onTestClick(action) {
-			const uri = generateUrl('/apps/integration_ews/test')
+			const uri = generateUrl('/apps/integration_eas/test')
 			const data = {
 				params: {
 					action,
@@ -644,13 +644,13 @@ export default {
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Test Failed')
+						t('integration_eas', 'Test Failed')
 						+ ': ' + error.response?.request?.responseText
 					)
 				})
 		},
 		fetchRemoteCollections() {
-			const uri = generateUrl('/apps/integration_ews/fetch-remote-collections')
+			const uri = generateUrl('/apps/integration_eas/fetch-remote-collections')
 			axios.get(uri)
 				.then((response) => {
 					if (response.data.ContactCollections) {
@@ -668,7 +668,7 @@ export default {
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Failed to load remote collections list')
+						t('integration_eas', 'Failed to load remote collections list')
 						+ ': ' + error.response?.request?.responseText
 					)
 				})
@@ -676,7 +676,7 @@ export default {
 				})
 		},
 		fetchLocalCollections() {
-			const uri = generateUrl('/apps/integration_ews/fetch-local-collections')
+			const uri = generateUrl('/apps/integration_eas/fetch-local-collections')
 			axios.get(uri)
 				.then((response) => {
 					if (response.data.ContactCollections) {
@@ -694,7 +694,7 @@ export default {
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Failed to load local collections list')
+						t('integration_eas', 'Failed to load local collections list')
 						+ ': ' + error.response?.request?.responseText
 					)
 				})
@@ -702,7 +702,7 @@ export default {
 				})
 		},
 		fetchCorrelations() {
-			const uri = generateUrl('/apps/integration_ews/fetch-correlations')
+			const uri = generateUrl('/apps/integration_eas/fetch-correlations')
 			axios.get(uri)
 				.then((response) => {
 					if (response.data.ContactCorrelations) {
@@ -720,7 +720,7 @@ export default {
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Failed to load collection correlations list')
+						t('integration_eas', 'Failed to load collection correlations list')
 						+ ': ' + error.response?.request?.responseText
 					)
 				})
@@ -728,7 +728,7 @@ export default {
 				})
 		},
 		depositCorrelations() {
-			const uri = generateUrl('/apps/integration_ews/deposit-correlations')
+			const uri = generateUrl('/apps/integration_eas/deposit-correlations')
 			const data = {
 				ContactCorrelations: this.establishedContactCorrelations,
 				EventCorrelations: this.establishedEventCorrelations,
@@ -752,7 +752,7 @@ export default {
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Failed to save correlations') + ': ' + error.response?.request?.responseText
+						t('integration_eas', 'Failed to save correlations') + ': ' + error.response?.request?.responseText
 					)
 				})
 				.then(() => {
@@ -760,7 +760,7 @@ export default {
 
 		},
 		fetchPreferences() {
-			const uri = generateUrl('/apps/integration_ews/fetch-preferences')
+			const uri = generateUrl('/apps/integration_eas/fetch-preferences')
 			axios.get(uri)
 				.then((response) => {
 					if (response.data) {
@@ -769,7 +769,7 @@ export default {
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Failed to retrieve preferences')
+						t('integration_eas', 'Failed to retrieve preferences')
 						+ ': ' + error.response.request.responseText
 					)
 				})
@@ -780,14 +780,14 @@ export default {
 			const data = {
 				values,
 			}
-			const uri = generateUrl('/apps/integration_ews/deposit-preferences')
+			const uri = generateUrl('/apps/integration_eas/deposit-preferences')
 			axios.put(uri, data)
 				.then((response) => {
-					showSuccess(t('integration_ews', 'Saved preferences'))
+					showSuccess(t('integration_eas', 'Saved preferences'))
 				})
 				.catch((error) => {
 					showError(
-						t('integration_ews', 'Failed to save preferences')
+						t('integration_eas', 'Failed to save preferences')
 						+ ': ' + error.response.request.responseText
 					)
 				})
@@ -986,13 +986,13 @@ export default {
 </script>
 
 <style scoped lang="scss">
-#ews_settings {
-	.ews-section-heading {
+#eas_settings {
+	.eas-section-heading {
 		display:inline-block;
 		vertical-align:middle;
 	}
 
-	.ews-connected {
+	.eas-connected {
 		display: flex;
 		align-items: center;
 
@@ -1002,7 +1002,7 @@ export default {
 		}
 	}
 
-	.ews-collectionlist-item {
+	.eas-collectionlist-item {
 		display: flex;
 		align-items: center;
 
@@ -1012,7 +1012,7 @@ export default {
 		}
 	}
 
-	.ews-actions {
+	.eas-actions {
 		display: flex;
 		align-items: center;
 	}

@@ -330,10 +330,10 @@ class EasXmlDecoder{
 		],
 		// #7 FolderHierarchy
 		0x07 => [
-			0x05 => 'Folders',
-			0x06 => 'Folder',
-			0x07 => 'DisplayName',
-			0x08 => 'ServerEntryId',
+			0x05 => 'Collections',
+			0x06 => 'Collection',
+			0x07 => 'Name',
+			0x08 => 'Id',
 			0x09 => 'ParentId',
 			0x0A => 'Type',
 			0x0B => 'Response',

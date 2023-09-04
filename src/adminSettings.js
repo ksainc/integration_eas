@@ -28,6 +28,6 @@ import AdminSettings from './components/AdminSettings.vue'
 
 // eslint-disable-next-line
 new Vue({
-	el: '#ews_settings',
+	el: '#eas_settings',
 	render: h => h(AdminSettings),
 })

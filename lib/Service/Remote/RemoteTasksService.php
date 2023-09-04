@@ -32,7 +32,7 @@ use Psr\Log\LoggerInterface;
 
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
-use OCA\EAS\Components\EWS\EWSClient;
+use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Components\EWS\Type\TaskType;
 use OCA\EAS\Objects\TaskCollectionObject;
 use OCA\EAS\Objects\TaskObject;
@@ -56,9 +56,9 @@ class RemoteTasksService {
 	 */
 	public ?DateTimeZone $UserTimeZone = null;
 	/**
-	 * @var EWSClient
+	 * @var EasClient
 	 */
-	public ?EWSClient $DataStore = null;
+	public ?EasClient $DataStore = null;
 	/**
 	 * @var Object
 	 */
@@ -320,7 +320,7 @@ class RemoteTasksService {
         }
 		// Start Date/Time
         if (!empty($so->StartsOn)) {
-			// ews wants the date time in UTC
+			// eas wants the date time in UTC
 			// clone start date
 			$dt = clone $so->StartsOn;
 			// change timezone on cloned date
@@ -332,7 +332,7 @@ class RemoteTasksService {
         }
 		// Due Date/Time
 		if (!empty($so->DueOn)) {
-			// ews wants the date time in UTC
+			// eas wants the date time in UTC
 			// clone end date
 			$dt = clone $so->DueOn;
 			// change timezone on cloned date
@@ -344,7 +344,7 @@ class RemoteTasksService {
 		}
 		// Conpleted Date/Time
 		if (!empty($so->CompletedOn)) {
-			// ews wants the date time in UTC
+			// eas wants the date time in UTC
 			// clone end date
 			$dt = clone $so->CompletedOn;
 			// change timezone on cloned date

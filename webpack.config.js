@@ -12,7 +12,7 @@ webpackConfig.stats = {
 	modules: false,
 }
 
-const appId = 'integration_ews'
+const appId = 'integration_eas'
 webpackConfig.entry = {
 	adminSettings: { import: path.join(__dirname, 'src', 'adminSettings.js'), filename: appId + '-adminSettings.js' },
 	userSettings: { import: path.join(__dirname, 'src', 'userSettings.js'), filename: appId + '-userSettings.js' },

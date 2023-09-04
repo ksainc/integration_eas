@@ -44,7 +44,7 @@ class Harmonize extends Command {
 
 	protected function configure() {
 		$this
-			->setName('ews:harmonize')
+			->setName('eas:harmonize')
 			->setDescription('Harmonizies a users contacts and calendar correlations')
             ->addArgument('user',
 				InputArgument::REQUIRED,

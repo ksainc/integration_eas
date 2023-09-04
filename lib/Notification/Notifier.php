@@ -71,7 +71,7 @@ class Notifier implements INotifier {
 	 * @since 17.0.0
 	 */
 	public function getID(): string {
-		return 'integration_ews';
+		return 'integration_eas';
 	}
 	/**
 	 * Human readable name describing the notifier
@@ -80,7 +80,7 @@ class Notifier implements INotifier {
 	 * @since 17.0.0
 	 */
 	public function getName(): string {
-		return $this->factory->get('integration_ews')->t('EWS Connector');
+		return $this->factory->get('integration_eas')->t('EWS Connector');
 	}
 
 	/**
@@ -91,12 +91,12 @@ class Notifier implements INotifier {
 	 * @since 9.0.0
 	 */
 	public function prepare(INotification $notification, string $languageCode): INotification {
-		if ($notification->getApp() !== 'integration_ews') {
+		if ($notification->getApp() !== 'integration_eas') {
 			// Not my app => throw
 			throw new InvalidArgumentException();
 		}
 
-		$l = $this->factory->get('integration_ews', $languageCode);
+		$l = $this->factory->get('integration_eas', $languageCode);
 
 		switch ($notification->getSubject()) {
 		case 'contacts_harmonized':

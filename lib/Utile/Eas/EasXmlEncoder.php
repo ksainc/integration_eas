@@ -317,23 +317,23 @@ class EasXmlEncoder{
 		],
 		// #6 GetItemEstimate
 		0x06 => [
-			0x05 => 'GetItemEstimate',
-			0x06 => 'Version',    // 12.1
-			0x07 => 'Folders',
-			0x08 => 'Folder',
-			0x09 => 'FolderType', // 12.1
-			0x0a => 'FolderId',
-			0x0b => 'DateTime',   // 12.1
-			0x0c => 'Estimate',
-			0x0d => 'Response',
-			0x0e => 'Status',
+			'GetItemEstimate' => 0x05,
+			'Version' => 0x06,    // 12.1
+			'Collections' => 0x07,
+			'Collection' => 0x08,
+			'CollectionClass' => 0x09, // 12.1
+			'CollectionId' => 0x0A,
+			'DateTime' => 0x0B,   // 12.1
+			'Estimate' => 0x0C,
+			'Response' => 0x0D,
+			'Status' => 0x0E,
 		],
 		// #7 FolderHierarchy
 		0x07 => [
-			'Folders' => 0x05,
-			'Folder' => 0x06,
-			'DisplayName' => 0x07,
-			'ServerEntryId' => 0x08,
+			'Collections' => 0x05,
+			'Collection' => 0x06,
+			'Name' => 0x07,
+			'Id' => 0x08,
 			'ParentId' => 0x09,
 			'Type' => 0x0a,
 			'Response' => 0x0b,

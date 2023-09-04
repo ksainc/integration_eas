@@ -32,30 +32,40 @@ use Psr\Log\LoggerInterface;
 
 use OCA\EAS\AppInfo\Application;
 
-use OCA\EAS\Components\EWS\EWSClient;
-use OCA\EAS\Components\EWS\Enumeration\ContainmentComparisonType;
-use OCA\EAS\Components\EWS\Enumeration\ContainmentModeType;
-use OCA\EAS\Components\EWS\Enumeration\DefaultShapeNamesType;
-use OCA\EAS\Components\EWS\Enumeration\DistinguishedFolderIdNameType;
-use OCA\EAS\Components\EWS\Enumeration\FolderQueryTraversalType;
-use OCA\EAS\Components\EWS\Enumeration\ResponseClassType;
-use OCA\EAS\Components\EWS\Enumeration\UnindexedFieldURIType;
+use OCA\EAS\Utile\Eas\EasClient;
+use OCA\EAS\Utile\Eas\EasXmlEncoder;
+use OCA\EAS\Utile\Eas\EasXmlDecoder;
 
 
 class RemoteCommonService {
 
-	const PS_PUBLIC_STRINGS	= '00020329-0000-0000-C000-000000000046';
+	const CONTACTS_COLLECTION_TYPE = '8';
+	const CALENDAR_COLLECTION_TYPE = '9';
+	const TASKS_COLLECTION_TYPE = '9';
+	const NOTES_COLLECTION_TYPE = '10';
+
 	/**
 	 * @var LoggerInterface
 	 */
 	private $logger;
+	/**
+	 * @var EasXmlEncoder
+	 */
+	private $_encoder;
+	/**
+	 * @var EasXmlDecoder
+	 */
+	private $_decoder;
 
 	/**
 	 * Service to make requests to Ews v3 (JSON) API
 	 */
-	public function __construct (string $appName,
-								LoggerInterface $logger) {
+	public function __construct (string $appName, LoggerInterface $logger) {
+
 		$this->logger = $logger;
+		$this->_encoder = new EasXmlEncoder();
+		$this->_decoder = new EasXmlDecoder();
+
 	}
 
 	/**
@@ -63,54 +73,32 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
-	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
-	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
+	 * @param EasClient $DataStore		Storage Interface
 	 * 
-	 * @return object Folder Object on success / Null on failure
+	 * @return object Folder List Object on success / Null on failure
 	 */
-	public function fetchFolders(EWSClient $DataStore, string $base = 'D', object $additional = null): ?object {
+	public function fetchFolders(EasClient $DataStore): ?object {
 		
-		// construct the request
-		$request = new \OCA\EAS\Components\EWS\Type\FindFolderType();
-		// define start
-		$request->ParentFolderIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseFolderIdsType();
-		$request->ParentFolderIds->DistinguishedFolderId[] = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType('root');
-		// define recursion
-		$request->Traversal = 'Deep';
-		// define required base properties
-		$request->FolderShape = new \OCA\EAS\Components\EWS\Type\FolderResponseShapeType();
-		if ($base == 'A') {
-			$request->FolderShape->BaseShape = 'AllProperties';
-		}
-		elseif ($base == 'I') {
-			$request->FolderShape->BaseShape = 'IdOnly';
-		}
-		else  {
-			$request->FolderShape->BaseShape = 'Default';
-		}
-		// define required additional properties
-		if ($additional instanceof \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType) {
-			$request->FolderShape->AdditionalProperties = $additional;
-		}
+		// construct command
+		$o = new \stdClass();
+		$o->FolderSync = new \OCA\EAS\Utile\Eas\EasObject('FolderHierarchy');
+		$o->FolderSync->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('FolderHierarchy', '0');
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$response = $DataStore->FindFolder($request);
-		// process response
-		$response = $response->ResponseMessages->FindFolderResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = $response_data->RootFolder->Folders;
-			}
+		$rs = $DataStore->performFolderSync($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			// return response message
+			return (object) ['Count' => $o->Message->FolderSync->Changes->Count,'Collections' => $o->Message->FolderSync->Changes->Add];
 		}
-		// return object or null
-		return $data;
-
+		else {
+			// return blank response
+			return null;
+		}
+		
 	}
 
 	/**
@@ -118,66 +106,16 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $type - Folder Type
 	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
 	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
 	 * 
 	 * @return object Folder Object on success / Null on failure
 	 */
-	public function fetchFoldersByType(EWSClient $DataStore, string $type, string $base = 'D', object $additional = null, string $source = 'U'): ?object {
+	public function fetchFoldersByType(EasClient $DataStore, string $type, string $base = 'D', object $additional = null, string $source = 'U'): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\FindFolderType();
-		$request->FolderShape = new \OCA\EAS\Components\EWS\Type\FolderResponseShapeType();
-		// define start
-		$request->ParentFolderIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseFolderIdsType();
-		if ($source == 'P') {
-			$request->ParentFolderIds->DistinguishedFolderId[] = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType('publicfoldersroot');
-		}
-		else {
-			$request->ParentFolderIds->DistinguishedFolderId[] = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType('msgfolderroot');
-		}
-		
-		// define recursion
-		$request->Traversal = 'Deep';
-		// define required base properties
-		if ($base == 'A') {
-			$request->FolderShape->BaseShape = 'AllProperties';
-		}
-		elseif ($base == 'I') {
-			$request->FolderShape->BaseShape = 'IdOnly';
-		}
-		else  {
-			$request->FolderShape->BaseShape = 'Default';
-		}
-		// define required additional properties
-		if ($additional instanceof \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType) {
-			$request->FolderShape->AdditionalProperties = $additional;
-		}
-		// define search criteria
-		$request->Restriction = new \OCA\EAS\Components\EWS\Type\RestrictionType();
-		$request->Restriction->IsEqualTo = new \OCA\EAS\Components\EWS\Type\IsEqualToType();
-		$request->Restriction->IsEqualTo->FieldURI = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:FolderClass');
-		$request->Restriction->IsEqualTo->FieldURIOrConstant = new \OCA\EAS\Components\EWS\Type\FieldURIOrConstantType();
-		$request->Restriction->IsEqualTo->FieldURIOrConstant->Constant = new \OCA\EAS\Components\EWS\Type\ConstantValueType($type);
-		// execute request
-		$response = $DataStore->FindFolder($request);
-		// process response
-		$response = $response->ResponseMessages->FindFolderResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = $response_data->RootFolder->Folders;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -186,7 +124,7 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $fid - Folder ID
 	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
 	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
@@ -194,48 +132,9 @@ class RemoteCommonService {
 	 * 
 	 * @return object Folder Object on success / Null on failure
 	 */
-	public function fetchFolder(EWSClient $DataStore, string $fid, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
+	public function fetchFolder(EasClient $DataStore, string $fid, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\GetFolderType();
-		// define target
-		$request->FolderIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseFolderIdsType();
-		if ($ftype) {
-			$request->FolderIds->DistinguishedFolderId[] = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType($fid);
-		} else {
-			$request->FolderIds->FolderId[] = new \OCA\EAS\Components\EWS\Type\FolderIdType($fid);
-		}
-		// define required base properties
-		$request->FolderShape = new \OCA\EAS\Components\EWS\Type\FolderResponseShapeType();
-		if ($base == 'A') {
-			$request->FolderShape->BaseShape = 'AllProperties';
-		}
-		elseif ($base == 'I') {
-			$request->FolderShape->BaseShape = 'IdOnly';
-		}
-		else  {
-			$request->FolderShape->BaseShape = 'Default';
-		}
-		// define required additional properties
-		if ($additional instanceof \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType) {
-			$request->FolderShape->AdditionalProperties = $additional;
-		}
-		// execute request
-		$response = $DataStore->GetFolder($request);
-		$response = $response->ResponseMessages->GetFolderResponseMessage;
-		// process response
-		$data = null;
-		foreach ($response as $response_data) {
-			// make sure the request succeeded.
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-			} else {
-				$data = $response_data->Folders;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -244,56 +143,15 @@ class RemoteCommonService {
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $fid - Folder ID
 	 * @param string $fid - Item Data
 	 * 
 	 * @return object Folders Object on success / Null on failure
 	 */
-	public function createFolder(EWSClient $DataStore, string $fid, object $data, bool $ftype = false): ?object {
+	public function createFolder(EasClient $DataStore, string $fid, object $data, bool $ftype = false): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\CreateFolderType();
-		// define target
-		$request->ParentFolderId = new \OCA\EAS\Components\EWS\Type\TargetFolderIdType();
-		if ($ftype) {
-			$request->ParentFolderId->DistinguishedFolderId = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType($fid);
-		} else {
-			$request->ParentFolderId->FolderId = new \OCA\EAS\Components\EWS\Type\FolderIdType($fid);
-		}
-		// define object to create
-		$request->Folders = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfFoldersType();
-		if ($data instanceof \OCA\EAS\Components\EWS\Type\CalendarFolderType) {
-			$request->Folders->CalendarFolder[] = $data;
-		}
-		elseif ($data instanceof \OCA\EAS\Components\EWS\Type\ContactsFolderType) {
-			$request->Folders->ContactsFolder[] = $data;
-		}
-		elseif ($data instanceof \OCA\EAS\Components\EWS\Type\FolderType) {
-			$request->Folders->Folder[] = $data;
-		}
-		elseif ($data instanceof \OCA\EAS\Components\EWS\Type\SearchFolderType) {
-			$request->Folders->SearchFolder[] = $data;
-		}
-		elseif ($data instanceof \OCA\EAS\Components\EWS\Type\TasksFolderType) {
-			$request->Folders->TasksFolder[] = $data;
-		}
-		// execute request
-		$response = $DataStore->CreateFolder($request);
-		// process response
-		$response = $response->ResponseMessages->CreateFolderResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// make sure the request succeeded.
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-			} else {
-				$data = $response_data->Folders;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -302,36 +160,15 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $ids - Collection Id's List
 	 * @param string $type - 
 	 * 
 	 * @return object Attachement Collection Object on success / Null on failure
 	 */
-	public function deleteFolder(EWSClient $DataStore, array $batch = null, string $type = 'SoftDelete'): ?bool {
+	public function deleteFolder(EasClient $DataStore, array $batch = null, string $type = 'SoftDelete'): ?bool {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\DeleteFolderType();
-		$request->DeleteType = $type;
-		// define objects to delete
-		$request->FolderIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseFolderIdsType($batch);
-		// execute request
-		$response = $DataStore->DeleteFolder($request);
-		// process response
-		$response = $response->ResponseMessages->DeleteFolderResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = true;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -340,7 +177,7 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $fid - Folder ID
 	 * @param string $state - Folder Synchronization State
 	 * @param bool $ftype - Folder ID Type (True - Distinguished / False - Normal)
@@ -350,91 +187,9 @@ class RemoteCommonService {
 	 * 
 	 * @return object Folder Changes Object on success / Null on failure
 	 */
-	public function fetchFolderChanges(EWSClient $DataStore, string $fid, string $state, bool $ftype = false, int $max = 512, string $base = 'I', object $additional = null): object {
+	public function fetchFolderChanges(EasClient $DataStore, string $fid, string $state, bool $ftype = false, int $max = 512, string $base = 'I', object $additional = null): object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\SyncFolderItemsType();
-		// define target
-		$request->SyncFolderId = new \OCA\EAS\Components\EWS\Type\TargetFolderIdType();
-		if ($ftype) {
-			$request->SyncFolderId->DistinguishedFolderId = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType($fid);
-		} else {
-			$request->SyncFolderId->FolderId = new \OCA\EAS\Components\EWS\Type\FolderIdType($fid);
-		}
-		// define start
-		$request->SyncState = $state;
-		$request->MaxChangesReturned = $max;
-		// define required base properties
-		$request->ItemShape = new \OCA\EAS\Components\EWS\Type\ItemResponseShapeType();
-		if ($base == 'A') {
-			$request->ItemShape->BaseShape = 'AllProperties';
-		}
-		elseif ($base == 'I') {
-			$request->ItemShape->BaseShape = 'IdOnly';
-		}
-		else  {
-			$request->ItemShape->BaseShape = 'Default';
-		}
-		// define required additional properties
-		if ($additional instanceof \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType) {
-			$request->ItemShape->AdditionalProperties = $additional;
-		}
-		else {
-			$request->ItemShape->AdditionalProperties = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-		}
-		// define required essential properties
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:id',
-			null,
-			'String'
-		);
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:uid',
-			null,
-			'String'
-		);
-		/*
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			null,
-			null,
-			null,
-			null,
-			'0x3007',
-			'SystemTime'
-		);
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			null,
-			null,
-			null,
-			null,
-			'0x3008',
-			'SystemTime'
-		);
-		*/
-		// execute request
-		$response = $DataStore->SyncFolderItems($request);
-		// process response
-		$response = $response->ResponseMessages->SyncFolderItemsResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = $response_data->Changes;
-				$data->SyncToken = $response_data->SyncState;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -443,59 +198,16 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $fid - Folder ID
 	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
 	 * @param string $ioff - Items Offset
 	 * 
 	 * @return object Item Object on success / Null on failure
 	 */
-	public function fetchItemsIds(EWSClient $DataStore, string $fid, bool $ftype = false, int $ioff = 0): ?object {
+	public function fetchItemsIds(EasClient $DataStore, string $fid, bool $ftype = false, int $ioff = 0): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\FindItemType();
-		// define target
-		$request->ParentFolderIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseFolderIdsType();
-		if ($ftype) {
-			$request->ParentFolderIds->DistinguishedFolderId[] = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType($fid);
-		} else {
-			$request->ParentFolderIds->FolderId[] = new \OCA\EAS\Components\EWS\Type\FolderIdType($fid);
-		}
-		// define recursion
-		$request->Traversal = 'Shallow';
-		// define required base properties
-		$request->ItemShape = new \OCA\EAS\Components\EWS\Type\ItemResponseShapeType();
-		$request->ItemShape->BaseShape = 'IdOnly';
-		// define required additional properties
-		$request->ItemShape->AdditionalProperties = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-		// define required essential properties
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:uid',
-			null,
-			'String'
-		);
-		// define paging
-		$request->IndexedPageItemView = new \OCA\EAS\Components\EWS\Type\IndexedPageViewType('Beginning', $ioff, 512);
-		// execute request
-		$response = $DataStore->FindItem($request);
-		// process response
-		$response = $response->ResponseMessages->FindItemResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// make sure the request succeeded.
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = $response_data->RootFolder->Items;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -504,7 +216,7 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $uuid - Item UUID
 	 * @param string $fid - Folder ID
 	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
@@ -513,93 +225,9 @@ class RemoteCommonService {
 	 * 
 	 * @return object Item Object on success / Null on failure
 	 */
-	public function findItem(EWSClient $DataStore, string $fid, object $restriction, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
+	public function findItem(EasClient $DataStore, string $fid, object $restriction, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\FindItemType();
-		// define target
-		$request->ParentFolderIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseFolderIdsType();
-		if ($ftype) {
-			$request->ParentFolderIds->DistinguishedFolderId[] = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType($fid);
-		} else {
-			$request->ParentFolderIds->FolderId[] = new \OCA\EAS\Components\EWS\Type\FolderIdType($fid);
-		}
-		// define recursion
-		$request->Traversal = 'Shallow';
-		// define required base properties
-		$request->ItemShape = new \OCA\EAS\Components\EWS\Type\ItemResponseShapeType();
-		if ($base == 'A') {
-			$request->ItemShape->BaseShape = 'AllProperties';
-		}
-		elseif ($base == 'I') {
-			$request->ItemShape->BaseShape = 'IdOnly';
-		}
-		else  {
-			$request->ItemShape->BaseShape = 'Default';
-		}
-		// define required additional properties
-		if ($additional instanceof \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType) {
-			$request->ItemShape->AdditionalProperties = $additional;
-		}
-		else {
-			$request->ItemShape->AdditionalProperties = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-		}
-		// define required essential properties
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:id',
-			null,
-			'String'
-		);
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:uid',
-			null,
-			'String'
-		);
-		/*
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			null,
-			null,
-			null,
-			null,
-			'0x3007',
-			'SystemTime'
-		);
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			null,
-			null,
-			null,
-			null,
-			'0x3008',
-			'SystemTime'
-		);
-		*/
-		// define paging
-		$request->IndexedPageItemView = new \OCA\EAS\Components\EWS\Type\IndexedPageViewType('Beginning', 0, 512);
-		// define criteria
-		$request->Restriction = $restriction;
-		// execute request
-		$response = $DataStore->FindItem($request);
-		// process response
-		$response = $response->ResponseMessages->FindItemResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = $response_data->RootFolder->Items;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -608,7 +236,7 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $uuid - Item UUID
 	 * @param string $fid - Folder ID
 	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
@@ -617,106 +245,9 @@ class RemoteCommonService {
 	 * 
 	 * @return array Item Object on success / Null on failure
 	 */
-	public function findItemByUUID(EWSClient $DataStore, string $fid, string $uuid, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
+	public function findItemByUUID(EasClient $DataStore, string $fid, string $uuid, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\FindItemType();
-		// define target
-		$request->ParentFolderIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseFolderIdsType();
-		if ($ftype) {
-			$request->ParentFolderIds->DistinguishedFolderId[] = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType($fid);
-		} else {
-			$request->ParentFolderIds->FolderId[] = new \OCA\EAS\Components\EWS\Type\FolderIdType($fid);
-		}
-		// define recursion
-		$request->Traversal = 'Shallow';
-		// define required base properties
-		$request->ItemShape = new \OCA\EAS\Components\EWS\Type\ItemResponseShapeType();
-		if ($base == 'A') {
-			$request->ItemShape->BaseShape = 'AllProperties';
-		}
-		elseif ($base == 'I') {
-			$request->ItemShape->BaseShape = 'IdOnly';
-		}
-		else  {
-			$request->ItemShape->BaseShape = 'Default';
-		}
-		// define required additional properties
-		if ($additional instanceof \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType) {
-			$request->ItemShape->AdditionalProperties = $additional;
-		}
-		else {
-			$request->ItemShape->AdditionalProperties = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-		}
-		// define required essential properties
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:id',
-			null,
-			'String'
-		);
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:uid',
-			null,
-			'String'
-		);
-		/*
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			null,
-			null,
-			null,
-			null,
-			'0x3007',
-			'SystemTime'
-		);
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			null,
-			null,
-			null,
-			null,
-			'0x3008',
-			'SystemTime'
-		);
-		*/
-		// define paging
-		$request->IndexedPageItemView = new \OCA\EAS\Components\EWS\Type\IndexedPageViewType('Beginning', 0, 512);
-		// define criteria
-		$request->Restriction = new \OCA\EAS\Components\EWS\Type\RestrictionType();
-		$request->Restriction->IsEqualTo = new \OCA\EAS\Components\EWS\Type\IsEqualToType();
-		$request->Restriction->IsEqualTo->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:uid',
-			null,
-			'String'
-		);
-		$request->Restriction->IsEqualTo->FieldURIOrConstant = new \OCA\EAS\Components\EWS\Type\FieldURIOrConstantType();
-		$request->Restriction->IsEqualTo->FieldURIOrConstant->Constant = new \OCA\EAS\Components\EWS\Type\ConstantValueType($uuid);
-		// execute request
-		$response = $DataStore->FindItem($request);
-		// process response
-		$response = $response->ResponseMessages->FindItemResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				if (isset($response_data->RootFolder->Items)) {
-					$data = $response_data->RootFolder->Items;
-				}
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -725,90 +256,16 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param array $ioc - Collection of Id Objects
 	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
 	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
 	 * 
 	 * @return object Item Object on success / Null on failure
 	 */
-	public function fetchItem(EWSClient $DataStore, array $ioc, string $base = 'D', object $additional = null): ?object {
+	public function fetchItem(EasClient $DataStore, array $ioc, string $base = 'D', object $additional = null): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\GetItemType();
-		// define target
-		$request->ItemIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseItemIdsType();
-		$request->ItemIds->ItemId = $ioc;
-		// define required base properties
-		$request->ItemShape = new \OCA\EAS\Components\EWS\Type\ItemResponseShapeType();
-		if ($base == 'A') {
-			$request->ItemShape->BaseShape = 'AllProperties';
-		}
-		elseif ($base == 'I') {
-			$request->ItemShape->BaseShape = 'IdOnly';
-		}
-		else  {
-			$request->ItemShape->BaseShape = 'Default';
-		}
-		// define required additional properties
-		if ($additional instanceof \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType) {
-			$request->ItemShape->AdditionalProperties = $additional;
-		}
-		else {
-			$request->ItemShape->AdditionalProperties = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-		}
-		// define required essential properties
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:id',
-			null,
-			'String'
-		);
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			'PublicStrings',
-			null,
-			null,
-			'DAV:uid',
-			null,
-			'String'
-		);
-		/*
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			null,
-			null,
-			null,
-			null,
-			'0x3007',
-			'SystemTime'
-		);
-		$request->ItemShape->AdditionalProperties->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
-			null,
-			null,
-			null,
-			null,
-			'0x3008',
-			'SystemTime'
-		);
-		*/
-		// execute request
-		$response = $DataStore->GetItem($request);
-		// process response
-		$response = $response->ResponseMessages->GetItemResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = $response_data->Items;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -817,53 +274,15 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $fid - Folder ID
 	 * @param string $fid - Item Data
 	 * 
 	 * @return object Attachement Collection Object on success / Null on failure
 	 */
-	public function createItem(EWSClient $DataStore, string $fid, object $data): ?object {
+	public function createItem(EasClient $DataStore, string $fid, object $data): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\CreateItemType();
-		$request->SendMeetingInvitations = 'SendToNone';
-		// define target
-		$request->SavedItemFolderId = new \OCA\EAS\Components\EWS\Type\TargetFolderIdType();
-		$request->SavedItemFolderId->FolderId = new \OCA\EAS\Components\EWS\Type\FolderIdType($fid);
-		// define objects to create
-		$request->Items = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfAllItemsType();
-		if (is_a($data, 'OCA\EAS\Components\EWS\Type\ContactItemType')) {
-			$request->Items->Contact[] = $data;
-		}
-		elseif (is_a($data, 'OCA\EAS\Components\EWS\Type\CalendarItemType')) {
-			$request->Items->CalendarItem[] = $data;
-		}
-		elseif (is_a($data, 'OCA\EAS\Components\EWS\Type\TaskType')) {
-			$request->Items->Task[] = $data;
-		}
-		// execute request
-		$response = $DataStore->CreateItem($request);
-		// process response
-		$response = $response->ResponseMessages->CreateItemResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// make sure the request succeeded.
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				foreach ($response_data->Items as $items) {
-					if (count($items) > 0) {
-						$data = $items[0];
-						break;
-					}
-				}
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -872,7 +291,7 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $fid - Folder ID
 	 * @param string $iid - Item ID
 	 * @param string $a - Item Append Commands
@@ -881,42 +300,9 @@ class RemoteCommonService {
 	 * 
 	 * @return object Items Array on success / Null on failure
 	 */
-	public function updateItem(EWSClient $DataStore, string $fid, string $iid, array $additions = null, array $modifications = null, array $deletions = null): ?object {
+	public function updateItem(EasClient $DataStore, string $fid, string $iid, array $additions = null, array $modifications = null, array $deletions = null): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\UpdateItemType();
-		$request->ConflictResolution = 'AlwaysOverwrite';
-		$request->SendMeetingInvitationsOrCancellations = 'SendToNone';
-		// define target folder
-		$request->SavedItemFolderId = new \OCA\EAS\Components\EWS\Type\TargetFolderIdType();
-		$request->SavedItemFolderId->FolderId = new \OCA\EAS\Components\EWS\Type\FolderIdType($fid);
-		// define target object and changes
-		$request->ItemChanges[] = new \OCA\EAS\Components\EWS\Type\ItemChangeType(
-			new \OCA\EAS\Components\EWS\Type\ItemIdType($iid),
-			new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfItemChangeDescriptionsType($additions, $modifications, $deletions)
-		);
-		// execute request
-		$response = $DataStore->UpdateItem($request);
-		// process response
-		$response = $response->ResponseMessages->UpdateItemResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				foreach ($response_data->Items as $items) {
-					if (count($items) > 0) {
-						$data = $items[0];
-						break;
-					}
-				}
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -925,37 +311,15 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $ids - Item ID's Array
 	 * @param string $fid - Item Data
 	 * 
 	 * @return object Attachement Collection Object on success / Null on failure
 	 */
-	public function deleteItem(EWSClient $DataStore, array $ids = null, string $type = 'SoftDelete'): ?bool {
+	public function deleteItem(EasClient $DataStore, array $ids = null, string $type = 'SoftDelete'): ?bool {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\DeleteItemType();
-		$request->SendMeetingCancellations = 'SendToNone';
-		$request->DeleteType = $type;
-		// define objects to delete
-		$request->ItemIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseItemIdsType($ids);
-		// execute request
-		$response = $DataStore->DeleteItem($request);
-		// process response
-		$response = $response->ResponseMessages->DeleteItemResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = true;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -964,37 +328,14 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $ids - Attachement ID's (array)
 	 * 
 	 * @return object Attachement Collection Object on success / Null on failure
 	 */
-	public function fetchAttachment(EWSClient $DataStore, array $batch): ?array {
+	public function fetchAttachment(EasClient $DataStore, array $batch): ?array {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\GetAttachmentType();
-		// define target(s)
-		$request->AttachmentIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfRequestAttachmentIdsType();
-		foreach ($batch as $entry) {
-			$request->AttachmentIds->AttachmentId[] = new \OCA\EAS\Components\EWS\Type\RequestAttachmentIdType((String) $entry);
-		}
-		// execute request
-		$response = $DataStore->GetAttachment($request);
-		// process response
-		$response = $response->ResponseMessages->GetAttachmentResponseMessage;
-		$data = array();
-		foreach ($response as $entry) {
-			// make sure the request succeeded.
-			if ($entry->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $entry->ResponseCode;
-				$message = $entry->MessageText;
-				continue;
-			} else {
-				$data = array_merge($data, (array) $entry->Attachments->FileAttachment, (array) $entry->Attachments->ItemAttachment);
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -1003,41 +344,14 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param array $batch - Collection of FileAttachmentType Objects
 	 * 
 	 * @return object Attachement Collection Object on success / Null on failure
 	 */
-	public function createAttachment(EWSClient $DataStore, string $iid, array $batch): array {
-		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\CreateAttachmentType();
-		// define target
-		$request->ParentItemId = new \OCA\EAS\Components\EWS\Type\ItemIdType($iid);
-		// define objects to create
-		$request->Attachments = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfAttachmentsType();
-		foreach ($batch as $entry) {
-			if (is_a($entry, 'OCA\EAS\Components\EWS\Type\FileAttachmentType')) {
-				$request->Attachments->FileAttachment[] = $entry;
-			}
-		}
-		// execute request
-		$response = $DataStore->CreateAttachment($request);
-		// process response
-		$response = $response->ResponseMessages->CreateAttachmentResponseMessage;
-		$data = array();
-		foreach ($response as $entry) {
-			// make sure the request succeeded.
-			if ($entry->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $entry->ResponseCode;
-				$message = $entry->MessageText;
-				continue;
-			} else {
-				$data = array_merge($data, (array) $entry->Attachments->FileAttachment, (array) $entry->Attachments->ItemAttachment);
-			}
-		}
-		// return object or null
-		return $data;
+	public function createAttachment(EasClient $DataStore, string $iid, array $batch): array {
+
+		return null;
 
 	}
 
@@ -1046,36 +360,14 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param array $batch - Collection of String Attachemnt Id(s)
 	 * 
 	 * @return object Attachement Collection Object on success / Null on failure
 	 */
-	public function deleteAttachment(EWSClient $DataStore, array $batch): array {
+	public function deleteAttachment(EasClient $DataStore, array $batch): array {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\DeleteAttachmentType();
-		// define target(s) to delete
-		$request->AttachmentIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfRequestAttachmentIdsType();
-		foreach ($batch as $entry) {
-			$request->AttachmentIds->AttachmentId[] = new \OCA\EAS\Components\EWS\Type\RequestAttachmentIdType((String) $entry);
-		}
-		// execute request
-		$response = $DataStore->DeleteAttachment($request);
-		// process response
-		$response = $response->ResponseMessages->DeleteAttachmentResponseMessage;
-		// construct result collection
-		$data = array();
-		foreach ($response as $key => $entry) {
-			// make sure the request succeeded.
-			if ($entry->ResponseClass != ResponseClassType::SUCCESS) {
-				$data[] = array('Id' => $batch[$key], 'Status' => false, 'reason' => $entry->MessageText);
-			} else {
-				$data[] = array('Id' => $batch[$key], 'Status' => true);
-			}
-		}
-		// return result collection
-		return $data;
+		return null;
 
 	}
 
@@ -1084,39 +376,16 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $uuid - Item UUID
 	 * @param string $fid - Folder ID
 	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
 	 * 
 	 * @return object Item Object on success / Null on failure
 	 */
-	public function fetchTimeZone(EWSClient $DataStore, string $zone = null): ?object {
+	public function fetchTimeZone(EasClient $DataStore, string $zone = null): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\GetServerTimeZonesType();
-		// define target
-		if (!empty($zone)) {
-			$request->Ids = \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfTimeZoneIdType();
-			$request->Ids->Id[] = $zone;
-		}
-		// execute request
-		$response = $DataStore->GetServerTimeZones($request);
-		// process response
-		$response = $response->ResponseMessages->GetServerTimeZonesResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = $response_data->TimeZoneDefinitions;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -1125,53 +394,13 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * 
 	 * @return object Items Object on success / Null on failure
 	 */
-	public function connectEvents(EWSClient $DataStore, int $duration, array $ids = null, array $dids = null, array $types = null): ?object {
+	public function connectEvents(EasClient $DataStore, int $duration, array $ids = null, array $dids = null, array $types = null): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\SubscribeType();
-		$request->PullSubscriptionRequest = new \OCA\EAS\Components\EWS\Type\PullSubscriptionRequestType();
-		$request->PullSubscriptionRequest->FolderIds = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfBaseFolderIdsType();
-		$request->PullSubscriptionRequest->EventTypes = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfNotificationEventTypesType();
-		$request->PullSubscriptionRequest->Timeout = $duration;
-		// define target(s)
-		if (isset($ids)) {
-			foreach ($ids as $entry) {
-				$request->PullSubscriptionRequest->FolderIds->FolderId[] = new \OCA\EAS\Components\EWS\Type\FolderIdType($entry);
-			}
-		}
-		if (isset($dids)) {
-			foreach ($dids as $entry) {
-				$request->PullSubscriptionRequest->FolderIds->DistinguishedFolderId[] = new \OCA\EAS\Components\EWS\Type\DistinguishedFolderIdType($entry);
-			}
-		}
-		// define types(s)
-		if (isset($types)) {
-			$request->PullSubscriptionRequest->EventTypes->EventType = $types;
-		}
-		else {
-			$request->PullSubscriptionRequest->EventTypes->EventType = ['CreatedEvent', 'ModifiedEvent', 'DeletedEvent', 'CopiedEvent', 'MovedEvent'];
-		}
-		// execute request
-		$response = $DataStore->Subscribe($request);
-		// process response
-		$response = $response->ResponseMessages->SubscribeResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = (object) ['Id' => $response_data->SubscriptionId, 'Token' => $response_data->Watermark];
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -1180,32 +409,13 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * 
 	 * @return object Items Object on success / Null on failure
 	 */
-	public function disconnectEvents(EWSClient $DataStore, string $id): ?bool {
+	public function disconnectEvents(EasClient $DataStore, string $id): ?bool {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\UnsubscribeType();
-		$request->SubscriptionId = $id;
-		// execute request
-		$response = $DataStore->Unsubscribe($request);
-		// process response
-		$response = $response->ResponseMessages->UnsubscribeResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = true;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 
@@ -1214,33 +424,13 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EWSClient $DataStore - Storage Interface
+	 * @param EasClient $DataStore - Storage Interface
 	 * 
 	 * @return object Items Object on success / Null on failure
 	 */
-	public function fetchEvents(EWSClient $DataStore, string $id, string $token): ?object {
+	public function fetchEvents(EasClient $DataStore, string $id, string $token): ?object {
 		
-		// construct request
-		$request = new \OCA\EAS\Components\EWS\Request\GetEventsType();
-		$request->SubscriptionId = $id;
-		$request->Watermark = $token;
-		// execute request
-		$response = $DataStore->GetEvents($request);
-		// process response
-		$response = $response->ResponseMessages->GetEventsResponseMessage;
-		$data = null;
-		foreach ($response as $response_data) {
-			// check response for failure
-			if ($response_data->ResponseClass != ResponseClassType::SUCCESS) {
-				$code = $response_data->ResponseCode;
-				$message = $response_data->MessageText;
-				continue;
-			} else {
-				$data = $response_data->Notification;
-			}
-		}
-		// return object or null
-		return $data;
+		return null;
 
 	}
 

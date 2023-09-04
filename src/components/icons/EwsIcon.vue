@@ -1,7 +1,7 @@
 <template>
 	<span :aria-hidden="!title"
 		:aria-label="title"
-		class="ews-icon"
+		class="eas-icon"
 		role="img"
 		v-bind="$attrs"
 		@click="$emit('click', $event)">

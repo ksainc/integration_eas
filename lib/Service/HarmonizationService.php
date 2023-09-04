@@ -33,7 +33,7 @@ use OCA\DAV\CardDAV\CardDavBackend;
 use OCA\DAV\CalDAV\CalDavBackend;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Components\EWS\EWSClient;
+use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Service\ConfigurationService;
 use OCA\EAS\Service\CoreService;
 use OCA\EAS\Service\CorrelationsService;

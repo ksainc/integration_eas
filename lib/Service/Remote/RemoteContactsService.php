@@ -33,7 +33,7 @@ use Psr\Log\LoggerInterface;
 
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
-use OCA\EAS\Components\EWS\EWSClient;
+use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Components\EWS\Type\ContactItemType;
 use OCA\EAS\Objects\ContactCollectionObject;
 use OCA\EAS\Objects\ContactObject;
@@ -49,9 +49,9 @@ class RemoteContactsService {
 	 */
 	private $RemoteCommonService;
 	/**
-	 * @var EWSClient
+	 * @var EasClient
 	 */
-	public ?EWSClient $DataStore = null;
+	public ?EasClient $DataStore = null;
     /**
 	 * @var Object
 	 */

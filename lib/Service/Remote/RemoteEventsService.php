@@ -32,7 +32,7 @@ use Psr\Log\LoggerInterface;
 
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
-use OCA\EAS\Components\EWS\EWSClient;
+use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Components\EWS\Type\CalendarItemType;
 use OCA\EAS\Objects\EventCollectionObject;
 use OCA\EAS\Objects\EventObject;
@@ -56,9 +56,9 @@ class RemoteEventsService {
 	 */
 	public ?DateTimeZone $UserTimeZone = null;
 	/**
-	 * @var EWSClient
+	 * @var EasClient
 	 */
-	public ?EWSClient $DataStore = null;
+	public ?EasClient $DataStore = null;
 	/**
 	 * @var Object
 	 */
@@ -321,7 +321,7 @@ class RemoteEventsService {
         }
 		// Start Date/Time
         if (!empty($so->StartsOn)) {
-			// ews wants the date time in UTC
+			// eas wants the date time in UTC
 			// clone start date
 			$dt = clone $so->StartsOn;
 			// change timezone on cloned date
@@ -353,7 +353,7 @@ class RemoteEventsService {
         }
 		// End Date/Time
 		if (!empty($so->EndsOn)) {
-			// ews wants the date time in UTC
+			// eas wants the date time in UTC
 			// clone end date
 			$dt = clone $so->EndsOn;
 			// change timezone on cloned date
@@ -2012,7 +2012,7 @@ class RemoteEventsService {
      * 
      * @since Release 1.0.0
      * 
-     * @param string $zone  ews time zone name
+     * @param string $zone  eas time zone name
      * 
      * @return DateTimeZone valid DateTimeZone object on success, or null on failure
      */
