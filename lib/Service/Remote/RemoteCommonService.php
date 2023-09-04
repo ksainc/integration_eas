@@ -35,6 +35,8 @@ use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Utile\Eas\EasXmlEncoder;
 use OCA\EAS\Utile\Eas\EasXmlDecoder;
+use OCA\EAS\Utile\Eas\EasObject;
+use OCA\EAS\Utile\Eas\EasProperty;
 
 
 class RemoteCommonService {
@@ -77,12 +79,141 @@ class RemoteCommonService {
 	 * 
 	 * @return object Folder List Object on success / Null on failure
 	 */
+	public function provisionInit(EasClient $DataStore, string $model, string $name, string $agent): ?object {
+		
+		// construct provision command
+		$o = new \stdClass();
+		$o->Provision = new EasObject('Provision');
+		$o->Provision->Policies = new EasObject('Provision');
+		$o->Provision->Policies->Policy = new EasObject('Provision');
+		$o->Provision->Policies->Policy->PolicyType = new EasProperty('Provision', 'MS-EAS-Provisioning-WBXML');
+		$o->Provision->DeviceInformation = new EasObject('Settings');
+		$o->Provision->DeviceInformation->Set = new EasObject('Settings');
+		$o->Provision->DeviceInformation->Set->Model = new EasProperty('Settings', $model);
+		$o->Provision->DeviceInformation->Set->FriendlyName = new EasProperty('Settings', $name);
+		$o->Provision->DeviceInformation->Set->UserAgent = new EasProperty('Settings', $agent);
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performProvision($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			$o = $o->Message;
+
+			switch ($o->Provision->DeviceInformation->Status->getContents()) {
+				case '2':
+					throw new Exception("The parent folder already contains a folder with the same name. Create the folder under a different name.", 2);
+					break;
+				case '3':
+					throw new Exception("The specified parent folder is a special system folder. Create the folder under a different parent.", 3);
+					break;
+				case '5':
+					throw new Exception("The parent folder does not exist on the server, possibly because it has been deleted or moved.", 5);
+					break;
+				case '6':
+					throw new Exception("An error occurred on the server.", 6);
+					break;
+				case '9':
+					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
+					break;
+				case '10':
+					throw new Exception("Incorrectly formatted request.", 10);
+					break;
+				case '11':
+				case '12':
+					throw new Exception("An unknown error occurred.", 11);
+					break;
+			}
+
+			return $o->Message;
+		}
+		else {
+			// return blank response
+			return null;
+		}
+		
+	}
+
+	/**
+     * retrieve list of all folders starting with root folder from remote storage
+     * 
+     * @since Release 1.0.0
+     * 
+	 * @param EasClient $DataStore		Storage Interface
+	 * 
+	 * @return object Folder List Object on success / Null on failure
+	 */
+	public function provisionAccept(EasClient $DataStore, string $token): ?object {
+		
+		// construct provision command
+		$o = new \stdClass();
+		$o->Provision = new EasObject('Provision');
+		$o->Provision->Policies = new EasObject('Provision');
+		$o->Provision->Policies->Policy = new EasObject('Provision');
+		$o->Provision->Policies->Policy->Status = new EasProperty('Provision', 1);
+		$o->Provision->Policies->Policy->PolicyKey = new EasProperty('Provision', $token);
+		$o->Provision->Policies->Policy->PolicyType = new EasProperty('Provision', 'MS-EAS-Provisioning-WBXML');
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performProvision($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			$o = $o->Message;
+
+			switch ($o->Provision->Status->getContents()) {
+				case '2':
+					throw new Exception("The parent folder already contains a folder with the same name. Create the folder under a different name.", 2);
+					break;
+				case '3':
+					throw new Exception("The specified parent folder is a special system folder. Create the folder under a different parent.", 3);
+					break;
+				case '5':
+					throw new Exception("The parent folder does not exist on the server, possibly because it has been deleted or moved.", 5);
+					break;
+				case '6':
+					throw new Exception("An error occurred on the server.", 6);
+					break;
+				case '9':
+					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
+					break;
+				case '10':
+					throw new Exception("Incorrectly formatted request.", 10);
+					break;
+				case '11':
+				case '12':
+					throw new Exception("An unknown error occurred.", 11);
+					break;
+			}
+
+			return $o->Message;
+		}
+		else {
+			// return blank response
+			return null;
+		}
+		
+	}
+
+	/**
+     * retrieve list of all folders starting with root folder from remote storage
+     * 
+     * @since Release 1.0.0
+     * 
+	 * @param EasClient $DataStore		Storage Interface
+	 * 
+	 * @return object Folder List Object on success / Null on failure
+	 */
 	public function fetchFolders(EasClient $DataStore): ?object {
 		
 		// construct command
 		$o = new \stdClass();
-		$o->FolderSync = new \OCA\EAS\Utile\Eas\EasObject('FolderHierarchy');
-		$o->FolderSync->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('FolderHierarchy', '0');
+		$o->FolderSync = new EasObject('FolderHierarchy');
+		$o->FolderSync->SyncKey = new EasProperty('FolderHierarchy', '0');
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
@@ -149,9 +280,56 @@ class RemoteCommonService {
 	 * 
 	 * @return object Folders Object on success / Null on failure
 	 */
-	public function createFolder(EasClient $DataStore, string $fid, object $data, bool $ftype = false): ?object {
-		
-		return null;
+	public function createFolder(EasClient $DataStore, string $cid, string $name, string $type): ?object {
+
+		// construct command
+		$o = new \stdClass();
+		$o->FolderCreate = new EasObject('FolderHierarchy');
+		//$o->FolderCreate->SyncKey = new EasProperty('FolderHierarchy', '0');
+		$o->FolderCreate->ParentId = new EasProperty('FolderHierarchy', $cid);
+		$o->FolderCreate->Name = new EasProperty('FolderHierarchy', $name);
+		$o->FolderCreate->Type = new EasProperty('FolderHierarchy', $type);
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performFolderCreate($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			$o = $o->Message;
+
+			switch ($o->FolderCreate->Status->getContents()) {
+				case '2':
+					throw new Exception("The parent folder already contains a folder with the same name. Create the folder under a different name.", 2);
+					break;
+				case '3':
+					throw new Exception("The specified parent folder is a special system folder. Create the folder under a different parent.", 3);
+					break;
+				case '5':
+					throw new Exception("The parent folder does not exist on the server, possibly because it has been deleted or moved.", 5);
+					break;
+				case '6':
+					throw new Exception("An error occurred on the server.", 6);
+					break;
+				case '9':
+					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
+					break;
+				case '10':
+					throw new Exception("Incorrectly formatted request.", 10);
+					break;
+				case '11':
+				case '12':
+					throw new Exception("An unknown error occurred.", 11);
+					break;
+			}
+
+			return $o->Message;
+		}
+		else {
+			// return blank response
+			return null;
+		}
 
 	}
 
@@ -160,15 +338,122 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $ids - Collection Id's List
-	 * @param string $type - 
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cid				Id
 	 * 
 	 * @return object Attachement Collection Object on success / Null on failure
 	 */
-	public function deleteFolder(EasClient $DataStore, array $batch = null, string $type = 'SoftDelete'): ?bool {
+	public function deleteFolder(EasClient $DataStore, string $cid): ?bool {
 		
-		return null;
+		// construct command
+		$o = new \stdClass();
+		$o->FolderDelete = new EasObject('FolderHierarchy');
+		//$o->FolderDelete->SyncKey = new EasProperty('FolderHierarchy', '0');
+		$o->FolderDelete->Id = new EasProperty('FolderHierarchy', $cid);
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performFolderDelete($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			$o = $o->Message;
+
+			switch ($o->FolderDelete->Status->getContents()) {
+				case '3':
+					throw new Exception("The specified folder is a special system folder and cannot be deleted.", 3);
+					break;
+				case '4':
+					throw new Exception("The specified folder does not exist.", 4);
+					break;
+				case '6':
+					throw new Exception("An error occurred on the server.", 6);
+					break;
+				case '9':
+					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
+					break;
+				case '10':
+					throw new Exception("Incorrectly formatted request.", 10);
+					break;
+				case '11':
+				case '12':
+					throw new Exception("An unknown error occurred.", 11);
+					break;
+			}
+
+			return true;
+		}
+		else {
+			// return blank response
+			return null;
+		}
+
+	}
+
+	/**
+     * update folder in remote storage
+	 * 
+     * @since Release 1.0.0
+     * 
+	 * @param EasClient $DataStore - Storage Interface
+	 * @param string $fid - Folder ID
+	 * 
+	 * @return object Folders Object on success / Null on failure
+	 */
+	public function updateFolder(EasClient $DataStore, string $cid, string $pid, string $name, string $type): ?object {
+
+		// construct command
+		$o = new \stdClass();
+		$o->FolderUpdate = new EasObject('FolderHierarchy');
+		//$o->FolderCreate->SyncKey = new EasProperty('FolderHierarchy', '0');
+		$o->FolderUpdate->ParentId = new EasProperty('FolderHierarchy', $pid);
+		$o->FolderUpdate->Id = new EasProperty('FolderHierarchy', $cid);
+		$o->FolderUpdate->Name = new EasProperty('FolderHierarchy', $name);
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performFolderUpdate($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			$o = $o->Message;
+
+			switch ($o->FolderUpdate->Status->getContents()) {
+				case '2':
+					throw new Exception("A folder with that name already exists or the specified folder is a special folder.", 2);
+					break;
+				case '3':
+					throw new Exception("The specified folder is a special folder. Special folders cannot be updated.", 3);
+					break;
+				case '4':
+					throw new Exception("The specified folder does not exist.", 4);
+					break;
+				case '5':
+					throw new Exception("The specified parent folder does not exist.", 5);
+					break;
+				case '6':
+					throw new Exception("An error occurred on the server.", 6);
+					break;
+				case '9':
+					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
+					break;
+				case '10':
+					throw new Exception("Incorrectly formatted request.", 10);
+					break;
+				case '11':
+				case '12':
+					throw new Exception("An unknown error occurred.", 11);
+					break;
+			}
+
+			return $o->Message;
+		}
+		else {
+			// return blank response
+			return null;
+		}
 
 	}
 
@@ -187,10 +472,102 @@ class RemoteCommonService {
 	 * 
 	 * @return object Folder Changes Object on success / Null on failure
 	 */
-	public function fetchFolderChanges(EasClient $DataStore, string $fid, string $state, bool $ftype = false, int $max = 512, string $base = 'I', object $additional = null): object {
+	public function fetchFolderChanges(EasClient $DataStore, string $cid, string $state, int $filter, int $max = 32): object {
 		
-		return null;
+		// construct Sync request
+		$o = new \stdClass();
+		$o->Sync = new EasObject('AirSync');
+		$o->Sync->Collections = new EasObject('AirSync');
+		$o->Sync->Collections->Collection = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
+		$o->Sync->Collections->Collection->CollectionId = new EasProperty('AirSync', $cid);
+		$o->Sync->Collections->Collection->GetChanges = new EasProperty('AirSync', 1);
+		$o->Sync->Collections->Collection->DeletesAsMoves = new EasProperty('AirSync', 1);
+		$o->Sync->Collections->Collection->WindowSize = new EasProperty('AirSync', $max);
+		$o->Sync->Collections->Collection->Options = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Options->FilterType = new EasProperty('AirSync', $filter);
+		//$o->Sync->Collections->Collection->Options->MIMESupport = new EasProperty('AirSync', 2);
+		//$o->Sync->Collections->Collection->Options->MIMETruncation = new EasProperty('AirSync', 8);
+		$o->Sync->Collections->Collection->Options->BodyPreference = new EasObject('AirSyncBase');
+		$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', 1);
+		$o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
+		$o->Sync->WindowSize = new EasProperty('AirSync', $max);
 
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performSync($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			$o = $o->Message;
+
+			if (isset($o->Sync->Status)) {
+				switch ($o->Sync->Status->getContents()) {
+					case '6':
+						throw new Exception("An error occurred on the server.", 6);
+						break;
+					case '9':
+						throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
+						break;
+					case '10':
+						throw new Exception("Incorrectly formatted request.", 10);
+						break;
+					case '11':
+					case '12':
+						throw new Exception("An unknown error occurred.", 11);
+						break;
+				}
+			}
+			
+			return $o;
+		}
+		else {
+			// return blank response
+			return null;
+		}
+
+	}
+
+	/**
+     * retrieve list of all folders starting with root folder from remote storage
+     * 
+     * @since Release 1.0.0
+     * 
+	 * @param EasClient $DataStore		Storage Interface
+	 * 
+	 * @return object Folder List Object on success / Null on failure
+	 */
+	public function fetchFolderEstimate(EasClient $DataStore, string $fid, string $state): ?object {
+	
+		// construct GetItemEstimate request
+		$o = new \stdClass();
+		$o->GetItemEstimate = new EasObject('GetItemEstimate');
+		$o->GetItemEstimate->Collections = new EasObject('GetItemEstimate');
+		
+			$o->GetItemEstimate->Collections->Collection = new EasObject('GetItemEstimate');
+			$o->GetItemEstimate->Collections->Collection->CollectionId = new EasProperty('GetItemEstimate', $fid);
+			$o->GetItemEstimate->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
+		
+		
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performGetItemEstimate($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			$o = $o->Message;
+			// return response message
+			return $o;
+		}
+		else {
+			// return blank response
+			return null;
+		}
+		
 	}
 
 	/**

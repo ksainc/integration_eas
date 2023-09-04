@@ -37,18 +37,20 @@ use OCA\DAV\CardDAV\CardDavBackend;
 use OCA\DAV\CalDAV\CalDavBackend;
 
 use OCA\EAS\AppInfo\Application;
-//use OCA\EAS\Utile\EWS\Autodiscover;
+//use OCA\EAS\Utile\Eas\Autodiscover;
 use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Service\ConfigurationService;
 use OCA\EAS\Service\CorrelationsService;
-use OCA\EAS\Service\ContactsService;
 /*
+use OCA\EAS\Service\ContactsService;
 use OCA\EAS\Service\EventsService;
 use OCA\EAS\Service\TasksService;
 use OCA\EAS\Service\HarmonizationThreadService;
+*/
 use OCA\EAS\Service\Local\LocalContactsService;
 use OCA\EAS\Service\Local\LocalEventsService;
 use OCA\EAS\Service\Local\LocalTasksService;
+/*
 use OCA\EAS\Service\Remote\RemoteContactsService;
 use OCA\EAS\Service\Remote\RemoteEventsService;
 use OCA\EAS\Service\Remote\RemoteTasksService;
@@ -132,9 +134,11 @@ class CoreService {
 								CorrelationsService $CorrelationsService,
 								/*
 								HarmonizationThreadService $HarmonizationThreadService,
+								*/
 								LocalContactsService $LocalContactsService,
 								LocalEventsService $LocalEventsService,
 								LocalTasksService $LocalTasksService,
+								/*
 								RemoteContactsService $RemoteContactsService,
 								RemoteEventsService $RemoteEventsService,
 								RemoteTasksService $RemoteTasksService,
@@ -154,9 +158,11 @@ class CoreService {
 		$this->CorrelationsService = $CorrelationsService;
 		/*
 		$this->HarmonizationThreadService = $HarmonizationThreadService;
+		*/
 		$this->LocalContactsService = $LocalContactsService;
 		$this->LocalEventsService = $LocalEventsService;
 		$this->LocalTasksService = $LocalTasksService;
+		/*
 		$this->RemoteContactsService = $RemoteContactsService;
 		$this->RemoteEventsService = $RemoteEventsService;
 		$this->RemoteTasksService = $RemoteTasksService;
@@ -166,8 +172,8 @@ class CoreService {
 		$this->ContactsService = $ContactsService;
 		$this->EventsService = $EventsService;
 		$this->TasksService = $TasksService;
-		$this->LocalContactsStore = $CardDavBackend;
 		*/
+		$this->LocalContactsStore = $CardDavBackend;
 		$this->LocalEventsStore = $CalDavBackend;
 		$this->LocalTasksStore = $CalDavBackend;
 
@@ -581,13 +587,13 @@ class CoreService {
 		foreach ($response->Collections as $Collection) {
 			switch ($Collection->Type->getContents()) {
 				case RemoteCommonService::CONTACTS_COLLECTION_TYPE:
-					$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>$Collection->Name->getContents(),'count'=>''];
+					$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
 					break;
 				case RemoteCommonService::CALENDAR_COLLECTION_TYPE:
-					$data['EventCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>$Collection->Name->getContents(),'count'=>''];
+					$data['EventCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
 					break;
 				case RemoteCommonService::TASKS_COLLECTION_TYPE:
-					$data['TaskCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>$Collection->Name->getContents(),'count'=>''];
+					$data['TaskCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
 					break;
 			}
 		}

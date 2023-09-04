@@ -56,7 +56,7 @@ class Microsoft365 {
                 'client_id' => $aid,
                 'client_secret' => $asecret,
                 'grant_type' => 'authorization_code',
-                'scope' => 'https://outlook.office.com/EWS.AccessAsUser.All offline_access',
+                'scope' => 'https://outlook.office.com/EAS.AccessAsUser.All offline_access',
                 'redirect_uri' => $UrlGenerator->getAbsoluteURL('/apps/integration_eas/connect-ms365'),
                 'code' => $code,
             ],
@@ -102,7 +102,7 @@ class Microsoft365 {
                 'client_id' => $aid,
                 'client_secret' => $asecret,
                 'grant_type' => 'refresh_token',
-                'scope' => 'https://outlook.office.com/EWS.AccessAsUser.All offline_access',
+                'scope' => 'https://outlook.office.com/EAS.AccessAsUser.All offline_access',
                 'refresh_token' => $code,
             ],
         ]);
@@ -133,7 +133,7 @@ class Microsoft365 {
         return 'https://login.microsoftonline.com/' . $tid . '/oauth2/v2.0/authorize' .
 				'?client_id=' . urlencode($aid) . 
 				'&response_type=code' . 
-				'&scope=' . urlencode('https://outlook.office.com/EWS.AccessAsUser.All') .
+				'&scope=' . urlencode('https://outlook.office.com/EAS.AccessAsUser.All') .
 				'&redirect_uri=' . urlencode($UrlGenerator->getAbsoluteURL('/apps/integration_eas/connect-ms365'));
             }
 

@@ -134,19 +134,16 @@ class RemoteContactsService {
 	 * 
 	 * @return ContactCollectionObject
 	 */
-	public function createCollection(string $cid, string $name, bool $ctype = false): ?ContactCollectionObject {
+	public function createCollection(string $cid, string $name): ?ContactCollectionObject {
         
-		// construct command object
-		$cc = new \OCA\EAS\Utile\Eas\Type\ContactsFolderType();
-		$cc->DisplayName = $name;
 		// execute command
-		$cr = $this->RemoteCommonService->createFolder($this->DataStore, $cid, $cc, $ctype);
+		$rs = $RemoteCommonService->createFolder($EasClient, $cid, $name, '14');
         // process response
-		if (isset($cr) && (count($cr->ContactsFolder) > 0)) {
-            return new ContactCollectionObject(
-				$cr->ContactsFolder[0]->FolderId->Id,
+		if (isset($rs) && isset($rs->FolderCreate) && $rs->FolderDelete->Status == '1') {
+		    return new ContactCollectionObject(
+				$rs->FolderCreate->Id->getContents(),
 				$name,
-				$cr->ContactsFolder[0]->FolderId->ChangeKey
+				$rs->FolderCreate->SyncKey->getContents()
 			);
 		} else {
 			return null;
@@ -165,12 +162,10 @@ class RemoteContactsService {
 	 */
     public function deleteCollection(string $cid): bool {
         
-		// construct command object
-        $cc = new \OCA\EAS\Utile\Eas\Type\FolderIdType($cid);
 		// execute command
-        $cr = $this->RemoteCommonService->deleteFolder($this->DataStore, array($cc));
+        $rs = $this->RemoteCommonService->deleteFolder($this->DataStore, $cid);
 		// process response
-        if ($cr) {
+        if (isset($rs) && isset($rs->FolderDelete->Status) && $rs->FolderDelete->Status == '1') {
             return true;
         } else {
             return false;

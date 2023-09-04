@@ -143,19 +143,16 @@ class RemoteEventsService {
 	 * 
 	 * @return EventCollectionObject
 	 */
-	public function createCollection(string $cid, string $name, bool $ctype = false): ?EventCollectionObject {
+	public function createCollection(string $cid, string $name): ?EventCollectionObject {
         
-		// construct command object
-		$ec = new \OCA\EAS\Utile\Eas\Type\CalendarFolderType();
-		$ec->DisplayName = $name;
 		// execute command
-		$cr = $this->RemoteCommonService->createFolder($this->DataStore, $cid, $ec, $ctype);
+		$rs = $RemoteCommonService->createFolder($EasClient, $cid, $name, '13');
         // process response
-		if (isset($cr) && (count($cr->CalendarFolder) > 0)) {
+		if (isset($rs) && isset($rs->FolderCreate) && $rs->FolderDelete->Status == '1') {
 		    return new EventCollectionObject(
-				$cr->CalendarFolder[0]->FolderId->Id,
+				$rs->FolderCreate->Id->getContents(),
 				$name,
-				$cr->CalendarFolder[0]->FolderId->ChangeKey
+				$rs->FolderCreate->SyncKey->getContents()
 			);
 		} else {
 			return null;
@@ -174,12 +171,10 @@ class RemoteEventsService {
 	 */
     public function deleteCollection(string $cid): bool {
         
-		// construct command object
-        $ec = new \OCA\EAS\Utile\Eas\Type\FolderIdType($cid);
 		// execute command
-        $cr = $this->RemoteCommonService->deleteFolder($this->DataStore, array($ec));
+        $rs = $this->RemoteCommonService->deleteFolder($this->DataStore, $cid);
 		// process response
-        if ($cr) {
+        if (isset($rs) && isset($rs->FolderDelete->Status) && $rs->FolderDelete->Status == '1') {
             return true;
         } else {
             return false;

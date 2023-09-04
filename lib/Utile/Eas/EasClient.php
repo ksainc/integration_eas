@@ -193,15 +193,6 @@ class EasClient
 
     }
 
-    public function configureTransportAgent(string $value): void {
-
-        // store parameter
-        $this->_TransportOptions[CURLOPT_USERAGENT] = $value;
-        // destroy existing client will need to be initilized again
-        $this->_client = null;
-
-    }
-
     public function configureTransportOptions(array $options): void {
 
         // store parameter
@@ -233,6 +224,22 @@ class EasClient
         $this->_ServiceUriQuery = '?DeviceType=' . $this->_ServiceDeviceType . 
                                   '&DeviceId=' . $this->_ServiceDeviceId . 
                                   '&User=' . $this->_ServiceAuthentication->Id;
+
+    }
+
+    public function setTransportAgent(string $value): void {
+
+        // store transport agent parameter
+        $this->_TransportOptions[CURLOPT_USERAGENT] = $value;
+        // destroy existing client will need to be initilized again
+        $this->_client = null;
+
+    }
+
+    public function getTransportAgent(): string {
+
+        // return transport agent paramater
+        return $this->_TransportOptions[CURLOPT_USERAGENT];
 
     }
 
@@ -473,6 +480,27 @@ class EasClient
         unset($this->_TransportOptions[CURLOPT_CUSTOMREQUEST]);
         // return response body
         return $data;
+
+    }
+
+    public function performFolderCreate($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=FolderCreate';
+        return $this->performCommand($data);
+
+    }
+
+    public function performFolderDelete($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=FolderDelete';
+        return $this->performCommand($data);
+
+    }
+
+    public function performFolderUpdate($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=FolderUpdate';
+        return $this->performCommand($data);
 
     }
 

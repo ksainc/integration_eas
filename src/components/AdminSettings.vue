@@ -24,7 +24,7 @@
 <template>
 	<div id="eas_settings" class="section">
 		<div class="eas-section-heading">
-			<EwsIcon :size="32" /><h2> {{ t('integration_eas', 'EWS Connector') }}</h2>
+			<EwsIcon :size="32" /><h2> {{ t('integration_eas', 'Exchange EAS Connector (Exchange Active Sync)') }}</h2>
 		</div>
 		<p class="settings-hint">
 			{{ t('integration_eas', 'Select the system settings for Exchange Integration') }}
