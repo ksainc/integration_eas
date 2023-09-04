@@ -482,6 +482,13 @@ class EasClient
         return $data;
 
     }
+    
+    public function performFind($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Find';
+        return $this->performCommand($data);
+
+    }
 
     public function performFolderCreate($data): null|string {
 
@@ -511,9 +518,100 @@ class EasClient
 
     }
 
+    public function performGetAttachment($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=GetAttachment';
+        return $this->performCommand($data);
+
+    }
+
+    public function performGetHierarchy($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=GetHierarchy';
+        return $this->performCommand($data);
+
+    }
+
     public function performGetItemEstimate($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=GetItemEstimate';
+        return $this->performCommand($data);
+
+    }
+
+    public function performItemOperations($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=ItemOperations';
+        return $this->performCommand($data);
+
+    }
+
+    public function performMeetingResponse($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=MeetingResponse';
+        return $this->performCommand($data);
+
+    }
+
+    public function performMoveItems($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=MoveItems';
+        return $this->performCommand($data);
+
+    }
+    
+    public function performPing($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Ping';
+        return $this->performCommand($data);
+
+    }
+
+    public function performProvision($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Provision';
+        return $this->performCommand($data);
+
+    }
+    
+    public function performResolveRecipients($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=ResolveRecipients';
+        return $this->performCommand($data);
+
+    }
+    
+    public function performSearch($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Search';
+        return $this->performCommand($data);
+
+    }
+    
+    public function performSendMail($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=SendMail';
+        return $this->performCommand($data);
+
+    }
+    
+    public function performSettings($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Settings';
+        return $this->performCommand($data);
+
+    }
+    
+    public function performSmartForward($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=SmartForward';
+        return $this->performCommand($data);
+
+    }
+    
+    public function performSmartReply($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=SmartReply';
         return $this->performCommand($data);
 
     }
@@ -525,4 +623,11 @@ class EasClient
 
     }
 
+    public function performValidateCert($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=ValidateCert';
+        return $this->performCommand($data);
+
+    }
+    
 }
