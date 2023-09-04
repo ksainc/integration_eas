@@ -34,7 +34,7 @@ use Psr\Log\LoggerInterface;
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
 use OCA\EAS\Utile\Eas\EasClient;
-use OCA\EAS\Components\EWS\Type\ContactItemType;
+use OCA\EAS\Utile\Eas\Type\ContactItemType;
 use OCA\EAS\Objects\ContactCollectionObject;
 use OCA\EAS\Objects\ContactObject;
 use OCA\EAS\Objects\ContactAttachmentObject;
@@ -137,7 +137,7 @@ class RemoteContactsService {
 	public function createCollection(string $cid, string $name, bool $ctype = false): ?ContactCollectionObject {
         
 		// construct command object
-		$cc = new \OCA\EAS\Components\EWS\Type\ContactsFolderType();
+		$cc = new \OCA\EAS\Utile\Eas\Type\ContactsFolderType();
 		$cc->DisplayName = $name;
 		// execute command
 		$cr = $this->RemoteCommonService->createFolder($this->DataStore, $cid, $cc, $ctype);
@@ -166,7 +166,7 @@ class RemoteContactsService {
     public function deleteCollection(string $cid): bool {
         
 		// construct command object
-        $cc = new \OCA\EAS\Components\EWS\Type\FolderIdType($cid);
+        $cc = new \OCA\EAS\Utile\Eas\Type\FolderIdType($cid);
 		// execute command
         $cr = $this->RemoteCommonService->deleteFolder($this->DataStore, array($cc));
 		// process response
@@ -242,7 +242,7 @@ class RemoteContactsService {
 	public function fetchCollectionItem(string $iid): ?ContactObject {
 
         // construct identification object
-        $io = new \OCA\EAS\Components\EWS\Type\ItemIdType($iid);
+        $io = new \OCA\EAS\Utile\Eas\Type\ItemIdType($iid);
         // execute command
 		$ro = $this->RemoteCommonService->fetchItem($this->DataStore, array($io), 'D', $this->constructDefaultItemProperties());
         // validate response
@@ -371,8 +371,8 @@ class RemoteContactsService {
             );
             foreach ($so->Address as $entry) {
                 if (isset($types[$entry->Type]) && $types[$entry->Type] == true) {
-                    if (!isset($ro->PhysicalAddresses->Entry)) { $ro->PhysicalAddresses = new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryType(); }
-                    $ro->PhysicalAddresses->Entry[] = new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryEntryType(
+                    if (!isset($ro->PhysicalAddresses->Entry)) { $ro->PhysicalAddresses = new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryType(); }
+                    $ro->PhysicalAddresses->Entry[] = new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryEntryType(
                         $this->toAddressType($entry->Type),
                         $entry->Street,
                         $entry->Locality,
@@ -389,8 +389,8 @@ class RemoteContactsService {
             foreach ($so->Phone as $entry) {
                 $type = $this->toTelType($entry->Type);
                 if ($type && !empty($entry->Number)) {
-                    if (!isset($ro->PhoneNumbers->Entry)) { $ro->PhoneNumbers = new \OCA\EAS\Components\EWS\Type\PhoneNumberDictionaryType(); } 
-                    $ro->PhoneNumbers->Entry[] = new \OCA\EAS\Components\EWS\Type\PhoneNumberDictionaryEntryType(
+                    if (!isset($ro->PhoneNumbers->Entry)) { $ro->PhoneNumbers = new \OCA\EAS\Utile\Eas\Type\PhoneNumberDictionaryType(); } 
+                    $ro->PhoneNumbers->Entry[] = new \OCA\EAS\Utile\Eas\Type\PhoneNumberDictionaryEntryType(
                         $type, 
                         $entry->Number
                     );
@@ -406,8 +406,8 @@ class RemoteContactsService {
             );
             foreach ($so->Email as $entry) {
                 if (isset($types[$entry->Type]) && $types[$entry->Type] == true && !empty($entry->Address)) {
-                    if (!isset($ro->EmailAddresses->Entry)) { $ro->EmailAddresses = new \OCA\EAS\Components\EWS\Type\EmailAddressDictionaryType(); }
-                    $ro->EmailAddresses->Entry[] = new \OCA\EAS\Components\EWS\Type\EmailAddressDictionaryEntryType(
+                    if (!isset($ro->EmailAddresses->Entry)) { $ro->EmailAddresses = new \OCA\EAS\Utile\Eas\Type\EmailAddressDictionaryType(); }
+                    $ro->EmailAddresses->Entry[] = new \OCA\EAS\Utile\Eas\Type\EmailAddressDictionaryEntryType(
                         $this->toEmailType($entry->Type),
                         $entry->Address
                     );
@@ -452,14 +452,14 @@ class RemoteContactsService {
         }
         // Tag(s)
         if (count($so->Tags) > 0) {
-            $ro->Categories = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfStringsType;
+            $ro->Categories = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfStringsType;
             foreach ($so->Tags as $entry) {
                 $ro->Categories->String[] = $entry;
             }
         }
         // Notes
         if (!empty($so->Notes)) {
-            $ro->Body = new \OCA\EAS\Components\EWS\Type\BodyType(
+            $ro->Body = new \OCA\EAS\Utile\Eas\Type\BodyType(
                 'Text',
                 $so->Notes
             );
@@ -624,8 +624,8 @@ class RemoteContactsService {
                             'contacts:PhysicalAddress:Street',
                             $type,
                             'PhysicalAddresses',
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryType(),
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryEntryType(
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryType(),
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryEntryType(
                                 $type,
                                 $entry->Street,
                                 null,
@@ -647,8 +647,8 @@ class RemoteContactsService {
                             'contacts:PhysicalAddress:City',
                             $type,
                             'PhysicalAddresses',
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryType(),
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryEntryType(
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryType(),
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryEntryType(
                                 $type,
                                 null,
                                 $entry->Locality,
@@ -670,8 +670,8 @@ class RemoteContactsService {
                             'contacts:PhysicalAddress:State',
                             $type,
                             'PhysicalAddresses',
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryType(),
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryEntryType(
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryType(),
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryEntryType(
                                 $type,
                                 null,
                                 null,
@@ -693,8 +693,8 @@ class RemoteContactsService {
                             'contacts:PhysicalAddress:PostalCode',
                             $type,
                             'PhysicalAddresses',
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryType(),
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryEntryType(
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryType(),
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryEntryType(
                                 $type,
                                 null,
                                 null,
@@ -716,8 +716,8 @@ class RemoteContactsService {
                             'contacts:PhysicalAddress:CountryOrRegion',
                             $type,
                             'PhysicalAddresses',
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryType(),
-                            new \OCA\EAS\Components\EWS\Type\PhysicalAddressDictionaryEntryType(
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryType(),
+                            new \OCA\EAS\Utile\Eas\Type\PhysicalAddressDictionaryEntryType(
                                 $type,
                                 null,
                                 null,
@@ -788,8 +788,8 @@ class RemoteContactsService {
                         'contacts:PhoneNumber',
                         $type,
                         'PhoneNumbers',
-                        new \OCA\EAS\Components\EWS\Type\PhoneNumberDictionaryType(),
-                        new \OCA\EAS\Components\EWS\Type\PhoneNumberDictionaryEntryType(
+                        new \OCA\EAS\Utile\Eas\Type\PhoneNumberDictionaryType(),
+                        new \OCA\EAS\Utile\Eas\Type\PhoneNumberDictionaryEntryType(
                             $type, 
                             $entry->Number
                         )
@@ -824,8 +824,8 @@ class RemoteContactsService {
                         'contacts:EmailAddress',
                         $type,
                         'EmailAddresses',
-                        new \OCA\EAS\Components\EWS\Type\EmailAddressDictionaryType(),
-                        new \OCA\EAS\Components\EWS\Type\EmailAddressDictionaryEntryType(
+                        new \OCA\EAS\Utile\Eas\Type\EmailAddressDictionaryType(),
+                        new \OCA\EAS\Utile\Eas\Type\EmailAddressDictionaryEntryType(
                             $type,
                             $entry->Address
                         )
@@ -898,7 +898,7 @@ class RemoteContactsService {
         }
 		// Tag(s)
 		if (count($so->Tags) > 0) {
-			$f = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfStringsType;
+			$f = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfStringsType;
 			foreach ($so->Tags as $entry) {
 				$f->String[] = $entry;
 			}
@@ -912,7 +912,7 @@ class RemoteContactsService {
             $rm[] = $this->updateFieldUnindexed(
                 'item:Body',
                 'Body', 
-                new \OCA\EAS\Components\EWS\Type\BodyType(
+                new \OCA\EAS\Utile\Eas\Type\BodyType(
                     'Text',
                     $so->Notes
             ));
@@ -985,7 +985,7 @@ class RemoteContactsService {
 	 */
     public function deleteCollectionItem(string $iid): bool {
         // create object
-        $o = new \OCA\EAS\Components\EWS\Type\ItemIdType($iid);
+        $o = new \OCA\EAS\Utile\Eas\Type\ItemIdType($iid);
 
         $rs = $this->RemoteCommonService->deleteItem($this->DataStore, array($o));
 
@@ -1068,7 +1068,7 @@ class RemoteContactsService {
 		// process batch
 		foreach ($batch as $key => $entry) {
 			// construct command object
-			$co = new \OCA\EAS\Components\EWS\Type\FileAttachmentType();
+			$co = new \OCA\EAS\Utile\Eas\Type\FileAttachmentType();
 			$co->IsInline = false;
 			$co->ContentId = $entry->Name;
 			$co->ContentType = $entry->Type;
@@ -1147,12 +1147,12 @@ class RemoteContactsService {
 
 		// construct properties array
 		if (!isset($this->DefaultCollectionProperties)) {
-			$p = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:FolderId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:FolderClass');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:ParentFolderId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:DisplayName');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:TotalCount');
+			$p = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPathsToElementType();
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:FolderId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:FolderClass');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:ParentFolderId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:DisplayName');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:TotalCount');
 
 
 			$this->DefaultCollectionProperties = $p;
@@ -1173,37 +1173,37 @@ class RemoteContactsService {
 
 		// construct properties array
 		if (!isset($this->DefaultItemProperties)) {
-			$p = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ItemId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ParentFolderId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:DateTimeCreated');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:DateTimeSent');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:LastModifiedTime');
-            $p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Categories');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Body');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Attachments');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:DisplayName');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:CompleteName');
-            $p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:PhoneticLastName');
-            $p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:PhoneticFirstName');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:Birthday');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:SpouseName');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:WeddingAnniversary');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:PhysicalAddresses');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:PhoneNumbers');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:EmailAddresses');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:ImAddresses');
-            $p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:CompanyName');
-            $p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:Manager');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:AssistantName');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:Department');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:JobTitle');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:Profession');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:OfficeLocation');
-            $p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('contacts:HasPicture');
+			$p = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPathsToElementType();
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ItemId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ParentFolderId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:DateTimeCreated');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:DateTimeSent');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:LastModifiedTime');
+            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Categories');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Body');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Attachments');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:DisplayName');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:CompleteName');
+            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:PhoneticLastName');
+            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:PhoneticFirstName');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:Birthday');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:SpouseName');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:WeddingAnniversary');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:PhysicalAddresses');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:PhoneNumbers');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:EmailAddresses');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:ImAddresses');
+            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:CompanyName');
+            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:Manager');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:AssistantName');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:Department');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:JobTitle');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:Profession');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:OfficeLocation');
+            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:HasPicture');
             // Name Prefix
             /*
-            $p->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+            $p->ExtendedFieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 null,
                 null,
                 null,
@@ -1212,7 +1212,7 @@ class RemoteContactsService {
                 'String'
             );
             // Yomi/Phonetic Last Name
-            $p->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+            $p->ExtendedFieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 null,
                 null,
                 null,
@@ -1221,7 +1221,7 @@ class RemoteContactsService {
                 'String'
             );
             // Yomi/Phonetic Last Name
-            $p->ExtendedFieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+            $p->ExtendedFieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 null,
                 null,
                 null,
@@ -1250,10 +1250,10 @@ class RemoteContactsService {
 	 */
     public function updateFieldUnindexed(string $uri, string $name, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->FieldURI = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType($uri);
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->FieldURI = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType($uri);
         // create field contact object
-        $o->Contact = new \OCA\EAS\Components\EWS\Type\ContactItemType();
+        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
         $o->Contact->$name = $value;
         // return object
         return $o;
@@ -1270,8 +1270,8 @@ class RemoteContactsService {
 	 */
     public function deleteFieldUnindexed(string $uri): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->FieldURI = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType($uri);
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->FieldURI = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType($uri);
         // return object
         return $o;
     }
@@ -1291,10 +1291,10 @@ class RemoteContactsService {
 	 */
     public function updateFieldIndexed(string $uri, string $index, string $name, mixed $dictionary, mixed $entry): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->IndexedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToIndexedFieldType($uri, $index);
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->IndexedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToIndexedFieldType($uri, $index);
         // create field contact object
-        $o->Contact = new \OCA\EAS\Components\EWS\Type\ContactItemType();
+        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
         $o->Contact->$name = $dictionary;
         $o->Contact->$name->Entry = $entry;
         // return object
@@ -1314,8 +1314,8 @@ class RemoteContactsService {
 	 */
     public function deleteFieldIndexed(string $uri, string $index): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->IndexedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToIndexedFieldType($uri, $index);
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->IndexedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToIndexedFieldType($uri, $index);
         // return object
         return $o;
     }
@@ -1334,8 +1334,8 @@ class RemoteContactsService {
 	 */
     public function createFieldExtendedById(string $collection, string $id, string $type, mixed $value): object {
         // create extended field object
-        $o = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 $collection,
                 null,
                 $id,
@@ -1363,8 +1363,8 @@ class RemoteContactsService {
 	 */
     public function updateFieldExtendedById(string $collection, string $id, string $type, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             $collection,
             null,
             $id,
@@ -1373,9 +1373,9 @@ class RemoteContactsService {
             $type
         );
         // create field contact object
-        $o->Contact = new \OCA\EAS\Components\EWS\Type\ContactItemType();
-        $o->Contact->ExtendedProperty = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
+        $o->Contact->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 $collection,
                 null,
                 $id,
@@ -1402,8 +1402,8 @@ class RemoteContactsService {
 	 */
     public function deleteFieldExtendedById(string $collection, string $id, string $type): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             $collection,
             null,
             $id,
@@ -1429,8 +1429,8 @@ class RemoteContactsService {
 	 */
     public function createFieldExtendedByName(string $collection, string $name, string $type, mixed $value): object {
         // create extended field object
-        $o = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 $collection,
                 null,
                 null,
@@ -1458,8 +1458,8 @@ class RemoteContactsService {
 	 */
     public function updateFieldExtendedByName(string $collection, string $name, string $type, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             $collection,
             null,
             null,
@@ -1468,9 +1468,9 @@ class RemoteContactsService {
             $type
         );
         // create field contact object
-        $o->Contact = new \OCA\EAS\Components\EWS\Type\ContactItemType();
-        $o->Contact->ExtendedProperty = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
+        $o->Contact->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 $collection,
                 null,
                 null,
@@ -1497,8 +1497,8 @@ class RemoteContactsService {
 	 */
     public function deleteFieldExtendedByName(string $collection, string $name, string $type): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             $collection,
             null,
             null,
@@ -1523,8 +1523,8 @@ class RemoteContactsService {
 	 */
     public function createFieldExtendedByTag(string $tag, string $type, mixed $value): object {
         // create extended field object
-        $o = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 null,
                 null,
                 null,
@@ -1551,8 +1551,8 @@ class RemoteContactsService {
 	 */
     public function updateFieldExtendedByTag(string $tag, string $type, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             null,
             null,
             null,
@@ -1561,9 +1561,9 @@ class RemoteContactsService {
             $type
         );
         // create field contact object
-        $o->Contact = new \OCA\EAS\Components\EWS\Type\ContactItemType();
-        $o->Contact->ExtendedProperty = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
+        $o->Contact->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 null,
                 null,
                 null,
@@ -1589,8 +1589,8 @@ class RemoteContactsService {
 	 */
     public function deleteFieldExtendedByTag(string $tag, string $type): object {
         // construct field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             null,
             null,
             null,

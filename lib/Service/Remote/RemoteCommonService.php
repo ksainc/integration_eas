@@ -39,9 +39,9 @@ use OCA\EAS\Utile\Eas\EasXmlDecoder;
 
 class RemoteCommonService {
 
-	const CONTACTS_COLLECTION_TYPE = '8';
-	const CALENDAR_COLLECTION_TYPE = '9';
-	const TASKS_COLLECTION_TYPE = '9';
+	const CONTACTS_COLLECTION_TYPE = '9';
+	const CALENDAR_COLLECTION_TYPE = '8';
+	const TASKS_COLLECTION_TYPE = '7';
 	const NOTES_COLLECTION_TYPE = '10';
 
 	/**

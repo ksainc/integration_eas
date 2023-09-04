@@ -116,7 +116,8 @@ try {
 	// perform initial connect
 	$EasClient->performConnect();
 
-	$msg_fs_rp_o = $RemoteCommonService->fetchFolders($EasClient);
+	$msg_fs_rp_o = $CoreService->fetchRemoteCollections($uid);
+
 
 	exit;
 	//$SyncKey = $msg_fs_rp_o->Message->FolderSync->SyncKey->getContents();

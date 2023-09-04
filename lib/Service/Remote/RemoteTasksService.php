@@ -33,7 +33,7 @@ use Psr\Log\LoggerInterface;
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
 use OCA\EAS\Utile\Eas\EasClient;
-use OCA\EAS\Components\EWS\Type\TaskType;
+use OCA\EAS\Utile\Eas\Type\TaskType;
 use OCA\EAS\Objects\TaskCollectionObject;
 use OCA\EAS\Objects\TaskObject;
 use OCA\EAS\Objects\TaskAttachmentObject;
@@ -146,7 +146,7 @@ class RemoteTasksService {
 	public function createCollection(string $cid, string $name, bool $ctype = false): ?TaskCollectionObject {
         
 		// construct command object
-		$ec = new \OCA\EAS\Components\EWS\Type\TasksFolderType();
+		$ec = new \OCA\EAS\Utile\Eas\Type\TasksFolderType();
 		$ec->DisplayName = $name;
 		// execute command
 		$cr = $this->RemoteCommonService->createFolder($this->DataStore, $cid, $ec, $ctype);
@@ -175,7 +175,7 @@ class RemoteTasksService {
     public function deleteCollection(string $cid): bool {
         
 		// construct command object
-        $ec = new \OCA\EAS\Components\EWS\Type\FolderIdType($cid);
+        $ec = new \OCA\EAS\Utile\Eas\Type\FolderIdType($cid);
 		// execute command
         $cr = $this->RemoteCommonService->deleteFolder($this->DataStore, array($ec));
 		// process response
@@ -251,7 +251,7 @@ class RemoteTasksService {
 	public function fetchCollectionItem(string $iid): ?TaskObject {
         
 		// construct identification object
-        $io = new \OCA\EAS\Components\EWS\Type\ItemIdType($iid);
+        $io = new \OCA\EAS\Utile\Eas\Type\ItemIdType($iid);
 		// execute command
 		$ro = $this->RemoteCommonService->fetchItem($this->DataStore, array($io), 'D', $this->constructDefaultItemProperties());
         // validate response
@@ -360,7 +360,7 @@ class RemoteTasksService {
         }
 		// Notes
 		if (!empty($so->Notes)) {
-			$ro->Body = new \OCA\EAS\Components\EWS\Type\BodyType(
+			$ro->Body = new \OCA\EAS\Utile\Eas\Type\BodyType(
 				'Text',
 				$so->Notes
 			);
@@ -383,7 +383,7 @@ class RemoteTasksService {
 		}
 		// Tag(s)
 		if (count($so->Tags) > 0) {
-			$ro->Categories = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfStringsType;
+			$ro->Categories = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfStringsType;
 			foreach ($so->Tags as $entry) {
 				$ro->Categories->String[] = $entry;
 			}
@@ -419,16 +419,16 @@ class RemoteTasksService {
 		// Occurrence
 		if (isset($so->Occurrence) && !empty($so->Occurrence->Precision)) {
 
-			$ro->Recurrence = new \OCA\EAS\Components\EWS\Type\RecurrenceType();
+			$ro->Recurrence = new \OCA\EAS\Utile\Eas\Type\RecurrenceType();
 
 			// Occurrence Iterations
 			if (!empty($so->Occurrence->Iterations)) {
-				$ro->Recurrence->NumberedRecurrence = new \OCA\EAS\Components\EWS\Type\NumberedRecurrenceRangeType();
+				$ro->Recurrence->NumberedRecurrence = new \OCA\EAS\Utile\Eas\Type\NumberedRecurrenceRangeType();
 				$ro->Recurrence->NumberedRecurrence->NumberOfOccurrences = $so->Occurrence->Iterations;
 			}
 			// Occurrence Conclusion
 			if (!empty($so->Occurrence->Concludes)) {
-				$ro->Recurrence->EndDateRecurrence = new \OCA\EAS\Components\EWS\Type\EndDateRecurrenceRangeType();
+				$ro->Recurrence->EndDateRecurrence = new \OCA\EAS\Utile\Eas\Type\EndDateRecurrenceRangeType();
 				if ($so->Origin == 'L') {
 					// subtract 1 day to adjust in how the end date is calculated in NC and EWS
 					$ro->Recurrence->EndDateRecurrence->EndDate = date_modify(clone $so->Occurrence->Concludes, '-1 day')->format('Y-m-d\TH:i:s');
@@ -439,13 +439,13 @@ class RemoteTasksService {
 			}
 			// No Iterations And No Conclusion Date
 			if (empty($so->Occurrence->Iterations) && empty($so->Occurrence->Concludes)) {
-				$ro->Recurrence->NoEndRecurrence = new \OCA\EAS\Components\EWS\Type\NoEndRecurrenceRangeType();
+				$ro->Recurrence->NoEndRecurrence = new \OCA\EAS\Utile\Eas\Type\NoEndRecurrenceRangeType();
 			}
 
 			// Based on Precision
 			// Occurrence Daily
 			if ($so->Occurrence->Precision == 'D') {
-				$ro->Recurrence->DailyRecurrence = new \OCA\EAS\Components\EWS\Type\DailyRecurrencePatternType();
+				$ro->Recurrence->DailyRecurrence = new \OCA\EAS\Utile\Eas\Type\DailyRecurrencePatternType();
 				if (!empty($so->Occurrence->Interval)) {
 					$ro->Recurrence->DailyRecurrence->Interval = $so->Occurrence->Interval;
 				}
@@ -455,7 +455,7 @@ class RemoteTasksService {
 			}
 			// Occurrence Weekly
 			elseif ($so->Occurrence->Precision == 'W') {
-				$ro->Recurrence->WeeklyRecurrence = new \OCA\EAS\Components\EWS\Type\WeeklyRecurrencePatternType();
+				$ro->Recurrence->WeeklyRecurrence = new \OCA\EAS\Utile\Eas\Type\WeeklyRecurrencePatternType();
 				if (!empty($so->Occurrence->Interval)) {
 					$ro->Recurrence->WeeklyRecurrence->Interval = $so->Occurrence->Interval;
 				}
@@ -468,7 +468,7 @@ class RemoteTasksService {
 			// Occurrence Monthly
 			elseif ($so->Occurrence->Precision == 'M') {
 				if ($so->Occurrence->Pattern == 'A') {
-					$ro->Recurrence->AbsoluteMonthlyRecurrence = new \OCA\EAS\Components\EWS\Type\AbsoluteMonthlyRecurrencePatternType();
+					$ro->Recurrence->AbsoluteMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteMonthlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$ro->Recurrence->AbsoluteMonthlyRecurrence->Interval = $so->Occurrence->Interval;
 					}
@@ -478,7 +478,7 @@ class RemoteTasksService {
 					$ro->Recurrence->AbsoluteMonthlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
 				}
 				elseif ($so->Occurrence->Pattern == 'R') {
-					$ro->Recurrence->RelativeMonthlyRecurrence = new \OCA\EAS\Components\EWS\Type\RelativeMonthlyRecurrencePatternType();
+					$ro->Recurrence->RelativeMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeMonthlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$ro->Recurrence->RelativeMonthlyRecurrence->Interval = $so->Occurrence->Interval;	
 					}
@@ -498,7 +498,7 @@ class RemoteTasksService {
 			// Occurrence Yearly
 			elseif ($so->Occurrence->Precision == 'Y') {
 				if ($so->Occurrence->Pattern == 'A') {
-					$ro->Recurrence->AbsoluteYearlyRecurrence = new \OCA\EAS\Components\EWS\Type\AbsoluteYearlyRecurrencePatternType();
+					$ro->Recurrence->AbsoluteYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteYearlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$ro->Recurrence->AbsoluteYearlyRecurrence->Interval = $so->Occurrence->Interval;
 					}
@@ -509,7 +509,7 @@ class RemoteTasksService {
 					$ro->Recurrence->AbsoluteYearlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
 				}
 				elseif ($so->Occurrence->Pattern == 'R') {
-					$ro->Recurrence->RelativeYearlyRecurrence = new \OCA\EAS\Components\EWS\Type\RelativeYearlyRecurrencePatternType();
+					$ro->Recurrence->RelativeYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeYearlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$ro->Recurrence->RelativeYearlyRecurrence->Interval = $so->Occurrence->Interval;	
 					}
@@ -529,14 +529,14 @@ class RemoteTasksService {
 			}
 			// Occurrence Exclusions
 			if (count($so->Occurrence->Excludes) > 0) {
-				$ro->DeletedOccurrences = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfDeletedOccurrencesType();
+				$ro->DeletedOccurrences = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfDeletedOccurrencesType();
 				foreach ($so->Occurrence->Excludes as $entry) {
 					// clone start date
 					$dt = clone $entry;
 					// change timezone on cloned date
 					$dt->setTimezone(new DateTimeZone('UTC'));
 					// construct start time property
-					$ro->DeletedOccurrence[] = new \OCA\EAS\Components\EWS\Type\DeletedOccurrenceInfoType(
+					$ro->DeletedOccurrence[] = new \OCA\EAS\Utile\Eas\Type\DeletedOccurrenceInfoType(
 						$dt->format('Y-m-d\\TH:i:s\Z')
 					);
 					unset($dt);
@@ -644,7 +644,7 @@ class RemoteTasksService {
             $rm[] = $this->updateFieldUnindexed(
                 'item:Body',
                 'Body', 
-                new \OCA\EAS\Components\EWS\Type\BodyType(
+                new \OCA\EAS\Utile\Eas\Type\BodyType(
                     'Text',
                     $so->Notes
             ));
@@ -682,7 +682,7 @@ class RemoteTasksService {
 		}
 		// Tag(s)
 		if (count($so->Tags) > 0) {
-			$t = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfStringsType;
+			$t = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfStringsType;
 			foreach ($so->Tags as $entry) {
 				$t->String[] = $entry;
 			}
@@ -727,15 +727,15 @@ class RemoteTasksService {
 		// Occurrence
 		if (isset($so->Occurrence) && !empty($so->Occurrence->Precision)) {
 			// construct recurrence object
-			$f = new \OCA\EAS\Components\EWS\Type\RecurrenceType();
+			$f = new \OCA\EAS\Utile\Eas\Type\RecurrenceType();
 			// Iterations
 			if (!empty($so->Occurrence->Iterations)) {
-				$f->NumberedRecurrence = new \OCA\EAS\Components\EWS\Type\NumberedRecurrenceRangeType();
+				$f->NumberedRecurrence = new \OCA\EAS\Utile\Eas\Type\NumberedRecurrenceRangeType();
 				$f->NumberedRecurrence->NumberOfOccurrences = $so->Occurrence->Iterations;
 			}
 			// Conclusion
 			if (!empty($so->Occurrence->Concludes)) {
-				$f->EndDateRecurrence = new \OCA\EAS\Components\EWS\Type\EndDateRecurrenceRangeType();
+				$f->EndDateRecurrence = new \OCA\EAS\Utile\Eas\Type\EndDateRecurrenceRangeType();
 				if ($so->Origin == 'L') {
 					// subtract 1 day to adjust in how the end date is calculated in NC and EWS
 					$f->EndDateRecurrence->EndDate = date_modify(clone $so->Occurrence->Concludes, '-1 day')->format('Y-m-d\TH:i:s');
@@ -746,13 +746,13 @@ class RemoteTasksService {
 			}
 			// No Iterations And No Conclusion Date
 			if (empty($so->Occurrence->Iterations) && empty($so->Occurrence->Concludes)) {
-				$f->NoEndRecurrence = new \OCA\EAS\Components\EWS\Type\NoEndRecurrenceRangeType();
+				$f->NoEndRecurrence = new \OCA\EAS\Utile\Eas\Type\NoEndRecurrenceRangeType();
 			}
 
 			// Based on Precision
 			// Daily Task
 			if ($so->Occurrence->Precision == 'D') {
-				$f->DailyRecurrence = new \OCA\EAS\Components\EWS\Type\DailyRecurrencePatternType();
+				$f->DailyRecurrence = new \OCA\EAS\Utile\Eas\Type\DailyRecurrencePatternType();
 				if (!empty($so->Occurrence->Interval)) {
 					$f->DailyRecurrence->Interval = $so->Occurrence->Interval;
 				}
@@ -762,7 +762,7 @@ class RemoteTasksService {
 			}
 			// Weekly Task
 			elseif ($so->Occurrence->Precision == 'W') {
-				$f->WeeklyRecurrence = new \OCA\EAS\Components\EWS\Type\WeeklyRecurrencePatternType();
+				$f->WeeklyRecurrence = new \OCA\EAS\Utile\Eas\Type\WeeklyRecurrencePatternType();
 				if (!empty($so->Occurrence->Interval)) {
 					$f->WeeklyRecurrence->Interval = $so->Occurrence->Interval;
 				}
@@ -775,7 +775,7 @@ class RemoteTasksService {
 			// Monthly Task
 			elseif ($so->Occurrence->Precision == 'M') {
 				if ($so->Occurrence->Pattern == 'A') {
-					$f->AbsoluteMonthlyRecurrence = new \OCA\EAS\Components\EWS\Type\AbsoluteMonthlyRecurrencePatternType();
+					$f->AbsoluteMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteMonthlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$f->AbsoluteMonthlyRecurrence->Interval = $so->Occurrence->Interval;
 					}
@@ -785,7 +785,7 @@ class RemoteTasksService {
 					$f->AbsoluteMonthlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
 				}
 				elseif ($so->Occurrence->Pattern == 'R') {
-					$f->RelativeMonthlyRecurrence = new \OCA\EAS\Components\EWS\Type\RelativeMonthlyRecurrencePatternType();
+					$f->RelativeMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeMonthlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$f->RelativeMonthlyRecurrence->Interval = $so->Occurrence->Interval;	
 					}
@@ -803,7 +803,7 @@ class RemoteTasksService {
 			// Yearly Task
 			elseif ($so->Occurrence->Precision == 'Y') {
 				if ($so->Occurrence->Pattern == 'A') {
-					$f->AbsoluteYearlyRecurrence = new \OCA\EAS\Components\EWS\Type\AbsoluteYearlyRecurrencePatternType();
+					$f->AbsoluteYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteYearlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$f->AbsoluteYearlyRecurrence->Interval = $so->Occurrence->Interval;
 					}
@@ -814,7 +814,7 @@ class RemoteTasksService {
 					$f->AbsoluteYearlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
 				}
 				elseif ($so->Occurrence->Pattern == 'R') {
-					$f->RelativeYearlyRecurrence = new \OCA\EAS\Components\EWS\Type\RelativeYearlyRecurrencePatternType();
+					$f->RelativeYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeYearlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$f->RelativeYearlyRecurrence->Interval = $so->Occurrence->Interval;	
 					}
@@ -896,7 +896,7 @@ class RemoteTasksService {
 	 */
     public function deleteCollectionItem(string $iid): bool {
         // create object
-        $o = new \OCA\EAS\Components\EWS\Type\ItemIdType($iid);
+        $o = new \OCA\EAS\Utile\Eas\Type\ItemIdType($iid);
 
         $result = $this->RemoteCommonService->deleteItem($this->DataStore, array($o));
 
@@ -973,7 +973,7 @@ class RemoteTasksService {
 		// process batch
 		foreach ($batch as $key => $entry) {
 			// construct command object
-			$co = new \OCA\EAS\Components\EWS\Type\FileAttachmentType();
+			$co = new \OCA\EAS\Utile\Eas\Type\FileAttachmentType();
 			$co->IsInline = false;
 			$co->IsContactPhoto = false;
 			$co->Name = $entry->Name;
@@ -1046,12 +1046,12 @@ class RemoteTasksService {
 
 		// construct properties array
 		if (!isset($this->DefaultCollectionProperties)) {
-			$p = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:FolderId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:FolderClass');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:ParentFolderId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:DisplayName');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:TotalCount');
+			$p = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPathsToElementType();
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:FolderId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:FolderClass');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:ParentFolderId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:DisplayName');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:TotalCount');
 
 
 			$this->DefaultCollectionProperties = $p;
@@ -1072,30 +1072,30 @@ class RemoteTasksService {
 
 		// construct properties array
 		if (!isset($this->DefaultItemProperties)) {
-			$p = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ItemId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ParentFolderId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:DateTimeCreated');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:DateTimeSent');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:LastModifiedTime');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Subject');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Body');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Sensitivity');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Importance');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Categories');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ReminderDueBy');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ReminderIsSet');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ReminderMinutesBeforeStart');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Attachments');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('task:StartDate');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('task:DueDate');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('task:CompleteDate');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('task:Status');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('task:StatusDescription');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('task:PercentComplete');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('task:ActualWork');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('task:TotalWork');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('task:Recurrence');
+			$p = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPathsToElementType();
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ItemId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ParentFolderId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:DateTimeCreated');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:DateTimeSent');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:LastModifiedTime');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Subject');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Body');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Sensitivity');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Importance');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Categories');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ReminderDueBy');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ReminderIsSet');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ReminderMinutesBeforeStart');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Attachments');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('task:StartDate');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('task:DueDate');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('task:CompleteDate');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('task:Status');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('task:StatusDescription');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('task:PercentComplete');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('task:ActualWork');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('task:TotalWork');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('task:Recurrence');
 
 			$this->DefaultItemProperties = $p;
 		}
@@ -1117,10 +1117,10 @@ class RemoteTasksService {
 	 */
     public function updateFieldUnindexed(string $uri, string $name, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->FieldURI = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType($uri);
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->FieldURI = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType($uri);
         // create field contact object
-        $o->Task = new \OCA\EAS\Components\EWS\Type\TaskType();
+        $o->Task = new \OCA\EAS\Utile\Eas\Type\TaskType();
         $o->Task->$name = $value;
         // return object
         return $o;
@@ -1137,8 +1137,8 @@ class RemoteTasksService {
 	 */
     public function deleteFieldUnindexed(string $uri): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->FieldURI = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType($uri);
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->FieldURI = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType($uri);
         // return object
         return $o;
     }
@@ -1158,10 +1158,10 @@ class RemoteTasksService {
 	 */
     public function updateFieldIndexed(string $uri, string $index, string $name, mixed $dictionary, mixed $entry): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->IndexedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToIndexedFieldType($uri, $index);
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->IndexedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToIndexedFieldType($uri, $index);
         // create field contact object
-        $o->Task = new \OCA\EAS\Components\EWS\Type\TaskType();
+        $o->Task = new \OCA\EAS\Utile\Eas\Type\TaskType();
         $o->Task->$name = $dictionary;
         $o->Task->$name->Entry = $entry;
         // return object
@@ -1181,8 +1181,8 @@ class RemoteTasksService {
 	 */
     public function deleteFieldIndexed(string $uri, string $index): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->IndexedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToIndexedFieldType($uri, $index);
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->IndexedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToIndexedFieldType($uri, $index);
         // return object
         return $o;
     }
@@ -1201,8 +1201,8 @@ class RemoteTasksService {
 	 */
     public function createFieldExtendedByName(string $collection, string $name, string $type, mixed $value): object {
         // create extended field object
-        $o = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 $collection,
                 null,
                 null,
@@ -1230,8 +1230,8 @@ class RemoteTasksService {
 	 */
     public function updateFieldExtendedByName(string $collection, string $name, string $type, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             $collection,
             null,
             null,
@@ -1240,9 +1240,9 @@ class RemoteTasksService {
             $type
         );
         // create field contact object
-        $o->Task = new \OCA\EAS\Components\EWS\Type\TaskType();
-        $o->Task->ExtendedProperty = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o->Task = new \OCA\EAS\Utile\Eas\Type\TaskType();
+        $o->Task->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 $collection,
                 null,
                 null,
@@ -1269,8 +1269,8 @@ class RemoteTasksService {
 	 */
     public function deleteFieldExtendedByName(string $collection, string $name, string $type): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             $collection,
             null,
             null,
@@ -1295,8 +1295,8 @@ class RemoteTasksService {
 	 */
     public function createFieldExtendedByTag(string $tag, string $type, mixed $value): object {
         // create extended field object
-        $o = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 null,
                 null,
                 null,
@@ -1323,8 +1323,8 @@ class RemoteTasksService {
 	 */
     public function updateFieldExtendedByTag(string $tag, string $type, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             null,
             null,
             null,
@@ -1333,9 +1333,9 @@ class RemoteTasksService {
             $type
         );
         // create field contact object
-        $o->Task = new \OCA\EAS\Components\EWS\Type\TaskType();
-        $o->Task->ExtendedProperty = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o->Task = new \OCA\EAS\Utile\Eas\Type\TaskType();
+        $o->Task->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 null,
                 null,
                 null,
@@ -1361,8 +1361,8 @@ class RemoteTasksService {
 	 */
     public function deleteFieldExtendedByTag(string $tag, string $type): object {
         // construct field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             null,
             null,
             null,
@@ -1387,27 +1387,27 @@ class RemoteTasksService {
 		// retrive time zone properties
 		$zone = \OCA\EAS\Utile\TimeZoneEWS::find($name);
         // construct time zone object
-        $o = new \OCA\EAS\Components\EWS\Type\TimeZoneDefinitionType;
+        $o = new \OCA\EAS\Utile\Eas\Type\TimeZoneDefinitionType;
 		$o->Id = $zone->id;
 
 		if (!empty($zone->StandardBias) && !empty($zone->DaylightBias)) {
-			$o->Periods = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPeriodsType();
-			$o->Periods->Period[] = new \OCA\EAS\Components\EWS\Type\PeriodType(
+			$o->Periods = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPeriodsType();
+			$o->Periods->Period[] = new \OCA\EAS\Utile\Eas\Type\PeriodType(
 				$zone->StandardName,
 				$zone->StandardBias,
 				'ST'
 			);
-			$o->Periods->Period[] = new \OCA\EAS\Components\EWS\Type\PeriodType(
+			$o->Periods->Period[] = new \OCA\EAS\Utile\Eas\Type\PeriodType(
 				$zone->DaylightName,
 				$zone->DaylightBias,
 				'DL'
 			);
-			$o->TransitionsGroups = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfTransitionsGroupsType();
-			$group = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfTransitionsType();
+			$o->TransitionsGroups = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfTransitionsGroupsType();
+			$group = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfTransitionsType();
 			$group->Id = 0;
 
-			$transition = new \OCA\EAS\Components\EWS\Type\RecurringDayTransitionType();
-			$transition->To = new \OCA\EAS\Components\EWS\Type\TransitionTargetType();
+			$transition = new \OCA\EAS\Utile\Eas\Type\RecurringDayTransitionType();
+			$transition->To = new \OCA\EAS\Utile\Eas\Type\TransitionTargetType();
 			$transition->To->_ = 'ST';
 			$transition->To->Kind = 'Period';
 			$transition->Month = $zone->DaylightEndMonth;
@@ -1416,8 +1416,8 @@ class RemoteTasksService {
 			$transition->TimeOffset = $zone->DaylightEndTime;
 			$group->RecurringDayTransition[] = $transition;
 
-			$transition = new \OCA\EAS\Components\EWS\Type\RecurringDayTransitionType();
-			$transition->To = new \OCA\EAS\Components\EWS\Type\TransitionTargetType();
+			$transition = new \OCA\EAS\Utile\Eas\Type\RecurringDayTransitionType();
+			$transition->To = new \OCA\EAS\Utile\Eas\Type\TransitionTargetType();
 			$transition->To->_ = 'DL';
 			$transition->To->Kind = 'Period';
 			$transition->Month = $zone->DaylightStartMonth;
@@ -1428,16 +1428,16 @@ class RemoteTasksService {
 
 			$o->TransitionsGroups->TransitionsGroup[] = $group;
 
-			$o->Transitions = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfTransitionsType();
-			$o->Transitions->Transition = new \OCA\EAS\Components\EWS\Type\TransitionType();
-			$o->Transitions->Transition->To = new \OCA\EAS\Components\EWS\Type\TransitionTargetType();
+			$o->Transitions = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfTransitionsType();
+			$o->Transitions->Transition = new \OCA\EAS\Utile\Eas\Type\TransitionType();
+			$o->Transitions->Transition->To = new \OCA\EAS\Utile\Eas\Type\TransitionTargetType();
 			$o->Transitions->Transition->To->_ = 0;
 			$o->Transitions->Transition->To->Kind = 'Group';
 		}
 
 		/*
-		$o->Transitions->AbsoluteDateTransition = new \OCA\EAS\Components\EWS\Type\AbsoluteDateTransitionType();
-		$o->Transitions->AbsoluteDateTransition->To = new \OCA\EAS\Components\EWS\Type\TransitionTargetType();
+		$o->Transitions->AbsoluteDateTransition = new \OCA\EAS\Utile\Eas\Type\AbsoluteDateTransitionType();
+		$o->Transitions->AbsoluteDateTransition->To = new \OCA\EAS\Utile\Eas\Type\TransitionTargetType();
 		$o->Transitions->AbsoluteDateTransition->To->_ = 1;
 		$o->Transitions->AbsoluteDateTransition->To->Kind = 'Group';
 		$o->Transitions->AbsoluteDateTransition->DateTime = '2007-01-01T00:00:00';

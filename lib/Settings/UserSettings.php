@@ -68,6 +68,6 @@ class UserSettings implements ISettings {
 	}
 
 	public function getPriority(): int {
-		return 10;
+		return 20;
 	}
 }

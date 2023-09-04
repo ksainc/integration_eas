@@ -42,6 +42,7 @@ use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Service\ConfigurationService;
 use OCA\EAS\Service\CorrelationsService;
 use OCA\EAS\Service\ContactsService;
+/*
 use OCA\EAS\Service\EventsService;
 use OCA\EAS\Service\TasksService;
 use OCA\EAS\Service\HarmonizationThreadService;
@@ -51,8 +52,11 @@ use OCA\EAS\Service\Local\LocalTasksService;
 use OCA\EAS\Service\Remote\RemoteContactsService;
 use OCA\EAS\Service\Remote\RemoteEventsService;
 use OCA\EAS\Service\Remote\RemoteTasksService;
+*/
 use OCA\EAS\Service\Remote\RemoteCommonService;
+/*
 use OCA\EAS\Tasks\HarmonizationLauncher;
+*/
 
 class CoreService {
 
@@ -126,6 +130,7 @@ class CoreService {
 								INotificationManager $notificationManager,
 								ConfigurationService $ConfigurationService,
 								CorrelationsService $CorrelationsService,
+								/*
 								HarmonizationThreadService $HarmonizationThreadService,
 								LocalContactsService $LocalContactsService,
 								LocalEventsService $LocalEventsService,
@@ -133,10 +138,13 @@ class CoreService {
 								RemoteContactsService $RemoteContactsService,
 								RemoteEventsService $RemoteEventsService,
 								RemoteTasksService $RemoteTasksService,
+								*/
 								RemoteCommonService $RemoteCommonService,
+								/*
 								ContactsService $ContactsService,
 								EventsService $EventsService,
 								TasksService $TasksService,
+								*/
 								CardDavBackend $CardDavBackend,
 								CalDavBackend $CalDavBackend) {
 		$this->logger = $logger;
@@ -144,6 +152,7 @@ class CoreService {
 		$this->notificationManager = $notificationManager;
 		$this->ConfigurationService = $ConfigurationService;
 		$this->CorrelationsService = $CorrelationsService;
+		/*
 		$this->HarmonizationThreadService = $HarmonizationThreadService;
 		$this->LocalContactsService = $LocalContactsService;
 		$this->LocalEventsService = $LocalEventsService;
@@ -151,11 +160,14 @@ class CoreService {
 		$this->RemoteContactsService = $RemoteContactsService;
 		$this->RemoteEventsService = $RemoteEventsService;
 		$this->RemoteTasksService = $RemoteTasksService;
+		*/
 		$this->RemoteCommonService = $RemoteCommonService;
+		/*
 		$this->ContactsService = $ContactsService;
 		$this->EventsService = $EventsService;
 		$this->TasksService = $TasksService;
 		$this->LocalContactsStore = $CardDavBackend;
+		*/
 		$this->LocalEventsStore = $CalDavBackend;
 		$this->LocalTasksStore = $CalDavBackend;
 
@@ -291,7 +303,7 @@ class CoreService {
 			// construct remote data store client
 			$RemoteStore = new EasClient(
 				$account_server, 
-				new \OCA\EAS\Components\EWS\AuthenticationBasic($account_id, $account_secret), 
+				new \OCA\EAS\Utile\Eas\AuthenticationBasic($account_id, $account_secret), 
 				'Exchange2007');
 			// retrieve root folder attributes
 			$rs = $this->RemoteCommonService->fetchFolder($RemoteStore, 'root', true, 'A');
@@ -558,31 +570,29 @@ class CoreService {
 	 * 
 	 * @return array of remote collection(s) and attributes
 	 */
-	public function fetchRemoteCollections(string $uid): array {
+	public function fetchRemoteCollections(string $uid): ?array {
 		
 		// create remote store client
 		$RemoteStore = $this->createClient($uid);
-		// construct response object
-		$response = ['ContactCollections' => [], 'EventCollections' => [], 'TaskCollections' => []];
 		// retrieve remote collections
-		$data = $this->RemoteCommonService->fetchFolders($EasClient);
-
-		foreach ($data->Collections as $Collection) {
-			switch ($variable) {
+		$response = $this->RemoteCommonService->fetchFolders($RemoteStore);
+		// construct response object
+		$data = ['ContactCollections' => [], 'EventCollections' => [], 'TaskCollections' => []];
+		foreach ($response->Collections as $Collection) {
+			switch ($Collection->Type->getContents()) {
 				case RemoteCommonService::CONTACTS_COLLECTION_TYPE:
-					$response->ContactCollections[] = ['id'=>$Collection->Id, 'name'=>$$Collection->Name->getContents(),'count'=>''];
+					$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>$Collection->Name->getContents(),'count'=>''];
 					break;
 				case RemoteCommonService::CALENDAR_COLLECTION_TYPE:
-					$response->EventCollections[] = ['id'=>$Collection->Id, 'name'=>$$Collection->Name->getContents(),'count'=>''];
+					$data['EventCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>$Collection->Name->getContents(),'count'=>''];
 					break;
 				case RemoteCommonService::TASKS_COLLECTION_TYPE:
-					$response->TaskCollections[] = ['id'=>$Collection->Id, 'name'=>$$Collection->Name->getContents(),'count'=>''];
+					$data['TaskCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>$Collection->Name->getContents(),'count'=>''];
 					break;
 			}
 		}
-
 		// return response
-		return $response;
+		return $data;
 
 	}
 
@@ -771,8 +781,11 @@ class CoreService {
 					// construct remote data store client
 					$this->RemoteStore = new EasClient(
 						$ac['account_server'], 
-						new \OCA\EAS\Components\EWS\AuthenticationBearer($ac['account_oauth_access']), 
-						$ac['account_protocol']);
+						new \OCA\EAS\Utile\Eas\AuthenticationBearer($ac['account_oauth_id'], $ac['account_oauth_access'], $ac['account_oauth_expiry']), 
+						$ac['account_deviceid'],
+						$ac['account_devicekey'],
+						$ac['account_deviceversion']
+					);
 					break;
 				case ConfigurationService::ProviderAlternate:
 					// retrieve connection information
@@ -780,8 +793,11 @@ class CoreService {
 					// construct remote data store client
 					$this->RemoteStore = new EasClient(
 						$ac['account_server'], 
-						new \OCA\EAS\Components\EWS\AuthenticationBasic($ac['account_id'], $ac['account_secret']), 
-						$ac['account_protocol']);
+						new \OCA\EAS\Utile\Eas\EasAuthenticationBasic($ac['account_bauth_id'], $ac['account_bauth_secret']),
+						$ac['account_deviceid'],
+						$ac['account_devicekey'],
+						$ac['account_deviceversion']
+					);
 					break;
 			}
 		}

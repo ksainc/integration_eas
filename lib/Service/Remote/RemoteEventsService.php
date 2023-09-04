@@ -33,7 +33,7 @@ use Psr\Log\LoggerInterface;
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
 use OCA\EAS\Utile\Eas\EasClient;
-use OCA\EAS\Components\EWS\Type\CalendarItemType;
+use OCA\EAS\Utile\Eas\Type\CalendarItemType;
 use OCA\EAS\Objects\EventCollectionObject;
 use OCA\EAS\Objects\EventObject;
 use OCA\EAS\Objects\EventAttachmentObject;
@@ -146,7 +146,7 @@ class RemoteEventsService {
 	public function createCollection(string $cid, string $name, bool $ctype = false): ?EventCollectionObject {
         
 		// construct command object
-		$ec = new \OCA\EAS\Components\EWS\Type\CalendarFolderType();
+		$ec = new \OCA\EAS\Utile\Eas\Type\CalendarFolderType();
 		$ec->DisplayName = $name;
 		// execute command
 		$cr = $this->RemoteCommonService->createFolder($this->DataStore, $cid, $ec, $ctype);
@@ -175,7 +175,7 @@ class RemoteEventsService {
     public function deleteCollection(string $cid): bool {
         
 		// construct command object
-        $ec = new \OCA\EAS\Components\EWS\Type\FolderIdType($cid);
+        $ec = new \OCA\EAS\Utile\Eas\Type\FolderIdType($cid);
 		// execute command
         $cr = $this->RemoteCommonService->deleteFolder($this->DataStore, array($ec));
 		// process response
@@ -251,7 +251,7 @@ class RemoteEventsService {
 	public function fetchCollectionItem(string $iid): ?EventObject {
         
 		// construct identification object
-        $io = new \OCA\EAS\Components\EWS\Type\ItemIdType($iid);
+        $io = new \OCA\EAS\Utile\Eas\Type\ItemIdType($iid);
 		// execute command
 		$ro = $this->RemoteCommonService->fetchItem($this->DataStore, array($io), 'A', $this->constructDefaultItemProperties());
         // validate response
@@ -405,7 +405,7 @@ class RemoteEventsService {
         }
 		// Notes
 		if (!empty($so->Notes)) {
-			$ro->Body = new \OCA\EAS\Components\EWS\Type\BodyType(
+			$ro->Body = new \OCA\EAS\Utile\Eas\Type\BodyType(
 				'Text',
 				$so->Notes
 			);
@@ -428,7 +428,7 @@ class RemoteEventsService {
 		}
 		// Tag(s)
 		if (count($so->Tags) > 0) {
-			$ro->Categories = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfStringsType;
+			$ro->Categories = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfStringsType;
 			foreach ($so->Tags as $entry) {
 				$ro->Categories->String[] = $entry;
 			}
@@ -437,9 +437,9 @@ class RemoteEventsService {
 		if (count($so->Attendee) > 0) {
             foreach ($so->Attendee as $entry) {
 				if ($entry->Type == 'O') {
-					if (!isset($ro->OptionalAttendees)) {$ro->OptionalAttendees = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfAttendeesType;}
-						$ro->OptionalAttendees->Attendee[] = new \OCA\EAS\Components\EWS\Type\AttendeeType(
-						new \OCA\EAS\Components\EWS\Type\EmailAddressType(
+					if (!isset($ro->OptionalAttendees)) {$ro->OptionalAttendees = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfAttendeesType;}
+						$ro->OptionalAttendees->Attendee[] = new \OCA\EAS\Utile\Eas\Type\AttendeeType(
+						new \OCA\EAS\Utile\Eas\Type\EmailAddressType(
 							$entry->Address,
 							$entry->Name
 						),
@@ -447,9 +447,9 @@ class RemoteEventsService {
 					);
 				}
 				else {
-					if (!isset($ro->RequiredAttendees)) {$ro->RequiredAttendees = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfAttendeesType;}
-						$ro->RequiredAttendees->Attendee[] = new \OCA\EAS\Components\EWS\Type\AttendeeType(
-						new \OCA\EAS\Components\EWS\Type\EmailAddressType(
+					if (!isset($ro->RequiredAttendees)) {$ro->RequiredAttendees = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfAttendeesType;}
+						$ro->RequiredAttendees->Attendee[] = new \OCA\EAS\Utile\Eas\Type\AttendeeType(
+						new \OCA\EAS\Utile\Eas\Type\EmailAddressType(
 							$entry->Address,
 							$entry->Name
 						),
@@ -488,17 +488,17 @@ class RemoteEventsService {
 		// Occurrence
 		if (isset($so->Occurrence) && !empty($so->Occurrence->Precision)) {
 
-			$ro->Recurrence = new \OCA\EAS\Components\EWS\Type\RecurrenceType();
+			$ro->Recurrence = new \OCA\EAS\Utile\Eas\Type\RecurrenceType();
 
 			// Occurrence Iterations
 			if (!empty($so->Occurrence->Iterations)) {
-				$ro->Recurrence->NumberedRecurrence = new \OCA\EAS\Components\EWS\Type\NumberedRecurrenceRangeType();
+				$ro->Recurrence->NumberedRecurrence = new \OCA\EAS\Utile\Eas\Type\NumberedRecurrenceRangeType();
 				$ro->Recurrence->NumberedRecurrence->NumberOfOccurrences = $so->Occurrence->Iterations;
 				$ro->Recurrence->NumberedRecurrence->StartDate = $so->StartsOn->format('Y-m-d');
 			}
 			// Occurrence Conclusion
 			if (!empty($so->Occurrence->Concludes)) {
-				$ro->Recurrence->EndDateRecurrence = new \OCA\EAS\Components\EWS\Type\EndDateRecurrenceRangeType();
+				$ro->Recurrence->EndDateRecurrence = new \OCA\EAS\Utile\Eas\Type\EndDateRecurrenceRangeType();
 				$ro->Recurrence->EndDateRecurrence->StartDate = $so->StartsOn->format('Y-m-d');
 				if ($so->Origin == 'L') {
 					// subtract 1 day to adjust in how the end date is calculated in NC and EWS
@@ -510,13 +510,13 @@ class RemoteEventsService {
 			}
 			// No Iterations And No Conclusion Date
 			if (empty($so->Occurrence->Iterations) && empty($so->Occurrence->Concludes)) {
-				$ro->Recurrence->NoEndRecurrence = new \OCA\EAS\Components\EWS\Type\NoEndRecurrenceRangeType();
+				$ro->Recurrence->NoEndRecurrence = new \OCA\EAS\Utile\Eas\Type\NoEndRecurrenceRangeType();
 			}
 
 			// Based on Precision
 			// Occurrence Daily
 			if ($so->Occurrence->Precision == 'D') {
-				$ro->Recurrence->DailyRecurrence = new \OCA\EAS\Components\EWS\Type\DailyRecurrencePatternType();
+				$ro->Recurrence->DailyRecurrence = new \OCA\EAS\Utile\Eas\Type\DailyRecurrencePatternType();
 				if (!empty($so->Occurrence->Interval)) {
 					$ro->Recurrence->DailyRecurrence->Interval = $so->Occurrence->Interval;
 				}
@@ -526,7 +526,7 @@ class RemoteEventsService {
 			}
 			// Occurrence Weekly
 			elseif ($so->Occurrence->Precision == 'W') {
-				$ro->Recurrence->WeeklyRecurrence = new \OCA\EAS\Components\EWS\Type\WeeklyRecurrencePatternType();
+				$ro->Recurrence->WeeklyRecurrence = new \OCA\EAS\Utile\Eas\Type\WeeklyRecurrencePatternType();
 				if (!empty($so->Occurrence->Interval)) {
 					$ro->Recurrence->WeeklyRecurrence->Interval = $so->Occurrence->Interval;
 				}
@@ -539,7 +539,7 @@ class RemoteEventsService {
 			// Occurrence Monthly
 			elseif ($so->Occurrence->Precision == 'M') {
 				if ($so->Occurrence->Pattern == 'A') {
-					$ro->Recurrence->AbsoluteMonthlyRecurrence = new \OCA\EAS\Components\EWS\Type\AbsoluteMonthlyRecurrencePatternType();
+					$ro->Recurrence->AbsoluteMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteMonthlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$ro->Recurrence->AbsoluteMonthlyRecurrence->Interval = $so->Occurrence->Interval;
 					}
@@ -549,7 +549,7 @@ class RemoteEventsService {
 					$ro->Recurrence->AbsoluteMonthlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
 				}
 				elseif ($so->Occurrence->Pattern == 'R') {
-					$ro->Recurrence->RelativeMonthlyRecurrence = new \OCA\EAS\Components\EWS\Type\RelativeMonthlyRecurrencePatternType();
+					$ro->Recurrence->RelativeMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeMonthlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$ro->Recurrence->RelativeMonthlyRecurrence->Interval = $so->Occurrence->Interval;	
 					}
@@ -569,7 +569,7 @@ class RemoteEventsService {
 			// Occurrence Yearly
 			elseif ($so->Occurrence->Precision == 'Y') {
 				if ($so->Occurrence->Pattern == 'A') {
-					$ro->Recurrence->AbsoluteYearlyRecurrence = new \OCA\EAS\Components\EWS\Type\AbsoluteYearlyRecurrencePatternType();
+					$ro->Recurrence->AbsoluteYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteYearlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$ro->Recurrence->AbsoluteYearlyRecurrence->Interval = $so->Occurrence->Interval;
 					}
@@ -580,7 +580,7 @@ class RemoteEventsService {
 					$ro->Recurrence->AbsoluteYearlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
 				}
 				elseif ($so->Occurrence->Pattern == 'R') {
-					$ro->Recurrence->RelativeYearlyRecurrence = new \OCA\EAS\Components\EWS\Type\RelativeYearlyRecurrencePatternType();
+					$ro->Recurrence->RelativeYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeYearlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$ro->Recurrence->RelativeYearlyRecurrence->Interval = $so->Occurrence->Interval;	
 					}
@@ -600,14 +600,14 @@ class RemoteEventsService {
 			}
 			// Occurrence Exclusions
 			if (count($so->Occurrence->Excludes) > 0) {
-				$ro->DeletedOccurrences = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfDeletedOccurrencesType();
+				$ro->DeletedOccurrences = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfDeletedOccurrencesType();
 				foreach ($so->Occurrence->Excludes as $entry) {
 					// clone start date
 					$dt = clone $entry;
 					// change timezone on cloned date
 					$dt->setTimezone(new DateTimeZone('UTC'));
 					// construct start time property
-					$ro->DeletedOccurrence[] = new \OCA\EAS\Components\EWS\Type\DeletedOccurrenceInfoType(
+					$ro->DeletedOccurrence[] = new \OCA\EAS\Utile\Eas\Type\DeletedOccurrenceInfoType(
 						$dt->format('Y-m-d\\TH:i:s\Z')
 					);
 					unset($dt);
@@ -766,7 +766,7 @@ class RemoteEventsService {
             $rm[] = $this->updateFieldUnindexed(
                 'item:Body',
                 'Body', 
-                new \OCA\EAS\Components\EWS\Type\BodyType(
+                new \OCA\EAS\Utile\Eas\Type\BodyType(
                     'HTML',
                     $so->Notes
             ));
@@ -795,7 +795,7 @@ class RemoteEventsService {
 		}
 		// Tag(s)
 		if (count($so->Tags) > 0) {
-			$t = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfStringsType;
+			$t = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfStringsType;
 			foreach ($so->Tags as $entry) {
 				$t->String[] = $entry;
 			}
@@ -809,9 +809,9 @@ class RemoteEventsService {
 		if (count($so->Attendee) > 0) {
 			foreach ($so->Attendee as $entry) {
 				if ($entry->Type == 'O') {
-					if (!isset($oa)) {$oa = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfAttendeesType;}
-						$oa->Attendee[] = new \OCA\EAS\Components\EWS\Type\AttendeeType(
-						new \OCA\EAS\Components\EWS\Type\EmailAddressType(
+					if (!isset($oa)) {$oa = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfAttendeesType;}
+						$oa->Attendee[] = new \OCA\EAS\Utile\Eas\Type\AttendeeType(
+						new \OCA\EAS\Utile\Eas\Type\EmailAddressType(
 							$entry->Address,
 							$entry->Name
 						),
@@ -819,9 +819,9 @@ class RemoteEventsService {
 					);
 				}
 				else {
-					if (!isset($ra)) {$ra = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfAttendeesType;}
-						$ra->Attendee[] = new \OCA\EAS\Components\EWS\Type\AttendeeType(
-						new \OCA\EAS\Components\EWS\Type\EmailAddressType(
+					if (!isset($ra)) {$ra = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfAttendeesType;}
+						$ra->Attendee[] = new \OCA\EAS\Utile\Eas\Type\AttendeeType(
+						new \OCA\EAS\Utile\Eas\Type\EmailAddressType(
 							$entry->Address,
 							$entry->Name
 						),
@@ -884,16 +884,16 @@ class RemoteEventsService {
 		// Occurrence
 		if (isset($so->Occurrence) && !empty($so->Occurrence->Precision)) {
 			// construct recurrence object
-			$f = new \OCA\EAS\Components\EWS\Type\RecurrenceType();
+			$f = new \OCA\EAS\Utile\Eas\Type\RecurrenceType();
 			// Iterations
 			if (!empty($so->Occurrence->Iterations)) {
-				$f->NumberedRecurrence = new \OCA\EAS\Components\EWS\Type\NumberedRecurrenceRangeType();
+				$f->NumberedRecurrence = new \OCA\EAS\Utile\Eas\Type\NumberedRecurrenceRangeType();
 				$f->NumberedRecurrence->NumberOfOccurrences = $so->Occurrence->Iterations;
 				$f->NumberedRecurrence->StartDate = $so->StartsOn->format('Y-m-d');
 			}
 			// Conclusion
 			if (!empty($so->Occurrence->Concludes)) {
-				$f->EndDateRecurrence = new \OCA\EAS\Components\EWS\Type\EndDateRecurrenceRangeType();
+				$f->EndDateRecurrence = new \OCA\EAS\Utile\Eas\Type\EndDateRecurrenceRangeType();
 				$f->EndDateRecurrence->StartDate = $so->StartsOn->format('Y-m-d');
 				if ($so->Origin == 'L') {
 					// subtract 1 day to adjust in how the end date is calculated in NC and EWS
@@ -905,13 +905,13 @@ class RemoteEventsService {
 			}
 			// No Iterations And No Conclusion Date
 			if (empty($so->Occurrence->Iterations) && empty($so->Occurrence->Concludes)) {
-				$f->NoEndRecurrence = new \OCA\EAS\Components\EWS\Type\NoEndRecurrenceRangeType();
+				$f->NoEndRecurrence = new \OCA\EAS\Utile\Eas\Type\NoEndRecurrenceRangeType();
 			}
 
 			// Based on Precision
 			// Daily Event
 			if ($so->Occurrence->Precision == 'D') {
-				$f->DailyRecurrence = new \OCA\EAS\Components\EWS\Type\DailyRecurrencePatternType();
+				$f->DailyRecurrence = new \OCA\EAS\Utile\Eas\Type\DailyRecurrencePatternType();
 				if (!empty($so->Occurrence->Interval)) {
 					$f->DailyRecurrence->Interval = $so->Occurrence->Interval;
 				}
@@ -921,7 +921,7 @@ class RemoteEventsService {
 			}
 			// Weekly Event
 			elseif ($so->Occurrence->Precision == 'W') {
-				$f->WeeklyRecurrence = new \OCA\EAS\Components\EWS\Type\WeeklyRecurrencePatternType();
+				$f->WeeklyRecurrence = new \OCA\EAS\Utile\Eas\Type\WeeklyRecurrencePatternType();
 				if (!empty($so->Occurrence->Interval)) {
 					$f->WeeklyRecurrence->Interval = $so->Occurrence->Interval;
 				}
@@ -934,7 +934,7 @@ class RemoteEventsService {
 			// Monthly Event
 			elseif ($so->Occurrence->Precision == 'M') {
 				if ($so->Occurrence->Pattern == 'A') {
-					$f->AbsoluteMonthlyRecurrence = new \OCA\EAS\Components\EWS\Type\AbsoluteMonthlyRecurrencePatternType();
+					$f->AbsoluteMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteMonthlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$f->AbsoluteMonthlyRecurrence->Interval = $so->Occurrence->Interval;
 					}
@@ -944,7 +944,7 @@ class RemoteEventsService {
 					$f->AbsoluteMonthlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
 				}
 				elseif ($so->Occurrence->Pattern == 'R') {
-					$f->RelativeMonthlyRecurrence = new \OCA\EAS\Components\EWS\Type\RelativeMonthlyRecurrencePatternType();
+					$f->RelativeMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeMonthlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$f->RelativeMonthlyRecurrence->Interval = $so->Occurrence->Interval;	
 					}
@@ -962,7 +962,7 @@ class RemoteEventsService {
 			// Yearly Event
 			elseif ($so->Occurrence->Precision == 'Y') {
 				if ($so->Occurrence->Pattern == 'A') {
-					$f->AbsoluteYearlyRecurrence = new \OCA\EAS\Components\EWS\Type\AbsoluteYearlyRecurrencePatternType();
+					$f->AbsoluteYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteYearlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$f->AbsoluteYearlyRecurrence->Interval = $so->Occurrence->Interval;
 					}
@@ -973,7 +973,7 @@ class RemoteEventsService {
 					$f->AbsoluteYearlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
 				}
 				elseif ($so->Occurrence->Pattern == 'R') {
-					$f->RelativeYearlyRecurrence = new \OCA\EAS\Components\EWS\Type\RelativeYearlyRecurrencePatternType();
+					$f->RelativeYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeYearlyRecurrencePatternType();
 					if (!empty($so->Occurrence->Interval)) {
 						$f->RelativeYearlyRecurrence->Interval = $so->Occurrence->Interval;	
 					}
@@ -996,14 +996,14 @@ class RemoteEventsService {
 
 			// Occurrence Exclusions
 			if (count($so->Occurrence->Excludes) > 0) {
-				$f = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfDeletedOccurrencesType();
+				$f = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfDeletedOccurrencesType();
 				foreach ($so->Occurrence->Excludes as $entry) {
 					// clone start date
 					$dt = clone $entry;
 					// change timezone on cloned date
 					$dt->setTimezone(new DateTimeZone('UTC'));
 					// construct start time property
-					$f->DeletedOccurrence[] = new \OCA\EAS\Components\EWS\Type\DeletedOccurrenceInfoType(
+					$f->DeletedOccurrence[] = new \OCA\EAS\Utile\Eas\Type\DeletedOccurrenceInfoType(
 						$dt->format('Y-m-d\\TH:i:s\Z')
 					);
 					unset($dt);
@@ -1076,7 +1076,7 @@ class RemoteEventsService {
 	 */
     public function deleteCollectionItem(string $iid): bool {
         // create object
-        $o = new \OCA\EAS\Components\EWS\Type\ItemIdType($iid);
+        $o = new \OCA\EAS\Utile\Eas\Type\ItemIdType($iid);
 
         $result = $this->RemoteCommonService->deleteItem($this->DataStore, array($o), 'HardDelete');
 
@@ -1153,7 +1153,7 @@ class RemoteEventsService {
 		// process batch
 		foreach ($batch as $key => $entry) {
 			// construct command object
-			$co = new \OCA\EAS\Components\EWS\Type\FileAttachmentType();
+			$co = new \OCA\EAS\Utile\Eas\Type\FileAttachmentType();
 			$co->IsInline = false;
 			$co->IsContactPhoto = false;
 			$co->Name = $entry->Name;
@@ -1226,12 +1226,12 @@ class RemoteEventsService {
 
 		// construct properties array
 		if (!isset($this->DefaultCollectionProperties)) {
-			$p = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:FolderId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:FolderClass');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:ParentFolderId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:DisplayName');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('folder:TotalCount');
+			$p = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPathsToElementType();
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:FolderId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:FolderClass');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:ParentFolderId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:DisplayName');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:TotalCount');
 
 
 			$this->DefaultCollectionProperties = $p;
@@ -1252,38 +1252,38 @@ class RemoteEventsService {
 
 		// construct properties array
 		if (!isset($this->DefaultItemProperties)) {
-			$p = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPathsToElementType();
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ItemId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:UID');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ParentFolderId');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:DateTimeCreated');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:DateTimeSent');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:LastModifiedTime');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:TimeZone');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:Start');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:StartTimeZone');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:End');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:EndTimeZone');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Subject');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Body');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:Location');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:LegacyFreeBusyStatus');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Importance');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Sensitivity');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Categories');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:Organizer');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:RequiredAttendees');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:OptionalAttendees');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ReminderIsSet');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:ReminderMinutesBeforeStart');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:Recurrence');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:ModifiedOccurrences');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:DeletedOccurrences');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:Attachments');
+			$p = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPathsToElementType();
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ItemId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:UID');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ParentFolderId');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:DateTimeCreated');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:DateTimeSent');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:LastModifiedTime');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:TimeZone');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:Start');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:StartTimeZone');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:End');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:EndTimeZone');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Subject');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Body');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:Location');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:LegacyFreeBusyStatus');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Importance');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Sensitivity');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Categories');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:Organizer');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:RequiredAttendees');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:OptionalAttendees');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ReminderIsSet');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ReminderMinutesBeforeStart');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:Recurrence');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:ModifiedOccurrences');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:DeletedOccurrences');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Attachments');
 
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('item:UniqueBody');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:AppointmentState');
-			$p->FieldURI[] = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType('calendar:Resources');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:UniqueBody');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:AppointmentState');
+			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('calendar:Resources');
 
 			$this->DefaultItemProperties = $p;
 		}
@@ -1305,10 +1305,10 @@ class RemoteEventsService {
 	 */
     public function updateFieldUnindexed(string $uri, string $name, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->FieldURI = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType($uri);
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->FieldURI = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType($uri);
         // create field contact object
-        $o->CalendarItem = new \OCA\EAS\Components\EWS\Type\CalendarItemType();
+        $o->CalendarItem = new \OCA\EAS\Utile\Eas\Type\CalendarItemType();
         $o->CalendarItem->$name = $value;
         // return object
         return $o;
@@ -1325,8 +1325,8 @@ class RemoteEventsService {
 	 */
     public function deleteFieldUnindexed(string $uri): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->FieldURI = new \OCA\EAS\Components\EWS\Type\PathToUnindexedFieldType($uri);
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->FieldURI = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType($uri);
         // return object
         return $o;
     }
@@ -1346,10 +1346,10 @@ class RemoteEventsService {
 	 */
     public function updateFieldIndexed(string $uri, string $index, string $name, mixed $dictionary, mixed $entry): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->IndexedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToIndexedFieldType($uri, $index);
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->IndexedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToIndexedFieldType($uri, $index);
         // create field contact object
-        $o->CalendarItem = new \OCA\EAS\Components\EWS\Type\CalendarItemType();
+        $o->CalendarItem = new \OCA\EAS\Utile\Eas\Type\CalendarItemType();
         $o->CalendarItem->$name = $dictionary;
         $o->CalendarItem->$name->Entry = $entry;
         // return object
@@ -1369,8 +1369,8 @@ class RemoteEventsService {
 	 */
     public function deleteFieldIndexed(string $uri, string $index): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->IndexedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToIndexedFieldType($uri, $index);
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->IndexedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToIndexedFieldType($uri, $index);
         // return object
         return $o;
     }
@@ -1389,8 +1389,8 @@ class RemoteEventsService {
 	 */
     public function createFieldExtendedByName(string $collection, string $name, string $type, mixed $value): object {
         // create extended field object
-        $o = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 $collection,
                 null,
                 null,
@@ -1418,8 +1418,8 @@ class RemoteEventsService {
 	 */
     public function updateFieldExtendedByName(string $collection, string $name, string $type, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             $collection,
             null,
             null,
@@ -1428,9 +1428,9 @@ class RemoteEventsService {
             $type
         );
         // create field contact object
-        $o->CalendarItem = new \OCA\EAS\Components\EWS\Type\CalendarItemType();
-        $o->CalendarItem->ExtendedProperty = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o->CalendarItem = new \OCA\EAS\Utile\Eas\Type\CalendarItemType();
+        $o->CalendarItem->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 $collection,
                 null,
                 null,
@@ -1457,8 +1457,8 @@ class RemoteEventsService {
 	 */
     public function deleteFieldExtendedByName(string $collection, string $name, string $type): object {
         // create field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             $collection,
             null,
             null,
@@ -1483,8 +1483,8 @@ class RemoteEventsService {
 	 */
     public function createFieldExtendedByTag(string $tag, string $type, mixed $value): object {
         // create extended field object
-        $o = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 null,
                 null,
                 null,
@@ -1511,8 +1511,8 @@ class RemoteEventsService {
 	 */
     public function updateFieldExtendedByTag(string $tag, string $type, mixed $value): object {
         // create field update object
-        $o = new \OCA\EAS\Components\EWS\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             null,
             null,
             null,
@@ -1521,9 +1521,9 @@ class RemoteEventsService {
             $type
         );
         // create field contact object
-        $o->CalendarItem = new \OCA\EAS\Components\EWS\Type\CalendarItemType();
-        $o->CalendarItem->ExtendedProperty = new \OCA\EAS\Components\EWS\Type\ExtendedPropertyType(
-            new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o->CalendarItem = new \OCA\EAS\Utile\Eas\Type\CalendarItemType();
+        $o->CalendarItem->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
+            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
                 null,
                 null,
                 null,
@@ -1549,8 +1549,8 @@ class RemoteEventsService {
 	 */
     public function deleteFieldExtendedByTag(string $tag, string $type): object {
         // construct field delete object
-        $o = new \OCA\EAS\Components\EWS\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Components\EWS\Type\PathToExtendedFieldType(
+        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
+        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
             null,
             null,
             null,
@@ -1576,15 +1576,15 @@ class RemoteEventsService {
 		$zone = \OCA\EAS\Utile\TimeZoneEWS::find($name);
 
         // construct time zone object
-        $o = new \OCA\EAS\Components\EWS\Type\TimeZoneDefinitionType;
+        $o = new \OCA\EAS\Utile\Eas\Type\TimeZoneDefinitionType;
 		$o->Id = $zone->Id;
 		$o->Name = $zone->Name;
 
 		// Periods
-		$o->Periods = new \OCA\EAS\Components\EWS\ArrayType\NonEmptyArrayOfPeriodsType();
+		$o->Periods = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPeriodsType();
 		if (isset($zone->Periods->Period) && count($zone->Periods->Period) > 0) {
 			foreach ($zone->Periods->Period as $entry) {
-				$o->Periods->Period[] = new \OCA\EAS\Components\EWS\Type\PeriodType(
+				$o->Periods->Period[] = new \OCA\EAS\Utile\Eas\Type\PeriodType(
 					$entry->Id,
 					$entry->Name,
 					$entry->Bias
@@ -1593,12 +1593,12 @@ class RemoteEventsService {
 		}
 
 		// Transitions
-		$o->Transitions = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfTransitionsType();
+		$o->Transitions = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfTransitionsType();
 		// Transition
 		if (isset($zone->Transitions->Transition) && count($zone->Transitions->Transition) > 0) {
 			foreach ($zone->Transitions->Transition as $entry) {
-				$o->Transitions->Transition[] = new \OCA\EAS\Components\EWS\Type\TransitionType(
-					new \OCA\EAS\Components\EWS\Type\TransitionTargetType(
+				$o->Transitions->Transition[] = new \OCA\EAS\Utile\Eas\Type\TransitionType(
+					new \OCA\EAS\Utile\Eas\Type\TransitionTargetType(
 						$entry->To->Kind,
 						$entry->To->_
 					)
@@ -1609,8 +1609,8 @@ class RemoteEventsService {
 		/*
 		if (isset($zone->Transitions->AbsoluteDateTransition) && count($zone->Transitions->AbsoluteDateTransition) > 0) {
 			foreach ($zone->Transitions->AbsoluteDateTransition as $entry) {
-				$o->Transitions->AbsoluteDateTransition[] = new \OCA\EAS\Components\EWS\Type\AbsoluteDateTransitionType(
-					new \OCA\EAS\Components\EWS\Type\TransitionTargetType(
+				$o->Transitions->AbsoluteDateTransition[] = new \OCA\EAS\Utile\Eas\Type\AbsoluteDateTransitionType(
+					new \OCA\EAS\Utile\Eas\Type\TransitionTargetType(
 						$entry->To->Kind,
 						$entry->To->_
 					),
@@ -1623,8 +1623,8 @@ class RemoteEventsService {
 		// Recurring Date Transition
 		if (isset($zone->Transitions->RecurringDateTransition) && count($zone->Transitions->RecurringDateTransition) > 0) {
 			foreach ($zone->Transitions->RecurringDateTransition as $entry) {
-				$o->Transitions->RecurringDateTransition[] = new \OCA\EAS\Components\EWS\Type\RecurringDateTransitionType(
-					new \OCA\EAS\Components\EWS\Type\TransitionTargetType(
+				$o->Transitions->RecurringDateTransition[] = new \OCA\EAS\Utile\Eas\Type\RecurringDateTransitionType(
+					new \OCA\EAS\Utile\Eas\Type\TransitionTargetType(
 						$entry->To->Kind,
 						$entry->To->_
 					),
@@ -1637,8 +1637,8 @@ class RemoteEventsService {
 		// Recurring Day Transition
 		if (isset($zone->Transitions->RecurringDayTransition) && count($zone->Transitions->RecurringDayTransition) > 0) {
 			foreach ($zone->Transitions->RecurringDayTransition as $entry) {
-				$o->Transitions->RecurringDayTransition[] = new \OCA\EAS\Components\EWS\Type\RecurringDayTransitionType(
-					new \OCA\EAS\Components\EWS\Type\TransitionTargetType(
+				$o->Transitions->RecurringDayTransition[] = new \OCA\EAS\Utile\Eas\Type\RecurringDayTransitionType(
+					new \OCA\EAS\Utile\Eas\Type\TransitionTargetType(
 						$entry->To->Kind,
 						$entry->To->_
 					),
@@ -1652,15 +1652,15 @@ class RemoteEventsService {
 
 		// Transitions Groups
 		if (isset($zone->TransitionsGroups->TransitionsGroup) && count($zone->TransitionsGroups->TransitionsGroup) > 0) {
-			$o->TransitionsGroups = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfTransitionsGroupsType();
+			$o->TransitionsGroups = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfTransitionsGroupsType();
 			foreach ($zone->TransitionsGroups->TransitionsGroup as $key => $group) {
-				$o->TransitionsGroups->TransitionsGroup[$key] = new \OCA\EAS\Components\EWS\ArrayType\ArrayOfTransitionsType();
+				$o->TransitionsGroups->TransitionsGroup[$key] = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfTransitionsType();
 				$o->TransitionsGroups->TransitionsGroup[$key]->Id = $group->Id;
 				// Transition
 				if (isset($group->Transition) && count($group->Transition) > 0) {
 					foreach ($group->Transition as $entry) {
-						$o->TransitionsGroups->TransitionsGroup[$key]->Transition[] = new \OCA\EAS\Components\EWS\Type\TransitionType(
-							new \OCA\EAS\Components\EWS\Type\TransitionTargetType(
+						$o->TransitionsGroups->TransitionsGroup[$key]->Transition[] = new \OCA\EAS\Utile\Eas\Type\TransitionType(
+							new \OCA\EAS\Utile\Eas\Type\TransitionTargetType(
 								$entry->To->Kind,
 								$entry->To->_
 							)
@@ -1670,8 +1670,8 @@ class RemoteEventsService {
 				// Absolute Date Transition
 				if (isset($group->AbsoluteDateTransition) && count($group->AbsoluteDateTransition) > 0) {
 					foreach ($group->AbsoluteDateTransition as $entry) {
-						$o->TransitionsGroups->TransitionsGroup[$key]->AbsoluteDateTransition[] = new \OCA\EAS\Components\EWS\Type\AbsoluteDateTransitionType(
-							new \OCA\EAS\Components\EWS\Type\TransitionTargetType(
+						$o->TransitionsGroups->TransitionsGroup[$key]->AbsoluteDateTransition[] = new \OCA\EAS\Utile\Eas\Type\AbsoluteDateTransitionType(
+							new \OCA\EAS\Utile\Eas\Type\TransitionTargetType(
 								$entry->To->Kind,
 								$entry->To->_
 							),
@@ -1682,8 +1682,8 @@ class RemoteEventsService {
 				// Recurring Date Transition
 				if (isset($group->RecurringDateTransition) && count($group->RecurringDateTransition) > 0) {
 					foreach ($group->RecurringDateTransition as $entry) {
-						$o->TransitionsGroups->TransitionsGroup[$key]->RecurringDateTransition[] = new \OCA\EAS\Components\EWS\Type\RecurringDateTransitionType(
-							new \OCA\EAS\Components\EWS\Type\TransitionTargetType(
+						$o->TransitionsGroups->TransitionsGroup[$key]->RecurringDateTransition[] = new \OCA\EAS\Utile\Eas\Type\RecurringDateTransitionType(
+							new \OCA\EAS\Utile\Eas\Type\TransitionTargetType(
 								$entry->To->Kind,
 								$entry->To->_
 							),
@@ -1696,8 +1696,8 @@ class RemoteEventsService {
 				// Recurring Day Transition
 				if (isset($group->RecurringDayTransition) && count($group->RecurringDayTransition) > 0) {
 					foreach ($group->RecurringDayTransition as $entry) {
-						$o->TransitionsGroups->TransitionsGroup[$key]->RecurringDayTransition[] = new \OCA\EAS\Components\EWS\Type\RecurringDayTransitionType(
-							new \OCA\EAS\Components\EWS\Type\TransitionTargetType(
+						$o->TransitionsGroups->TransitionsGroup[$key]->RecurringDayTransition[] = new \OCA\EAS\Utile\Eas\Type\RecurringDayTransitionType(
+							new \OCA\EAS\Utile\Eas\Type\TransitionTargetType(
 								$entry->To->Kind,
 								$entry->To->_
 							),
