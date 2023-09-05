@@ -82,10 +82,36 @@ try {
 	$RemoteCommonService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteCommonService::class);
 
 	// construct decoder
-	/*
+	
 	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
+	/*
 	$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
 	*/
+
+	// construct GetItemEstimate request
+	$o = new \stdClass();
+	$o->GetItemEstimate = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
+	$o->GetItemEstimate->Collections = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
+	$o->GetItemEstimate->Collections->Collection = new \OCA\EAS\Utile\Eas\EasCollection('GetItemEstimate');
+
+	$Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
+	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', '1');
+	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 'a');
+	$o->GetItemEstimate->Collections->Collection[] = $Collection;
+
+	$Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
+	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', '2');
+	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 'a');
+	$o->GetItemEstimate->Collections->Collection[] = $Collection;
+
+	$Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
+	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', '3');
+	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 'a');
+	$o->GetItemEstimate->Collections->Collection[] = $Collection;
+
+	$raw = $EasXmlEncoder->stringFromObject($o);
+
+	exit;
 
 	// construct remote data store client
 	$EasClient = $CoreService->createClient($uid);

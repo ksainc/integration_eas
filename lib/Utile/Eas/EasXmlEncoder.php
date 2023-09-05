@@ -920,6 +920,24 @@ class EasXmlEncoder{
 				$this->_writeNodeEnd($stream);
 
 			}
+			elseif ($property instanceof EasCollection) {
+				$cpage = $page;
+				foreach ($property as $entry) {
+					// evaluate if code page changed on the last iteration
+					if ($cpage != $page) {
+						$page = $cpage;
+						$this->_writeByte($stream, EasXml::CODESPACE);
+						$this->_writeByte($stream, $page);
+					}
+					// write node start
+					$this->_writeNodeStart($stream, $page, $token, true, false);
+					// write node contents
+					$this->_writeBodyFromObject($stream, $entry, $page);
+					// write node end
+					$this->_writeNodeEnd($stream);
+				}
+
+			}
 		}
 
 	}
