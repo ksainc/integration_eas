@@ -82,19 +82,13 @@ try {
 	$RemoteCommonService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteCommonService::class);
 
 	// construct decoder
+	/*
 	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
 	$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
-
-	$account = $ConfigurationService->retrieveAuthenticationBasic($uid);
+	*/
 
 	// construct remote data store client
-	$EasClient = new \OCA\EAS\Utile\Eas\EasClient(
-		$account['account_server'], 
-		new \OCA\EAS\Utile\Eas\EasAuthenticationBasic($account['account_bauth_id'], $account['account_bauth_secret']),
-		$account['account_deviceid'],
-		$account['account_devicekey'],
-		$account['account_deviceversion']
-	);
+	$EasClient = $CoreService->createClient($uid);
 
 	// Load From File
 	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync', 'r');
@@ -118,8 +112,7 @@ try {
 
 	$token = 0;
 	$cid = '8';
-
-	/*
+	
 	$rs = $RemoteCommonService->fetchFolders($EasClient);
 
 	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, 0, 32);
@@ -129,39 +122,8 @@ try {
 	$rs = $RemoteCommonService->fetchFolderEstimate($EasClient, $cid, $token);
 	
 	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, 0, 32);
-	*/
-	// assign device policy token
-	$EasClient->setDeviceKey($token);
-	// perform folder fetch
-	$rs = $RemoteCommonService->fetchFolders($EasClient);
-	// initilize provisioning
-	$rs = $RemoteCommonService->provisionInit($EasClient, 'NextcloudEAS', 'Nextcloud EAS Connector', $EasClient->getTransportAgent());
-
-	exit; 
-
-	// evaluate response status
-	if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status != '1') {
-		throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
-	}
-	// retrieve device policy token
-	$token = $rs->Policies->Policy->PolicyKey->getContents();
-	// assign device policy token
-	$EasClient->setDeviceKey($token);
-	// accept provisioning
-	$rs = $RemoteCommonService->provisionAccept($EasClient, $token);
 
 	exit;
-
-	// evaluate response status
-	if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status != '1') {
-		throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
-	}
-	// retrieve device policy token
-	$token = $rs->Policies->Policy->PolicyKey->getContents();
-	// assign device policy token
-	$EasClient->setDeviceKey($token);
-	// perform folder fetch
-	$rs = $RemoteCommonService->fetchFolders($EasClient);	
 
 /*
 } catch (Exception $ex) {

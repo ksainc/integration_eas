@@ -45,8 +45,8 @@ use OCA\EAS\Service\CorrelationsService;
 use OCA\EAS\Service\ContactsService;
 use OCA\EAS\Service\EventsService;
 use OCA\EAS\Service\TasksService;
-use OCA\EAS\Service\HarmonizationThreadService;
 */
+use OCA\EAS\Service\HarmonizationThreadService;
 use OCA\EAS\Service\Local\LocalContactsService;
 use OCA\EAS\Service\Local\LocalEventsService;
 use OCA\EAS\Service\Local\LocalTasksService;
@@ -132,9 +132,7 @@ class CoreService {
 								INotificationManager $notificationManager,
 								ConfigurationService $ConfigurationService,
 								CorrelationsService $CorrelationsService,
-								/*
 								HarmonizationThreadService $HarmonizationThreadService,
-								*/
 								LocalContactsService $LocalContactsService,
 								LocalEventsService $LocalEventsService,
 								LocalTasksService $LocalTasksService,
@@ -156,9 +154,7 @@ class CoreService {
 		$this->notificationManager = $notificationManager;
 		$this->ConfigurationService = $ConfigurationService;
 		$this->CorrelationsService = $CorrelationsService;
-		/*
 		$this->HarmonizationThreadService = $HarmonizationThreadService;
-		*/
 		$this->LocalContactsService = $LocalContactsService;
 		$this->LocalEventsService = $LocalEventsService;
 		$this->LocalTasksService = $LocalTasksService;
@@ -185,15 +181,15 @@ class CoreService {
 	 * @since Release 1.0.0
 	 * 
 	 * @param string $uid				nextcloud user id
-	 * @param string $account_id		account username
-	 * @param string $account_secret	account secret
+	 * @param string $account_bauth_id		account username
+	 * @param string $account_bauth_secret	account secret
 	 * 
 	 * @return object
 	 */
-	public function locateAccount(string $account_id, string $account_secret): ?object {
+	public function locateAccount(string $account_bauth_id, string $account_bauth_secret): ?object {
 
 		// construct locator
-		$locator = new Autodiscover($account_id, $account_secret);
+		$locator = new Autodiscover($account_bauth_id, $account_bauth_secret);
 		// find configuration
 		$result = $locator->discover();
 
@@ -204,7 +200,7 @@ class CoreService {
 			$o->UserDisplayName = $data['User']['DisplayName'];
 			$o->UserEMailAddress = $data['User']['EMailAddress'];
 			$o->UserSMTPAddress = $data['User']['AutoDiscoverSMTPAddress'];
-			$o->UserSecret = $account_secret;
+			$o->UserSecret = $account_bauth_secret;
 
 			foreach ($data['Account']['Protocol'] as $entry) {
 				// evaluate if type is EXCH
@@ -264,24 +260,23 @@ class CoreService {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid				nextcloud user id
-	 * @param string $account_id		account username
-	 * @param string $account_secret	account secret
-	 * @param string $account_server	FQDN or IP
+	 * @param string $uid					nextcloud user id
+	 * @param string $account_bauth_id		account username
+	 * @param string $account_bauth_secret	account secret
+	 * @param string $account_server		FQDN or IP
 	 * @param array $flags
 	 * 
 	 * @return bool
 	 */
-	public function connectAccountAlternate(string $uid, string $account_id, string $account_secret, string $account_server = '', array $flags = []): bool {
+	public function connectAccountAlternate(string $uid, string $account_bauth_id, string $account_bauth_secret, string $account_server = '', array $flags = []): bool {
 
-		// define connect status place holder
-		$connect = false;
+		// define place holders
 		$configuration = null;
 
 		// evaluate if provider is empty
 		if (empty($account_server) || in_array('CONNECT_MAIL', $flags)) {
 			// locate provider
-			$configuration = $this->locateAccount($account_id, $account_secret);
+			$configuration = $this->locateAccount($account_bauth_id, $account_bauth_secret);
 			//
 			if (isset($configuration->EXCH->Server)) {
 				$account_server = $configuration->EXCH->Server;
@@ -294,63 +289,82 @@ class CoreService {
 		}
 
 		// validate id
-		if (!\OCA\EAS\Utile\Validator::username($account_id)) {
+		if (!\OCA\EAS\Utile\Validator::username($account_bauth_id)) {
 			return false;
 		}
 
 		// validate secret
-		if (empty($account_secret)) {
+		if (empty($account_bauth_secret)) {
 			return false;
 		}
 
+		// Generate Device Information
+		$account_device_id = \OCA\EAS\Utile\UUID::v4();
+		$account_device_key = '0';
+		$account_device_version = EasClient::SERVICE_VERSION_161;
 
-		// evaluate validate flag
-		if (in_array("VALIDATE", $flags)) {
-			// construct remote data store client
-			$RemoteStore = new EasClient(
-				$account_server, 
-				new \OCA\EAS\Utile\Eas\AuthenticationBasic($account_id, $account_secret), 
-				'Exchange2007');
-			// retrieve root folder attributes
-			$rs = $this->RemoteCommonService->fetchFolder($RemoteStore, 'root', true, 'A');
-			// evaluate server response
-			if (isset($rs)) {
-				// extract server version from response
-				preg_match_all(
-					'/<ServerVersionInfo[^>]*?\sVersion=(["\'])?((?:.(?!\1|>))*.?)\1?/',
-					$RemoteStore->__last_response,
-					$match
-				);
-				$account_protocol = $match[2][0];
-				$connect = true;
-			}
-		}
-		else {
-			$connect = true;
-			$account_protocol = 'Exchange2010';
+		// construct remote data store client
+		$RemoteStore =  new \OCA\EAS\Utile\Eas\EasClient(
+			$account_server, 
+			new \OCA\EAS\Utile\Eas\EasAuthenticationBasic($account_bauth_id, $account_bauth_secret),
+			$account_device_id,
+			$account_device_key,
+			$account_device_version
+		);
+
+		// Step 1
+		// perform folder fetch
+		$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+		// initilize provisioning
+		$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
+		// evaluate response status
+		if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
+			throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
 		}
 
-		// evaluate connect status
-		if ($connect) {
-			// deposit authentication to datastore
-			$this->ConfigurationService->depositAuthenticationBasic($uid, $account_server, $account_protocol, $account_id, $account_secret);
-			// deposit configuration to datastore
-			$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderAlternate);
-			$this->ConfigurationService->depositUser($uid, ['account_connected' => '1']);
-			// register harmonization task
-			$this->TaskService->add(\OCA\EAS\Tasks\HarmonizationLauncher::class, ['uid' => $uid]);
+		// step 2
+		// retrieve device policy token
+		$account_devicekey = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+		// assign device policy token
+		$RemoteStore->setDeviceKey($account_devicekey);
+		// accept provisioning
+		$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_devicekey);
+		// evaluate response status
+		if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
+			throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
 		}
+
+		// step 3
+		// retrieve device policy token
+		$account_devicekey = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+		// assign device policy token
+		$RemoteStore->setDeviceKey($account_devicekey);
+		// perform folder fetch
+		$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+
+		// deposit authentication to datastore
+		$this->ConfigurationService->depositAuthenticationBasic(
+			$uid,
+			$account_bauth_id,
+			$account_server,
+			$account_bauth_id,
+			$account_bauth_secret,
+			$account_deviceid,
+			$account_devicekey,
+			$account_deviceversion
+		);
+		// deposit configuration to datastore
+		$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderAlternate);
+		$this->ConfigurationService->depositUser($uid, ['account_connected' => '1']);
+		// register harmonization task
+		$this->TaskService->add(\OCA\EAS\Tasks\HarmonizationLauncher::class, ['uid' => $uid]);
 
 		// evaluate validate flag
 		if (in_array("CONNECT_MAIL", $flags)) {
 			$this->connectMail($uid, $configuration);
 		}
-
-		if ($connect) {
-			return true;
-		} else {
-			return false;
-		}
+		
+		return true;
 
 	}
 
@@ -377,14 +391,67 @@ class CoreService {
 		}
 
 		if (is_array($data)) {
+
+			// Generate Device Information
+			$account_id = $data['email'];
+			$account_server = $data['service_server'];
+			$account_oauth_access = $data['access'];
+			$account_oauth_expiry = (int) $data['expiry'];
+			$account_oauth_refresh = $data['refresh'];
+			$account_device_id = \OCA\EAS\Utile\UUID::v4();
+			$account_device_key = '0';
+			$account_device_version = EasClient::SERVICE_VERSION_161;
+
+			// construct remote data store client
+			$RemoteStore =  new \OCA\EAS\Utile\Eas\EasClient(
+				$account_server, 
+				new \OCA\EAS\Utile\Eas\EasAuthenticationBearer($account_id, $account_oauth_access, $account_oauth_expiry),
+				$account_device_id,
+				$account_device_key,
+				$account_device_version
+			);
+
+			// Step 1
+			// perform folder fetch
+			$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+			// initilize provisioning
+			$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
+			// evaluate response status
+			if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
+				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
+			}
+
+			// step 2
+			// retrieve device policy token
+			$account_devicekey = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+			// assign device policy token
+			$RemoteStore->setDeviceKey($account_devicekey);
+			// accept provisioning
+			$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_devicekey);
+			// evaluate response status
+			if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
+				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
+			}
+
+			// step 3
+			// retrieve device policy token
+			$account_devicekey = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+			// assign device policy token
+			$RemoteStore->setDeviceKey($account_devicekey);
+			// perform folder fetch
+			$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+			
 			// deposit authentication to datastore
 			$this->ConfigurationService->depositAuthenticationOAuth(
 				$uid,
-				$data['service_server'],
-				$data['service_protocol'],
-				$data['access'],
-				(int) $data['expiry'],
-				$data['refresh']
+				$account_id,
+				$account_server,
+				$account_oauth_access,
+				$account_oauth_expiry,
+				$account_oauth_refresh,
+				$account_device_id,
+				$account_device_key,
+				$account_device_version
 			);
 			// deposit configuration to datastore
 			$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderMS365);
@@ -787,10 +854,10 @@ class CoreService {
 					// construct remote data store client
 					$this->RemoteStore = new EasClient(
 						$ac['account_server'], 
-						new \OCA\EAS\Utile\Eas\AuthenticationBearer($ac['account_oauth_id'], $ac['account_oauth_access'], $ac['account_oauth_expiry']), 
-						$ac['account_deviceid'],
-						$ac['account_devicekey'],
-						$ac['account_deviceversion']
+						new \OCA\EAS\Utile\Eas\AuthenticationBearer($ac['account_id'], $ac['account_oauth_access'], $ac['account_oauth_expiry']), 
+						$ac['account_device_id'],
+						$ac['account_device_key'],
+						$ac['account_device_version']
 					);
 					break;
 				case ConfigurationService::ProviderAlternate:
@@ -800,9 +867,9 @@ class CoreService {
 					$this->RemoteStore = new EasClient(
 						$ac['account_server'], 
 						new \OCA\EAS\Utile\Eas\EasAuthenticationBasic($ac['account_bauth_id'], $ac['account_bauth_secret']),
-						$ac['account_deviceid'],
-						$ac['account_devicekey'],
-						$ac['account_deviceversion']
+						$ac['account_device_id'],
+						$ac['account_device_key'],
+						$ac['account_device_version']
 					);
 					break;
 			}

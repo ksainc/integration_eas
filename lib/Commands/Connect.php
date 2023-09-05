@@ -70,8 +70,8 @@ class Connect extends Command {
 	protected function execute(InputInterface $input, OutputInterface $output): int {
         $uid = $input->getArgument('user');
         $account_provider = $input->getArgument('provider');
-        $account_id = $input->getArgument('accountid');
-        $account_secret = $input->getArgument('accountsecret');
+        $account_bauth_id = $input->getArgument('accountid');
+        $account_bauth_secret = $input->getArgument('accountsecret');
         $validate = filter_var($input->getArgument('validate'), FILTER_VALIDATE_BOOLEAN);
 		$flags = [];
 
@@ -84,9 +84,9 @@ class Connect extends Command {
 			$flags = ['VALIDATE'];
 		}
 		
-        $this->CoreService->connectAccount($uid, $account_id, $account_secret, $account_provider, $flags);
+        $this->CoreService->connectAccount($uid, $account_bauth_id, $account_bauth_secret, $account_provider, $flags);
 
-        $output->writeln("<info>User $uid connected to $account_provider as $account_id</info>");
+        $output->writeln("<info>User $uid connected to $account_provider as $account_bauth_id</info>");
 
 		return 0;
 

@@ -76,12 +76,12 @@ class UserConfigurationController extends Controller {
 	 * @NoAdminRequired
 	 *
 	 * @param string $server			server domain or ip
-	 * @param string $account_id		users login name
-	 * @param string $account_secret	users login password
+	 * @param string $account_bauth_id		users login name
+	 * @param string $account_bauth_secret	users login password
 	 * 
 	 * @return DataResponse
 	 */
-	public function ConnectAlternate(string $account_id, string $account_secret, string $account_server, string $flag): DataResponse {
+	public function ConnectAlternate(string $account_bauth_id, string $account_bauth_secret, string $account_server, string $flag): DataResponse {
 		
 		// evaluate if user id is present
 		if ($this->userId === null) {
@@ -93,7 +93,7 @@ class UserConfigurationController extends Controller {
 			$flags[] = 'CONNECT_MAIL';
 		}
 		// execute command
-		$rs = $this->CoreService->connectAccountAlternate($this->userId, $account_id, $account_secret, $account_server, $flags);
+		$rs = $this->CoreService->connectAccountAlternate($this->userId, $account_bauth_id, $account_bauth_secret, $account_server, $flags);
 		// return response
 		if (isset($rs)) {
 			return new DataResponse('success');
@@ -110,8 +110,8 @@ class UserConfigurationController extends Controller {
 	 * @NoCSRFRequired
 	 *
 	 * @param string $server			server domain or ip
-	 * @param string $account_id		users login name
-	 * @param string $account_secret	users login password
+	 * @param string $account_bauth_id		users login name
+	 * @param string $account_bauth_secret	users login password
 	 * 
 	 * @return DataResponse
 	 */

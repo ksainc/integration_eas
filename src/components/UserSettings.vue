@@ -67,7 +67,7 @@
 								{{ t('integration_eas', 'Account ID') }}
 							</label>
 							<input id="eas-account-id"
-								v-model="state.account_id"
+								v-model="state.account_bauth_id"
 								type="text"
 								:placeholder="t('integration_eas', 'Authentication ID for your EWS Account')"
 								autocomplete="off"
@@ -80,7 +80,7 @@
 								{{ t('integration_eas', 'Account Secret') }}
 							</label>
 							<input id="eas-account-secret"
-								v-model="state.account_secret"
+								v-model="state.account_bauth_secret"
 								type="password"
 								:placeholder="t('integration_eas', 'Authentication secret for your EWS Account')"
 								autocomplete="off"
@@ -534,8 +534,8 @@ export default {
 			const uri = generateUrl('/apps/integration_eas/connect-alternate')
 			const data = {
 				params: {
-					account_id: this.state.account_id,
-					account_secret: this.state.account_secret,
+					account_bauth_id: this.state.account_bauth_id,
+					account_bauth_secret: this.state.account_bauth_secret,
 					account_server: this.state.account_server,
 					flag: this.configureMail,
 				},

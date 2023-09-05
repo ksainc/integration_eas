@@ -102,32 +102,16 @@ class RemoteCommonService {
 			$o = $this->_decoder->stringToObject($rs);
 			$o = $o->Message;
 
-			switch ($o->Provision->DeviceInformation->Status->getContents()) {
+			switch ($o->Provision->Status->getContents()) {
 				case '2':
-					throw new Exception("The parent folder already contains a folder with the same name. Create the folder under a different name.", 2);
+					throw new Exception("Protocol error.", 2);
 					break;
 				case '3':
-					throw new Exception("The specified parent folder is a special system folder. Create the folder under a different parent.", 3);
-					break;
-				case '5':
-					throw new Exception("The parent folder does not exist on the server, possibly because it has been deleted or moved.", 5);
-					break;
-				case '6':
-					throw new Exception("An error occurred on the server.", 6);
-					break;
-				case '9':
-					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
-					break;
-				case '10':
-					throw new Exception("Incorrectly formatted request.", 10);
-					break;
-				case '11':
-				case '12':
-					throw new Exception("An unknown error occurred.", 11);
+					throw new Exception("General server error.", 3);
 					break;
 			}
 
-			return $o->Message;
+			return $o;
 		}
 		else {
 			// return blank response
@@ -152,9 +136,9 @@ class RemoteCommonService {
 		$o->Provision = new EasObject('Provision');
 		$o->Provision->Policies = new EasObject('Provision');
 		$o->Provision->Policies->Policy = new EasObject('Provision');
-		$o->Provision->Policies->Policy->Status = new EasProperty('Provision', 1);
-		$o->Provision->Policies->Policy->PolicyKey = new EasProperty('Provision', $token);
 		$o->Provision->Policies->Policy->PolicyType = new EasProperty('Provision', 'MS-EAS-Provisioning-WBXML');
+		$o->Provision->Policies->Policy->PolicyKey = new EasProperty('Provision', $token);
+		$o->Provision->Policies->Policy->Status = new EasProperty('Provision', '1');
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
@@ -167,30 +151,14 @@ class RemoteCommonService {
 
 			switch ($o->Provision->Status->getContents()) {
 				case '2':
-					throw new Exception("The parent folder already contains a folder with the same name. Create the folder under a different name.", 2);
+					throw new Exception("Protocol error.", 2);
 					break;
 				case '3':
-					throw new Exception("The specified parent folder is a special system folder. Create the folder under a different parent.", 3);
-					break;
-				case '5':
-					throw new Exception("The parent folder does not exist on the server, possibly because it has been deleted or moved.", 5);
-					break;
-				case '6':
-					throw new Exception("An error occurred on the server.", 6);
-					break;
-				case '9':
-					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
-					break;
-				case '10':
-					throw new Exception("Incorrectly formatted request.", 10);
-					break;
-				case '11':
-				case '12':
-					throw new Exception("An unknown error occurred.", 11);
+					throw new Exception("General server error.", 3);
 					break;
 			}
 
-			return $o->Message;
+			return $o;
 		}
 		else {
 			// return blank response
