@@ -52,6 +52,16 @@ class ConfigurationService {
 	];
 
 	/**
+	 * Default System Secure Parameters 
+	 * @var array
+	 * */
+	private const _SYSTEM_SECURE = [
+		'ms365_tenant_id' => 1,
+		'ms365_application_id' => 1,
+		'ms365_application_secret' => 1,
+	];
+
+	/**
 	 * Default User Configuration 
 	 * @var array
 	 * */
@@ -83,6 +93,17 @@ class ConfigurationService {
 		'tasks_harmonize' => '5',
 		'tasks_prevalence' => 'R',
 		'tasks_attachment_path' => '/Tasks',
+	];
+
+	/**
+	 * Default User Secure Parameters 
+	 * @var array
+	 * */
+	private const _USER_SECURE = [
+		'account_bauth_secret' => 1,
+		'account_oauth_access' => 1,
+		'account_oauth_refresh' => 1,
+		'account_device_key' => 1,
 	];
 
 	/** @var LoggerInterface */
@@ -150,7 +171,7 @@ class ConfigurationService {
 		$parameters['account_id'] = $this->retrieveUserValue($uid, 'account_id');
 		$parameters['account_server'] = $this->retrieveUserValue($uid, 'account_server');
 		$parameters['account_bauth_id'] = $this->retrieveUserValue($uid, 'account_bauth_id');
-		$parameters['account_bauth_secret'] = $this->_cs->decrypt($this->retrieveUserValue($uid, 'account_bauth_secret'));
+		$parameters['account_bauth_secret'] = $this->retrieveUserValue($uid, 'account_bauth_secret');
 		$parameters['account_device_id'] = $this->retrieveUserValue($uid, 'account_device_id');
 		$parameters['account_device_key'] = $this->retrieveUserValue($uid, 'account_device_key');
 		$parameters['account_device_version'] = $this->retrieveUserValue($uid, 'account_device_version');
@@ -187,7 +208,7 @@ class ConfigurationService {
 		$this->depositUserValue($uid, 'account_id', $id);
 		$this->depositUserValue($uid, 'account_server', $server);
 		$this->depositUserValue($uid, 'account_bauth_id', $bauth_id);
-		$this->depositUserValue($uid, 'account_bauth_secret', $this->_cs->encrypt($bauth_secret));
+		$this->depositUserValue($uid, 'account_bauth_secret', $bauth_secret);
 		$this->depositUserValue($uid, 'account_device_id', $device_id);
 		$this->depositUserValue($uid, 'account_device_key', $device_key);
 		$this->depositUserValue($uid, 'account_device_version', $device_version);
@@ -209,9 +230,9 @@ class ConfigurationService {
 		$parameters = [];
 		$parameters['account_id'] = $this->retrieveUserValue($uid, 'account_id');
 		$parameters['account_server'] = $this->retrieveUserValue($uid, 'account_server');
-		$parameters['account_oauth_access'] = $this->_cs->decrypt($this->retrieveUserValue($uid, 'account_oauth_access'));
+		$parameters['account_oauth_access'] = $this->retrieveUserValue($uid, 'account_oauth_access');
 		$parameters['account_oauth_expiry'] = $this->retrieveUserValue($uid, 'account_oauth_expiry');
-		$parameters['account_oauth_refresh'] = $this->_cs->decrypt($this->retrieveUserValue($uid, 'account_oauth_refresh'));
+		$parameters['account_oauth_refresh'] = $this->retrieveUserValue($uid, 'account_oauth_refresh');
 		$parameters['account_device_id'] = $this->retrieveUserValue($uid, 'account_device_id');
 		$parameters['account_device_key'] = $this->retrieveUserValue($uid, 'account_device_key');
 		$parameters['account_device_version'] = $this->retrieveUserValue($uid, 'account_device_version');
@@ -248,9 +269,9 @@ class ConfigurationService {
 		// deposit user oauth authentication parameters
 		$this->depositUserValue($uid, 'account_id', $id);
 		$this->depositUserValue($uid, 'account_server', $server);
-		$this->depositUserValue($uid, 'account_oauth_access', $this->_cs->encrypt($oauth_access));
+		$this->depositUserValue($uid, 'account_oauth_access', $oauth_access);
 		$this->depositUserValue($uid, 'account_oauth_expiry', $oauth_expiry);
-		$this->depositUserValue($uid, 'account_oauth_refresh', $this->_cs->encrypt($oauth_refresh));
+		$this->depositUserValue($uid, 'account_oauth_refresh', $oauth_refresh);
 		$this->depositUserValue($uid, 'account_device_id', $device_id);
 		$this->depositUserValue($uid, 'account_device_key', $device_key);
 		$this->depositUserValue($uid, 'account_device_version', $device_version);
@@ -313,31 +334,6 @@ class ConfigurationService {
 	}
 
 	/**
-	 * Retrieves single system configuration parameter
-	 * 
-	 * @since Release 1.0.0
-	 * 
-	 * @param string $uid		nextcloud user id
-	 * @param string $key		configuration parameter key
-	 * 
-	 * @return string configuration parameter value
-	 */
-	public function retrieveUserValue(string $uid, string $key): string {
-
-		// retrieve configured parameter value
-		$value = $this->_ds->getUserValue($uid, Application::APP_ID, $key);
-		// evaluate if value was returned
-		if (!empty($value)) {
-			// return configuration parameter value
-			return $value;
-		} else {
-			// return default system configuration value
-			return self::_USER[$key];
-		}
-
-	}
-
-	/**
 	 * Deposit collection of system configuration parameters
 	 * 
 	 * @since Release 1.0.0
@@ -353,24 +349,6 @@ class ConfigurationService {
 		foreach ($parameters as $key => $value) {
 			$this->depositUserValue($uid, $key, $value);
 		}
-
-	}
-
-	/**
-	 * Deposit single system configuration parameter
-	 * 
-	 * @since Release 1.0.0
-	 * 
-	 * @param string $uid		nextcloud user id
-	 * @param string $key		configuration parameter key
-	 * @param string $value		configuration parameter value
-	 * 
-	 * @return void
-	 */
-	public function depositUserValue(string $uid, string $key, string $value): void {
-		
-		// deposit user configuration parameter value
-		$this->_ds->setUserValue($uid, Application::APP_ID, $key, $value);
 
 	}
 
@@ -394,6 +372,59 @@ class ConfigurationService {
 		foreach ($keys as $entry) {
 			$this->destroyUserValue($uid, $entry);
 		}
+
+	}
+
+	/**
+	 * Retrieves single system configuration parameter
+	 * 
+	 * @since Release 1.0.0
+	 * 
+	 * @param string $uid		nextcloud user id
+	 * @param string $key		configuration parameter key
+	 * 
+	 * @return string configuration parameter value
+	 */
+	public function retrieveUserValue(string $uid, string $key): string {
+
+		// retrieve configured parameter value
+		$value = $this->_ds->getUserValue($uid, Application::APP_ID, $key);
+		// evaluate if value was returned
+		if (!empty($value)) {
+			// evaluate if parameter is on the secure list
+			if (isset(self::_USER_SECURE[$key])) {
+				$value = $this->_cs->decrypt($value);
+			}
+			// return configuration parameter value
+			return $value;
+		} else {
+			// return default system configuration value
+			return self::_USER[$key];
+		}
+
+	}
+
+	/**
+	 * Deposit single system configuration parameter
+	 * 
+	 * @since Release 1.0.0
+	 * 
+	 * @param string $uid		nextcloud user id
+	 * @param string $key		configuration parameter key
+	 * @param string $value		configuration parameter value
+	 * 
+	 * @return void
+	 */
+	public function depositUserValue(string $uid, string $key, string $value): void {
+		
+		// trim whitespace
+		$value = trim($value);
+		// evaluate if parameter is on the secure list
+		if (isset(self::_USER_SECURE[$key]) && !empty($value)) {
+			$value = $this->_cs->encrypt($value);
+		}
+		// deposit user configuration parameter value
+		$this->_ds->setUserValue($uid, Application::APP_ID, $key, $value);
 
 	}
 
@@ -440,30 +471,6 @@ class ConfigurationService {
 	}
 
 	/**
-	 * Retrieves single system configuration parameter
-	 * 
-	 * @since Release 1.0.0
-	 * 
-	 * @param string $key	configuration parameter key
-	 * 
-	 * @return string configuration parameter value
-	 */
-	public function retrieveSystemValue(string $key): string {
-
-		// retrieve configured parameter value
-		$value = $this->_ds->getAppValue(Application::APP_ID, $key);
-		// evaluate if value was returned
-		if (!empty($value)) {
-			// return configuration parameter value
-			return $value;
-		} else {
-			// return default system configuration value
-			return self::_SYSTEM[$key];
-		}
-
-	}
-
-	/**
 	 * Deposit collection of system configuration parameters
 	 * 
 	 * @since Release 1.0.0
@@ -478,23 +485,6 @@ class ConfigurationService {
 		foreach ($parameters as $key => $value) {
 			$this->depositSystemValue($key, $value);
 		}
-
-	}
-
-	/**
-	 * Deposit single system configuration parameter
-	 * 
-	 * @since Release 1.0.0
-	 * 
-	 * @param string $key		configuration parameter key
-	 * @param string $value		configuration parameter value
-	 * 
-	 * @return void
-	 */
-	public function depositSystemValue(string $key, string $value): void {
-		
-		// deposit system configuration parameter value
-		$this->_ds->setAppValue(Application::APP_ID, $key, $value);
 
 	}
 
@@ -517,6 +507,56 @@ class ConfigurationService {
 		foreach ($keys as $entry) {
 			$this->destroySystemValue($entry);
 		}
+
+	}
+
+	/**
+	 * Retrieves single system configuration parameter
+	 * 
+	 * @since Release 1.0.0
+	 * 
+	 * @param string $key	configuration parameter key
+	 * 
+	 * @return string configuration parameter value
+	 */
+	public function retrieveSystemValue(string $key): string {
+
+		// retrieve configured parameter value
+		$value = $this->_ds->getAppValue(Application::APP_ID, $key);
+		// evaluate if value was returned
+		if (!empty($value)) {
+			if (isset(self::_SYSTEM_SECURE[$key])) {
+				$value = $this->_cs->decrypt($value);
+			}
+			// return configuration parameter value
+			return $value;
+		} else {
+			// return default system configuration value
+			return self::_SYSTEM[$key];
+		}
+
+	}
+
+	/**
+	 * Deposit single system configuration parameter
+	 * 
+	 * @since Release 1.0.0
+	 * 
+	 * @param string $key		configuration parameter key
+	 * @param string $value		configuration parameter value
+	 * 
+	 * @return void
+	 */
+	public function depositSystemValue(string $key, string $value): void {
+		
+		// trim whitespace
+		$value = trim($value);
+		// evaluate if parameter is on the secure list
+		if (isset(self::_SYSTEM_SECURE[$key]) && !empty($value)) {
+			$value = $this->_cs->encrypt($value);
+		}
+		// deposit system configuration parameter value
+		$this->_ds->setAppValue(Application::APP_ID, $key, $value);
 
 	}
 
@@ -613,7 +653,7 @@ class ConfigurationService {
 				case 'account_server':
 					$o->AccountServer = $value;
 					break;
-				case 'account_bauth_id':
+				case 'account_id':
 					$o->AccountId = $value;
 					break;
 				case 'account_protocol':
