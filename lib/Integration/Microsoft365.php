@@ -28,7 +28,6 @@ namespace OCA\EAS\Integration;
 class Microsoft365 {
 
 	const ServiceServer = 'outlook.office365.com';
-	const ServiceProtocol = 'Exchange2016';
 
     /**
 	 * Connects to account, verifies details, on success saves details to user settings
@@ -83,7 +82,6 @@ class Microsoft365 {
                 'expiry' => (int) $data['expires_in'] + time(),
                 'refresh' => $data['refresh_token'],
                 'service_server' => self::ServiceServer,
-                'service_protocol' => self::ServiceProtocol,
                 'email' => $email,
                 'name' => $name
             ];
@@ -141,7 +139,6 @@ class Microsoft365 {
                 'expiry' => (int) $data['expires_in'] + time(),
                 'refresh' => $data['refresh_token'],
                 'service_server' => self::ServiceServer,
-                'service_protocol' => self::ServiceProtocol,
                 'email' => $email,
                 'name' => $name
             ];

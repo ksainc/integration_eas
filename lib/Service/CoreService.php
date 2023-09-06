@@ -272,6 +272,11 @@ class CoreService {
 
 		// define place holders
 		$configuration = null;
+		$account_id = '';
+		$account_name = '';
+		$account_device_id = '';
+		$account_device_key = '';
+		$account_device_version = '';
 
 		// evaluate if provider is empty
 		if (empty($account_server) || in_array('CONNECT_MAIL', $flags)) {
@@ -348,18 +353,15 @@ class CoreService {
 		}
 
 		// deposit authentication to datastore
-		$this->ConfigurationService->depositAuthenticationBasic(
-			$uid,
-			$account_bauth_id,
-			$account_server,
-			$account_bauth_id,
-			$account_bauth_secret,
-			$account_device_id,
-			$account_device_key,
-			$account_device_version
-		);
-		// deposit configuration to datastore
 		$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderAlternate);
+		$this->ConfigurationService->depositUserValue($uid, 'account_id', $account_bauth_id);
+		$this->ConfigurationService->depositUserValue($uid, 'account_name', $account_name);
+		$this->ConfigurationService->depositUserValue($uid, 'account_server', $account_server);
+		$this->ConfigurationService->depositUserValue($uid, 'account_bauth_id', $account_bauth_id);
+		$this->ConfigurationService->depositUserValue($uid, 'account_bauth_secret', $account_bauth_secret);
+		$this->ConfigurationService->depositUserValue($uid, 'account_device_id', $account_device_id);
+		$this->ConfigurationService->depositUserValue($uid, 'account_device_key', $account_device_key);
+		$this->ConfigurationService->depositUserValue($uid, 'account_device_version', $account_device_version);
 		$this->ConfigurationService->depositUser($uid, ['account_connected' => '1']);
 		// register harmonization task
 		$this->TaskService->add(\OCA\EAS\Tasks\HarmonizationLauncher::class, ['uid' => $uid]);
@@ -452,19 +454,16 @@ class CoreService {
 			}
 			
 			// deposit authentication to datastore
-			$this->ConfigurationService->depositAuthenticationOAuth(
-				$uid,
-				$account_id,
-				$account_server,
-				$account_oauth_access,
-				$account_oauth_expiry,
-				$account_oauth_refresh,
-				$account_device_id,
-				$account_device_key,
-				$account_device_version
-			);
-			// deposit configuration to datastore
 			$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderMS365);
+			$this->ConfigurationService->depositUserValue($uid, 'account_id', $account_id);
+			$this->ConfigurationService->depositUserValue($uid, 'account_name', $account_name);
+			$this->ConfigurationService->depositUserValue($uid, 'account_server', $account_server);
+			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_access', $account_oauth_access);
+			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_expiry', $account_oauth_expiry);
+			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_refresh', $account_oauth_refresh);
+			$this->ConfigurationService->depositUserValue($uid, 'account_device_id', $account_device_id);
+			$this->ConfigurationService->depositUserValue($uid, 'account_device_key', $account_device_key);
+			$this->ConfigurationService->depositUserValue($uid, 'account_device_version', $account_device_version);
 			$this->ConfigurationService->depositUserValue($uid, 'account_connected', '1');
 			// register harmonization task
 			$this->TaskService->add(\OCA\EAS\Tasks\HarmonizationLauncher::class, ['uid' => $uid]);
@@ -497,15 +496,14 @@ class CoreService {
 		}
 
 		if (is_array($data)) {
-			$this->ConfigurationService->depositAuthenticationOAuth(
-				$uid,
-				$data['service_server'],
-				$data['service_protocol'],
-				$data['access'],
-				(int) $data['expiry'],
-				$data['refresh']
-			);
+			// deposit authentication to datastore
 			$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderMS365);
+			$this->ConfigurationService->depositUserValue($uid, 'account_id', $data['email']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_name', $data['name']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_server', $data['service_server']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_access', $data['access']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_expiry', $data['expiry']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_refresh', $data['refresh']);
 			$this->ConfigurationService->depositUserValue($uid, 'account_connected', '1');
 
 			return true;
@@ -667,13 +665,13 @@ class CoreService {
 			foreach ($rs->FolderSync->Changes->Add as $Collection) {
 				switch ($Collection->Type->getContents()) {
 					case RemoteCommonService::CONTACTS_COLLECTION_TYPE:
-						$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
+						$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>' '];
 						break;
 					case RemoteCommonService::CALENDAR_COLLECTION_TYPE:
-						$data['EventCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
+						$data['EventCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>' '];
 						break;
 					case RemoteCommonService::TASKS_COLLECTION_TYPE:
-						$data['TaskCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
+						$data['TaskCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>' '];
 						break;
 				}
 			}
@@ -858,33 +856,48 @@ class CoreService {
 		if (!$this->RemoteStore instanceof EasClient) {
 			switch ($this->ConfigurationService->retrieveProvider($uid)) {
 				case ConfigurationService::ProviderMS365:
-					// retrieve connection information
-					$ac = $this->ConfigurationService->retrieveAuthenticationOAuth($uid);
-
-					if ($ac['account_oauth_expiry'] < time()) {
-						$this->refreshAccountMS365($uid, $ac['account_oauth_refresh']);
-						// retrieve connection information again
-						$ac = $this->ConfigurationService->retrieveAuthenticationOAuth($uid);
+					// retrieve oauth expiry information
+					$account_oauth_expiry = (int) $this->ConfigurationService->retrieveUserValue($uid, 'account_oauth_expiry');
+					//evaluate if token expired
+					if ($account_oauth_expiry < time()) {
+						// retrieve refresh token information
+						$account_oauth_refresh = $this->ConfigurationService->retrieveUserValue($uid, 'account_oauth_refresh');
+						// refresh access token
+						$this->refreshAccountMS365($uid, $account_oauth_refresh);
 					}
+					// retrieve connection information
+					$account_id = $this->ConfigurationService->retrieveUserValue($uid, 'account_id');
+					$account_server = $this->ConfigurationService->retrieveUserValue($uid, 'account_server');
+					$account_oauth_access = $this->ConfigurationService->retrieveUserValue($uid, 'account_oauth_access');
+					$account_oauth_expiry = $this->ConfigurationService->retrieveUserValue($uid, 'account_oauth_expiry');
+					$account_device_id = $this->ConfigurationService->retrieveUserValue($uid, 'account_device_id');
+					$account_device_key = $this->ConfigurationService->retrieveUserValue($uid, 'account_device_key');
+					$account_device_version = $this->ConfigurationService->retrieveUserValue($uid, 'account_device_version');
 					// construct remote data store client
 					$this->RemoteStore = new EasClient(
-						$ac['account_server'], 
-						new \OCA\EAS\Utile\Eas\EasAuthenticationBearer($ac['account_id'], $ac['account_oauth_access'], $ac['account_oauth_expiry']), 
-						$ac['account_device_id'],
-						$ac['account_device_key'],
-						$ac['account_device_version']
+						$account_server, 
+						new \OCA\EAS\Utile\Eas\EasAuthenticationBearer($account_id, $account_oauth_access, $account_oauth_expiry), 
+						$account_device_id,
+						$account_device_key,
+						$account_device_version
 					);
 					break;
 				case ConfigurationService::ProviderAlternate:
 					// retrieve connection information
-					$ac = $this->ConfigurationService->retrieveAuthenticationBasic($uid);
+					$account_id = $this->ConfigurationService->retrieveUserValue($uid, 'account_id');
+					$account_server = $this->ConfigurationService->retrieveUserValue($uid, 'account_server');
+					$account_bauth_id = $this->ConfigurationService->retrieveUserValue($uid, 'account_bauth_id');
+					$account_bauth_secret = $this->ConfigurationService->retrieveUserValue($uid, 'account_bauth_secret');
+					$account_device_id = $this->ConfigurationService->retrieveUserValue($uid, 'account_device_id');
+					$account_device_key = $this->ConfigurationService->retrieveUserValue($uid, 'account_device_key');
+					$account_device_version = $this->ConfigurationService->retrieveUserValue($uid, 'account_device_version');
 					// construct remote data store client
 					$this->RemoteStore = new EasClient(
-						$ac['account_server'], 
-						new \OCA\EAS\Utile\Eas\EasAuthenticationBasic($ac['account_bauth_id'], $ac['account_bauth_secret']),
-						$ac['account_device_id'],
-						$ac['account_device_key'],
-						$ac['account_device_version']
+						$account_server, 
+						new \OCA\EAS\Utile\Eas\EasAuthenticationBasic($account_bauth_id, $account_bauth_secret),
+						$account_device_id,
+						$account_device_key,
+						$account_device_version
 					);
 					break;
 			}

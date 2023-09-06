@@ -83,22 +83,9 @@ try {
 
 	// construct decoder
 	
-	/*
+	/**/
 	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
 	$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
-	*/
-
-	// Generate Device Information
-	/*
-	$account_id = $ConfigurationService->retrieveUserValue($uid, 'account_id');
-	$account_server = $ConfigurationService->retrieveUserValue($uid, 'account_server');
-	$account_oauth_access = $ConfigurationService->retrieveUserValue($uid, 'account_oauth_access');
-	$account_oauth_expiry = (int) $ConfigurationService->retrieveUserValue($uid, 'account_oauth_expiry');
-	$account_oauth_refresh = $ConfigurationService->retrieveUserValue($uid, 'account_oauth_refresh');
-	$account_device_id = $ConfigurationService->retrieveUserValue($uid, 'account_device_id');
-	$account_device_key = '0';
-	$account_device_version = $ConfigurationService->retrieveUserValue($uid, 'account_device_version');
-	*/
 
 	// construct remote data store client
 	$EasClient = $CoreService->createClient($uid);
@@ -106,35 +93,36 @@ try {
 	// perform initial connect
 	$EasClient->performConnect();
 
-	/*
+	
 	// construct GetItemEstimate request
+	/*
 	$o = new \stdClass();
 	$o->GetItemEstimate = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
 	$o->GetItemEstimate->Collections = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
 	$o->GetItemEstimate->Collections->Collection = new \OCA\EAS\Utile\Eas\EasCollection('GetItemEstimate');
 
 	$Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
-	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', '1');
-	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 'a');
+	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', 5);
+	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
 	$o->GetItemEstimate->Collections->Collection[] = $Collection;
 
 	$Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
-	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', '2');
-	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 'a');
+	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', 2);
+	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
 	$o->GetItemEstimate->Collections->Collection[] = $Collection;
 
 	$Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
-	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', '3');
-	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 'a');
+	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', 15);
+	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
 	$o->GetItemEstimate->Collections->Collection[] = $Collection;
+	
 
 	$raw = $EasXmlEncoder->stringFromObject($o);
+	$raw = $EasClient->performGetItemEstimate($raw);
+	$o =  $EasXmlDecoder->stringToObject($raw);
 
 	exit;
 	*/
-
-	// construct remote data store client
-	$EasClient = $CoreService->createClient($uid);
 
 	// Load From File
 	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync', 'r');
@@ -153,19 +141,20 @@ try {
 	//$msg_ref_raw = pack('H*', $msg_ref_hex);
 	//$msg_ref_obj = $EasXmlDecoder->stringToObject($msg_ref_raw);
 
-	// perform initial connect
-	$EasClient->performConnect();
-
 	$token = 0;
-	$cid = '8';
-	
+	$cid = '5';
+
 	$rs = $RemoteCommonService->fetchFolders($EasClient);
+	
+	$rs = $RemoteCommonService->fetchFolderEstimate($EasClient, $cid, $token);
+	
+	exit; 
 
 	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, 0, 32);
 
 	$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
 
-	$rs = $RemoteCommonService->fetchFolderEstimate($EasClient, $cid, $token);
+	
 	
 	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, 0, 32);
 
