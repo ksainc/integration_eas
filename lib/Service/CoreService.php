@@ -299,7 +299,7 @@ class CoreService {
 		}
 
 		// Generate Device Information
-		$account_device_id = \OCA\EAS\Utile\UUID::v4();
+		$account_device_id = str_replace('-', '', \OCA\EAS\Utile\UUID::v4());
 		$account_device_key = '0';
 		$account_device_version = EasClient::SERVICE_VERSION_161;
 
@@ -312,35 +312,40 @@ class CoreService {
 			$account_device_version
 		);
 
-		// Step 1
 		// perform folder fetch
 		$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
-		// initilize provisioning
-		$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
-		// evaluate response status
-		if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
-			throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
+		// evaluate, response status
+		if ($rs->FolderSync->Status->getContents() == '142') {
+			// Step 1
+			// initilize provisioning
+			$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
+			// evaluate response status
+			if (isset($rs->Provision->Status) && $rs->Provision->Status->getContents() != '1') {
+				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Status);
+			}
+			// step 2
+			// retrieve device policy token
+			$account_device_key = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+			// assign device policy token
+			$RemoteStore->setDeviceKey($account_device_key);
+			// accept provisioning
+			$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_device_key);
+			// evaluate response status
+			if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
+				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
+			}
+			// step 3
+			// retrieve device policy token
+			$account_device_key = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+			// assign device policy token
+			$RemoteStore->setDeviceKey($account_device_key);
+			// perform folder fetch
+			$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+			// evaluate response status
+			if ($rs->FolderSync->Status->getContents() != '1') {
+				throw new Exception("Failed to provision account.");
+			}
 		}
-
-		// step 2
-		// retrieve device policy token
-		$account_devicekey = $rs->Provision->Policies->Policy->PolicyKey->getContents();
-		// assign device policy token
-		$RemoteStore->setDeviceKey($account_devicekey);
-		// accept provisioning
-		$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_devicekey);
-		// evaluate response status
-		if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
-			throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
-		}
-
-		// step 3
-		// retrieve device policy token
-		$account_devicekey = $rs->Provision->Policies->Policy->PolicyKey->getContents();
-		// assign device policy token
-		$RemoteStore->setDeviceKey($account_devicekey);
-		// perform folder fetch
-		$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
 
 		// deposit authentication to datastore
 		$this->ConfigurationService->depositAuthenticationBasic(
@@ -349,9 +354,9 @@ class CoreService {
 			$account_server,
 			$account_bauth_id,
 			$account_bauth_secret,
-			$account_deviceid,
-			$account_devicekey,
-			$account_deviceversion
+			$account_device_id,
+			$account_device_key,
+			$account_device_version
 		);
 		// deposit configuration to datastore
 		$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderAlternate);
@@ -398,7 +403,7 @@ class CoreService {
 			$account_oauth_access = $data['access'];
 			$account_oauth_expiry = (int) $data['expiry'];
 			$account_oauth_refresh = $data['refresh'];
-			$account_device_id = \OCA\EAS\Utile\UUID::v4();
+			$account_device_id = str_replace('-', '', \OCA\EAS\Utile\UUID::v4());
 			$account_device_key = '0';
 			$account_device_version = EasClient::SERVICE_VERSION_161;
 
@@ -411,35 +416,40 @@ class CoreService {
 				$account_device_version
 			);
 
-			// Step 1
 			// perform folder fetch
 			$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
-			// initilize provisioning
-			$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
-			// evaluate response status
-			if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
-				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
+			// evaluate, response status
+			if ($rs->FolderSync->Status->getContents() == '142') {
+				// Step 1
+				// initilize provisioning
+				$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
+				// evaluate response status
+				if (isset($rs->Provision->Status) && $rs->Provision->Status->getContents() != '1') {
+					throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Status);
+				}
+				// step 2
+				// retrieve device policy token
+				$account_device_key = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+				// assign device policy token
+				$RemoteStore->setDeviceKey($account_device_key);
+				// accept provisioning
+				$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_device_key);
+				// evaluate response status
+				if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
+					throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
+				}
+				// step 3
+				// retrieve device policy token
+				$account_device_key = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+				// assign device policy token
+				$RemoteStore->setDeviceKey($account_device_key);
+				// perform folder fetch
+				$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+				// evaluate response status
+				if ($rs->FolderSync->Status->getContents() != '1') {
+					throw new Exception("Failed to provision account.");
+				}
 			}
-
-			// step 2
-			// retrieve device policy token
-			$account_devicekey = $rs->Provision->Policies->Policy->PolicyKey->getContents();
-			// assign device policy token
-			$RemoteStore->setDeviceKey($account_devicekey);
-			// accept provisioning
-			$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_devicekey);
-			// evaluate response status
-			if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
-				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
-			}
-
-			// step 3
-			// retrieve device policy token
-			$account_devicekey = $rs->Provision->Policies->Policy->PolicyKey->getContents();
-			// assign device policy token
-			$RemoteStore->setDeviceKey($account_devicekey);
-			// perform folder fetch
-			$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
 			
 			// deposit authentication to datastore
 			$this->ConfigurationService->depositAuthenticationOAuth(
@@ -648,22 +658,27 @@ class CoreService {
 		// create remote store client
 		$RemoteStore = $this->createClient($uid);
 		// retrieve remote collections
-		$response = $this->RemoteCommonService->fetchFolders($RemoteStore);
+		$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
 		// construct response object
 		$data = ['ContactCollections' => [], 'EventCollections' => [], 'TaskCollections' => []];
-		foreach ($response->Collections as $Collection) {
-			switch ($Collection->Type->getContents()) {
-				case RemoteCommonService::CONTACTS_COLLECTION_TYPE:
-					$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
-					break;
-				case RemoteCommonService::CALENDAR_COLLECTION_TYPE:
-					$data['EventCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
-					break;
-				case RemoteCommonService::TASKS_COLLECTION_TYPE:
-					$data['TaskCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
-					break;
+		// evaluate response status and structure
+		if ($rs->FolderSync->Status->getContents() == '1' && isset($rs->FolderSync->Changes->Add)) {
+			// iterate throught collections 
+			foreach ($rs->FolderSync->Changes->Add as $Collection) {
+				switch ($Collection->Type->getContents()) {
+					case RemoteCommonService::CONTACTS_COLLECTION_TYPE:
+						$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
+						break;
+					case RemoteCommonService::CALENDAR_COLLECTION_TYPE:
+						$data['EventCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
+						break;
+					case RemoteCommonService::TASKS_COLLECTION_TYPE:
+						$data['TaskCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
+						break;
+				}
 			}
 		}
+		
 		// return response
 		return $data;
 
@@ -854,7 +869,7 @@ class CoreService {
 					// construct remote data store client
 					$this->RemoteStore = new EasClient(
 						$ac['account_server'], 
-						new \OCA\EAS\Utile\Eas\AuthenticationBearer($ac['account_id'], $ac['account_oauth_access'], $ac['account_oauth_expiry']), 
+						new \OCA\EAS\Utile\Eas\EasAuthenticationBearer($ac['account_id'], $ac['account_oauth_access'], $ac['account_oauth_expiry']), 
 						$ac['account_device_id'],
 						$ac['account_device_key'],
 						$ac['account_device_version']

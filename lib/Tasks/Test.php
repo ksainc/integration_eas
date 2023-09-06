@@ -83,11 +83,30 @@ try {
 
 	// construct decoder
 	
-	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
 	/*
+	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
 	$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
 	*/
 
+	// Generate Device Information
+	/*
+	$account_id = $ConfigurationService->retrieveUserValue($uid, 'account_id');
+	$account_server = $ConfigurationService->retrieveUserValue($uid, 'account_server');
+	$account_oauth_access = $ConfigurationService->retrieveUserValue($uid, 'account_oauth_access');
+	$account_oauth_expiry = (int) $ConfigurationService->retrieveUserValue($uid, 'account_oauth_expiry');
+	$account_oauth_refresh = $ConfigurationService->retrieveUserValue($uid, 'account_oauth_refresh');
+	$account_device_id = $ConfigurationService->retrieveUserValue($uid, 'account_device_id');
+	$account_device_key = '0';
+	$account_device_version = $ConfigurationService->retrieveUserValue($uid, 'account_device_version');
+	*/
+
+	// construct remote data store client
+	$EasClient = $CoreService->createClient($uid);
+
+	// perform initial connect
+	$EasClient->performConnect();
+
+	/*
 	// construct GetItemEstimate request
 	$o = new \stdClass();
 	$o->GetItemEstimate = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
@@ -112,6 +131,7 @@ try {
 	$raw = $EasXmlEncoder->stringFromObject($o);
 
 	exit;
+	*/
 
 	// construct remote data store client
 	$EasClient = $CoreService->createClient($uid);

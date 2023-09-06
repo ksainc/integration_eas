@@ -93,7 +93,6 @@ class Microsoft365 {
 
 	}
     
-    
     /**
 	 * Reauthorize to account, verifies details, on success saves details to user settings
 	 * 
@@ -183,4 +182,5 @@ class Microsoft365 {
         }
         
     }
+
 }

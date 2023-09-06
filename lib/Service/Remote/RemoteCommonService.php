@@ -190,8 +190,13 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
+
+			if ($o->FolderSync->Status->getContents() != '1' && $o->FolderSync->Status->getContents() != '142') {
+				throw new Exception("FolderSync: Unknow error occured" . $o->FolderSync->Status->getContents(), 1);
+			}
+
 			// return response message
-			return (object) ['Count' => $o->Message->FolderSync->Changes->Count,'Collections' => $o->Message->FolderSync->Changes->Add];
+			return $o;
 		}
 		else {
 			// return blank response
@@ -265,7 +270,6 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			$o = $o->Message;
 
 			switch ($o->FolderCreate->Status->getContents()) {
 				case '2':
@@ -292,7 +296,7 @@ class RemoteCommonService {
 					break;
 			}
 
-			return $o->Message;
+			return $o;
 		}
 		else {
 			// return blank response
@@ -326,7 +330,6 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			$o = $o->Message;
 
 			switch ($o->FolderDelete->Status->getContents()) {
 				case '3':
@@ -386,7 +389,6 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			$o = $o->Message;
 
 			switch ($o->FolderUpdate->Status->getContents()) {
 				case '2':
@@ -416,7 +418,7 @@ class RemoteCommonService {
 					break;
 			}
 
-			return $o->Message;
+			return $o;
 		}
 		else {
 			// return blank response
@@ -469,7 +471,6 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			$o = $o->Message;
 
 			if (isset($o->Sync->Status)) {
 				switch ($o->Sync->Status->getContents()) {
@@ -527,7 +528,7 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			$o = $o->Message;
+			
 			// return response message
 			return $o;
 		}

@@ -884,7 +884,7 @@ class EasXmlDecoder{
 		}
 
 		// construct message property
-		$o->Message = $this->_readBodyToObject($stream, 0);
+		$o = $this->_readBodyToObject($stream, 0);
 
 		return $o;
 
