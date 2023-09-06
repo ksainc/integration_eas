@@ -69,32 +69,6 @@ class RemoteContactsService {
 	}
 
 	/**
-	 * retrieve list of collections in remote storage
-     * 
-     * @since Release 1.0.0
-	 *
-     * @param string $source		folder source (U - User Folders, P - Public Folders)
-	 * @param string $prefixName	string to append to folder name
-     * 
-	 * @return array of collections and properties
-	 */
-	public function listCollections(string $source = 'U', string $prefixName = ''): array {
-
-		// execute command
-		$cr = $this->RemoteCommonService->fetchFoldersByType($this->DataStore, 'IPF.Contact', 'I', $this->constructDefaultCollectionProperties(), $source);
-        // process response
-		$cl = array();
-		if (isset($cr)) {
-			foreach ($cr->ContactsFolder as $folder) {
-				$cl[] = array('id'=>$folder->FolderId->Id, 'name'=>$prefixName . $folder->DisplayName,'count'=>$folder->TotalCount);
-			}
-		}
-        // return collections
-		return $cl;
-
-	}
-
-	/**
      * retrieve properties for specific collection
      * 
      * @since Release 1.0.0
@@ -186,9 +160,14 @@ class RemoteContactsService {
 	public function fetchCollectionChanges(string $cid, string $state, string $scheme = 'I'): ?object {
 
         // execute command
-        $cr = $this->RemoteCommonService->fetchFolderChanges($this->DataStore, $cid, $state, false, 512, $scheme);
+        if ($state == '0') {
+            $rs = $this->RemoteCommonService->fetchFolderChanges($EasClient, $cid, $state, ['MOVED' => 1]);
+            $state = $rs->Sync->Collections->Collection->SyncKey->getContents();
+        }
+        $rs = $this->RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, ['MOVED' => 1, 'CHANGES' => 1, 'FILTER' => 0]);
+
 		// return response
-		return $cr;
+		return $rs;
 
     }
 

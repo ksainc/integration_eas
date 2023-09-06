@@ -440,7 +440,7 @@ class RemoteCommonService {
 	 * 
 	 * @return object Folder Changes Object on success / Null on failure
 	 */
-	public function fetchFolderChanges(EasClient $DataStore, string $cid, string $state, int $filter, int $max = 32): object {
+	public function fetchFolderChanges(EasClient $DataStore, string $cid, string $state, array $options): ?object {
 		
 		// construct Sync request
 		$o = new \stdClass();
@@ -449,17 +449,25 @@ class RemoteCommonService {
 		$o->Sync->Collections->Collection = new EasObject('AirSync');
 		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
 		$o->Sync->Collections->Collection->CollectionId = new EasProperty('AirSync', $cid);
-		$o->Sync->Collections->Collection->GetChanges = new EasProperty('AirSync', 1);
-		$o->Sync->Collections->Collection->DeletesAsMoves = new EasProperty('AirSync', 1);
-		$o->Sync->Collections->Collection->WindowSize = new EasProperty('AirSync', $max);
-		$o->Sync->Collections->Collection->Options = new EasObject('AirSync');
-		$o->Sync->Collections->Collection->Options->FilterType = new EasProperty('AirSync', $filter);
+		if (isset($options['MOVED'])) {
+			$o->Sync->Collections->Collection->DeletesAsMoves = new EasProperty('AirSync', $options['MOVED']);
+		}
+		if (isset($options['CHANGES'])) {
+			$o->Sync->Collections->Collection->GetChanges = new EasProperty('AirSync', $options['CHANGES']);
+		}
+		if (isset($options['LIMIT'])) {
+			$o->Sync->Collections->Collection->WindowSize = new EasProperty('AirSync', $options['LIMIT']);
+		}
+		if (isset($options['FILTER'])) {
+			$o->Sync->Collections->Collection->Options = new EasObject('AirSync');		
+			$o->Sync->Collections->Collection->Options->FilterType = new EasProperty('AirSync', $options['FILTER']);
+		}
 		//$o->Sync->Collections->Collection->Options->MIMESupport = new EasProperty('AirSync', 2);
 		//$o->Sync->Collections->Collection->Options->MIMETruncation = new EasProperty('AirSync', 8);
-		$o->Sync->Collections->Collection->Options->BodyPreference = new EasObject('AirSyncBase');
-		$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', 1);
-		$o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
-		$o->Sync->WindowSize = new EasProperty('AirSync', $max);
+		//$o->Sync->Collections->Collection->Options->BodyPreference = new EasObject('AirSyncBase');
+		//$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', 1);
+		//$o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
+		//$o->Sync->WindowSize = new EasProperty('AirSync', $max);
 
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);

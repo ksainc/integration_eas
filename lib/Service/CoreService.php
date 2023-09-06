@@ -455,8 +455,8 @@ class CoreService {
 			
 			// deposit authentication to datastore
 			$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderMS365);
-			$this->ConfigurationService->depositUserValue($uid, 'account_id', $account_id);
-			$this->ConfigurationService->depositUserValue($uid, 'account_name', $account_name);
+			$this->ConfigurationService->depositUserValue($uid, 'account_id', (string) $account_id);
+			$this->ConfigurationService->depositUserValue($uid, 'account_name', (string) $account_name);
 			$this->ConfigurationService->depositUserValue($uid, 'account_server', $account_server);
 			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_access', $account_oauth_access);
 			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_expiry', $account_oauth_expiry);
@@ -498,8 +498,8 @@ class CoreService {
 		if (is_array($data)) {
 			// deposit authentication to datastore
 			$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderMS365);
-			$this->ConfigurationService->depositUserValue($uid, 'account_id', $data['email']);
-			$this->ConfigurationService->depositUserValue($uid, 'account_name', $data['name']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_id', (string) $data['email']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_name', (string) $data['name']);
 			$this->ConfigurationService->depositUserValue($uid, 'account_server', $data['service_server']);
 			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_access', $data['access']);
 			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_expiry', $data['expiry']);

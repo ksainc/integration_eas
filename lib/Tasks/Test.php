@@ -142,21 +142,23 @@ try {
 	//$msg_ref_obj = $EasXmlDecoder->stringToObject($msg_ref_raw);
 
 	$token = 0;
-	$cid = '5';
+	$cid = '5'; // MS365 5
 
-	$rs = $RemoteCommonService->fetchFolders($EasClient);
+	$item ='pOo4hmhQ00uR1UFYgWTRYQAAAAABDqTqOIZoUNNLkdVBWIFk0WEAADNwejE1';
+
+	//$rs = $RemoteCommonService->fetchFolders($EasClient);
+
+	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, ['MOVED' => 1]);
 	
-	$rs = $RemoteCommonService->fetchFolderEstimate($EasClient, $cid, $token);
-	
-	exit; 
-
-	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, 0, 32);
-
 	$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
 
+	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, ['MOVED' => 1, 'CHANGES' => 1, 'FILTER' => 0]);
+
+	//$rs = $RemoteCommonService->fetchFolderEstimate($EasClient, $cid, $token);
+
+	//$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
 	
-	
-	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, 0, 32);
+	//$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, 0, 32);
 
 	exit;
 
