@@ -100,7 +100,6 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			$o = $o->Message;
 
 			switch ($o->Provision->Status->getContents()) {
 				case '2':
@@ -147,7 +146,6 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			$o = $o->Message;
 
 			switch ($o->Provision->Status->getContents()) {
 				case '2':
