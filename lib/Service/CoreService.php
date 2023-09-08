@@ -37,7 +37,6 @@ use OCA\DAV\CardDAV\CardDavBackend;
 use OCA\DAV\CalDAV\CalDavBackend;
 
 use OCA\EAS\AppInfo\Application;
-//use OCA\EAS\Utile\Eas\Autodiscover;
 use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Service\ConfigurationService;
 use OCA\EAS\Service\CorrelationsService;
@@ -189,9 +188,9 @@ class CoreService {
 	public function locateAccount(string $account_bauth_id, string $account_bauth_secret): ?object {
 
 		// construct locator
-		$locator = new Autodiscover($account_bauth_id, $account_bauth_secret);
+		$locator = new \OCA\EAS\Utile\Eas\EasLocator($account_bauth_id, $account_bauth_secret);
 		// find configuration
-		$result = $locator->discover();
+		$result = $locator->locate();
 
 		if ($result > 0) {
 			$data = $locator->discovered;
