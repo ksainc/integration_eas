@@ -80,12 +80,15 @@ try {
 	$CoreService = \OC::$server->get(\OCA\EAS\Service\CoreService::class);
 	//$HarmonizationService = \OC::$server->get(\OCA\EAS\Service\HarmonizationService::class);
 	$RemoteCommonService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteCommonService::class);
+	$RemoteContactsService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteContactsService::class);
 
 	// construct decoder
 	
-	/**/
+	/*
 	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
+	*/
 	$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
+	
 
 	// construct remote data store client
 	$EasClient = $CoreService->createClient($uid);
@@ -93,43 +96,14 @@ try {
 	// perform initial connect
 	$EasClient->performConnect();
 
-	
-	// construct GetItemEstimate request
-	/*
-	$o = new \stdClass();
-	$o->GetItemEstimate = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
-	$o->GetItemEstimate->Collections = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
-	$o->GetItemEstimate->Collections->Collection = new \OCA\EAS\Utile\Eas\EasCollection('GetItemEstimate');
-
-	$Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
-	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', 5);
-	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
-	$o->GetItemEstimate->Collections->Collection[] = $Collection;
-
-	$Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
-	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', 2);
-	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
-	$o->GetItemEstimate->Collections->Collection[] = $Collection;
-
-	$Collection = new \OCA\EAS\Utile\Eas\EasObject('GetItemEstimate');
-	$Collection->CollectionId = new \OCA\EAS\Utile\Eas\EasProperty('GetItemEstimate', 15);
-	$Collection->SyncKey = new \OCA\EAS\Utile\Eas\EasProperty('AirSync', 0);
-	$o->GetItemEstimate->Collections->Collection[] = $Collection;
-	
-
-	$raw = $EasXmlEncoder->stringFromObject($o);
-	$raw = $EasClient->performGetItemEstimate($raw);
-	$o =  $EasXmlDecoder->stringToObject($raw);
-
-	exit;
-	*/
-
 	// Load From File
-	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync', 'r');
+	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync-Sync-Response', 'r');
 	//$msg_ref_raw = stream_get_contents($stream);
 	//$msg_ref_obj = $EasXmlDecoder->streamToObject($stream);
 	//fclose($stream);
 	//$msg_ref_hex = unpack('H*', $msg_ref_raw);
+	//exit;
+
 
 	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync2', 'r');
 	//$msg2_ref_raw = stream_get_contents($stream);
@@ -142,9 +116,7 @@ try {
 	//$msg_ref_obj = $EasXmlDecoder->stringToObject($msg_ref_raw);
 
 	$token = 0;
-	$cid = '5'; // MS365 5
-
-	$item ='pOo4hmhQ00uR1UFYgWTRYQAAAAABDqTqOIZoUNNLkdVBWIFk0WEAADNwejE1';
+	$cid = '8'; // MS365 5
 
 	//$rs = $RemoteCommonService->fetchFolders($EasClient);
 
@@ -152,9 +124,16 @@ try {
 	
 	$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
 
-	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, ['MOVED' => 1, 'CHANGES' => 1, 'FILTER' => 0]);
-
 	//$rs = $RemoteCommonService->fetchFolderEstimate($EasClient, $cid, $token);
+
+	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, ['MOVED' => 1, 'CHANGES' => 1, 'FILTER' => 0, 'MIME' => 1]);
+
+	if (isset($rs->Sync->Collections->Collection->Commands)) {
+		foreach ($rs->Sync->Collections->Collection->Commands->Add as $entry) {
+			$contact = $RemoteContactsService->toContactObject($entry->Data);
+		}
+	}
+	
 
 	//$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
 	

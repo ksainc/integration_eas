@@ -33,11 +33,13 @@ use Psr\Log\LoggerInterface;
 
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
-use OCA\EAS\Utile\Eas\EasClient;
-use OCA\EAS\Utile\Eas\Type\ContactItemType;
 use OCA\EAS\Objects\ContactCollectionObject;
 use OCA\EAS\Objects\ContactObject;
 use OCA\EAS\Objects\ContactAttachmentObject;
+use OCA\EAS\Utile\Eas\EasClient;
+use OCA\EAS\Utile\Eas\EasCollection;
+use OCA\EAS\Utile\Eas\EasObject;
+use OCA\EAS\Utile\Eas\EasProperty;
 
 class RemoteContactsService {
 	/**
@@ -1111,543 +1113,320 @@ class RemoteContactsService {
     }
 
     /**
-     * construct collection of default remote collection properties 
-     * 
-     * @since Release 1.0.0
-	 * 
-	 * @return object
-	 */
-    private function constructDefaultCollectionProperties(): object {
-
-		// construct properties array
-		if (!isset($this->DefaultCollectionProperties)) {
-			$p = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPathsToElementType();
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:FolderId');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:FolderClass');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:ParentFolderId');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:DisplayName');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('folder:TotalCount');
-
-
-			$this->DefaultCollectionProperties = $p;
-		}
-
-		return $this->DefaultCollectionProperties;
-
-	}
-
-    /**
-     * construct collection of default remote object properties 
-     * 
-     * @since Release 1.0.0
-	 * 
-	 * @return object
-	 */
-    private function constructDefaultItemProperties(): object {
-
-		// construct properties array
-		if (!isset($this->DefaultItemProperties)) {
-			$p = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPathsToElementType();
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ItemId');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:ParentFolderId');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:DateTimeCreated');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:DateTimeSent');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:LastModifiedTime');
-            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Categories');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Body');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('item:Attachments');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:DisplayName');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:CompleteName');
-            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:PhoneticLastName');
-            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:PhoneticFirstName');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:Birthday');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:SpouseName');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:WeddingAnniversary');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:PhysicalAddresses');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:PhoneNumbers');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:EmailAddresses');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:ImAddresses');
-            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:CompanyName');
-            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:Manager');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:AssistantName');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:Department');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:JobTitle');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:Profession');
-			$p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:OfficeLocation');
-            $p->FieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType('contacts:HasPicture');
-            // Name Prefix
-            /*
-            $p->ExtendedFieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-                null,
-                null,
-                null,
-                null,
-                '0x3A45',
-                'String'
-            );
-            // Yomi/Phonetic Last Name
-            $p->ExtendedFieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-                null,
-                null,
-                null,
-                null,
-                '0x802D',
-                'String'
-            );
-            // Yomi/Phonetic Last Name
-            $p->ExtendedFieldURI[] = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-                null,
-                null,
-                null,
-                null,
-                '0x802C',
-                'String'
-            );
-            */
-			$this->DefaultItemProperties = $p;
-		}
-
-		return $this->DefaultItemProperties;
-
-	}
-    
-    /**
-     * construct collection item unindexed property update command
+     * convert remote EasObject to local ContactObject
      * 
      * @since Release 1.0.0
      * 
-     * @param string $uri - property uri
-     * @param string $name - property name
-     * @param string $value - property value
+	 * @param EasObject $so     entity as EasObject
 	 * 
-	 * @return object collection item property update command
+	 * @return ContactObject    entity as ContactObject
 	 */
-    public function updateFieldUnindexed(string $uri, string $name, mixed $value): object {
-        // create field update object
-        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
-        $o->FieldURI = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType($uri);
-        // create field contact object
-        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
-        $o->Contact->$name = $value;
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item unindexed property delete command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $uri - property uri
-	 * 
-	 * @return object collection item property delete command
-	 */
-    public function deleteFieldUnindexed(string $uri): object {
-        // create field delete object
-        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
-        $o->FieldURI = new \OCA\EAS\Utile\Eas\Type\PathToUnindexedFieldType($uri);
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item indexed property update command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $uri - property uri
-     * @param string $index - property index
-     * @param string $name - property name
-     * @param string $dictionary - property dictionary object
-     * @param string $entry - property entry object
-	 * 
-	 * @return object collection item property update command
-	 */
-    public function updateFieldIndexed(string $uri, string $index, string $name, mixed $dictionary, mixed $entry): object {
-        // create field update object
-        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
-        $o->IndexedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToIndexedFieldType($uri, $index);
-        // create field contact object
-        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
-        $o->Contact->$name = $dictionary;
-        $o->Contact->$name->Entry = $entry;
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item indexed property delete command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $tag - property tag
-     * @param string $type - property type
-     * @param string $value - property value
-	 * 
-	 * @return object collection item property delete command
-	 */
-    public function deleteFieldIndexed(string $uri, string $index): object {
-        // create field delete object
-        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
-        $o->IndexedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToIndexedFieldType($uri, $index);
-        // return object
-        return $o;
-    }
-
-        /**
-     * construct collection item extended property create command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $collection - property collection
-     * @param string $name - property name
-     * @param string $type - property type
-     * @param string $value - property value
-	 * 
-	 * @return object collection item property create command
-	 */
-    public function createFieldExtendedById(string $collection, string $id, string $type, mixed $value): object {
-        // create extended field object
-        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
-            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-                $collection,
-                null,
-                $id,
-                null,
-                null,
-                $type
-            ),
-            $value
-        );
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item extended property update command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $collection - property collection
-     * @param string $name - property name
-     * @param string $type - property type
-     * @param string $value - property value
-	 * 
-	 * @return object collection item property update command
-	 */
-    public function updateFieldExtendedById(string $collection, string $id, string $type, mixed $value): object {
-        // create field update object
-        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-            $collection,
-            null,
-            $id,
-            null,
-            null,
-            $type
-        );
-        // create field contact object
-        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
-        $o->Contact->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
-            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-                $collection,
-                null,
-                $id,
-                null,
-                null,
-                $type
-            ),
-            $value
-        );
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item extended property delete 
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $collection - property collection
-     * @param string $name - property name
-     * @param string $type - property type
-	 * 
-	 * @return object collection item property delete command
-	 */
-    public function deleteFieldExtendedById(string $collection, string $id, string $type): object {
-        // create field delete object
-        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-            $collection,
-            null,
-            $id,
-            null,
-            null,
-            $type
-        );
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item extended property create command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $collection - property collection
-     * @param string $name - property name
-     * @param string $type - property type
-     * @param string $value - property value
-	 * 
-	 * @return object collection item property create command
-	 */
-    public function createFieldExtendedByName(string $collection, string $name, string $type, mixed $value): object {
-        // create extended field object
-        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
-            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-                $collection,
-                null,
-                null,
-                $name,
-                null,
-                $type
-            ),
-            $value
-        );
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item extended property update command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $collection - property collection
-     * @param string $name - property name
-     * @param string $type - property type
-     * @param string $value - property value
-	 * 
-	 * @return object collection item property update command
-	 */
-    public function updateFieldExtendedByName(string $collection, string $name, string $type, mixed $value): object {
-        // create field update object
-        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-            $collection,
-            null,
-            null,
-            $name,
-            null,
-            $type
-        );
-        // create field contact object
-        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
-        $o->Contact->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
-            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-                $collection,
-                null,
-                null,
-                $name,
-                null,
-                $type
-            ),
-            $value
-        );
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item extended property delete 
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $collection - property collection
-     * @param string $name - property name
-     * @param string $type - property type
-	 * 
-	 * @return object collection item property delete command
-	 */
-    public function deleteFieldExtendedByName(string $collection, string $name, string $type): object {
-        // create field delete object
-        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-            $collection,
-            null,
-            null,
-            $name,
-            null,
-            $type
-        );
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item extended property create command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $tag - property tag
-     * @param string $type - property type
-     * @param string $value - property value
-	 * 
-	 * @return object collection item property create command
-	 */
-    public function createFieldExtendedByTag(string $tag, string $type, mixed $value): object {
-        // create extended field object
-        $o = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
-            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-                null,
-                null,
-                null,
-                null,
-                $tag,
-                $type
-            ),
-            $value
-        );
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item extended property update command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $tag - property tag
-     * @param string $type - property type
-     * @param string $value - property value
-	 * 
-	 * @return object collection item property update command
-	 */
-    public function updateFieldExtendedByTag(string $tag, string $type, mixed $value): object {
-        // create field update object
-        $o = new \OCA\EAS\Utile\Eas\Type\SetItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-            null,
-            null,
-            null,
-            null,
-            $tag,
-            $type
-        );
-        // create field contact object
-        $o->Contact = new \OCA\EAS\Utile\Eas\Type\ContactItemType();
-        $o->Contact->ExtendedProperty = new \OCA\EAS\Utile\Eas\Type\ExtendedPropertyType(
-            new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-                null,
-                null,
-                null,
-                null,
-                $tag,
-                $type
-            ),
-            $value
-        );
-        // return object
-        return $o;
-    }
-
-    /**
-     * construct collection item extended property delete command
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $tag - property tag
-     * @param string $type - property type
-	 * 
-	 * @return object collection item property delete command
-	 */
-    public function deleteFieldExtendedByTag(string $tag, string $type): object {
-        // construct field delete object
-        $o = new \OCA\EAS\Utile\Eas\Type\DeleteItemFieldType();
-        $o->ExtendedFieldURI = new \OCA\EAS\Utile\Eas\Type\PathToExtendedFieldType(
-            null,
-            null,
-            null,
-            null,
-            $tag,
-            $type
-        );
-        // return object
-        return $o;
-    }
-
-    /**
-     * convert remote ContactItemType object to contact object
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param ContactItemType $data - item as vcard object
-	 * 
-	 * @return ContactObject item as contact object
-	 */
-	public function toContactObject(ContactItemType $data): ContactObject {
+	public function toContactObject(EasObject $so): ContactObject {
 
 		// create object
-		$o = new ContactObject();
-        // ID + State
-        if (isset($data->ItemId)) {
-            $o->ID = $data->ItemId->Id;
-            $o->State = $data->ItemId->ChangeKey;
-        }
-        // Collection ID
-        if (isset($data->ParentFolderId)) {
-            $o->CID = $data->ParentFolderId->Id;
-        }
-        // Creation Date
-        if (!empty($data->DateTimeCreated)) {
-            $o->CreatedOn = new DateTime($data->DateTimeCreated);
-        }
-        // Modification Date
-        if (!empty($data->DateTimeSent)) {
-            $o->ModifiedOn = new DateTime($data->DateTimeSent);
-        }
-        if (!empty($data->LastModifiedTime)) {
-            $o->ModifiedOn = new DateTime($data->LastModifiedTime);
-        }
+		$co = new ContactObject();
         // Label
-        if (!empty($data->DisplayName)) {
-            $o->Label = $data->DisplayName;
+        if (!empty($so->FileAs)) {
+            $co->Label = $so->FileAs->getContents();
         }
-		// Name
-        if (isset($data->CompleteName)) {
-            $o->Name->Last = $data->CompleteName->LastName;
-            $o->Name->First = $data->CompleteName->FirstName;
-            $o->Name->Other = $data->CompleteName->MiddleName;
-            $o->Name->Prefix = $data->CompleteName->Title;
-            $o->Name->Suffix = $data->CompleteName->Suffix;
-            $o->Name->PhoneticLast = $data->CompleteName->YomiLastName;
-            $o->Name->PhoneticFirst = $data->CompleteName->YomiLastName;
-            $o->Name->Aliases = $data->CompleteName->Nickname;
+		// Name - Last
+        if (isset($so->LastName)) {
+            $co->Name->Last = $so->LastName->getContents();
         }
-        // Phonetic Last Name
-        if (!empty($data->PhoneticLastName)) {
-            $o->Name->PhoneticLast =  new DateTime($data->PhoneticLastName);
+        // Name - First
+        if (isset($so->FirstName)) {
+            $co->Name->First = $so->FirstName->getContents();
         }
-        // Phonetic First Name
-        if (!empty($data->PhoneticFirstName)) {
-            $o->Name->PhoneticFirst =  new DateTime($data->PhoneticFirstName);
+        // Name - Other
+        if (isset($so->MiddleName)) {
+            $co->Name->Other = $so->MiddleName->getContents();
+        }
+        // Name - Prefix
+        if (isset($so->Title)) {
+            $co->Name->Prefix = $so->Title->getContents();
+        }
+        // Name - Suffix
+        if (isset($so->Suffix)) {
+            $co->Name->Suffix = $so->Suffix->getContents();
+        }
+        // Name - Phonetic - Last
+        if (isset($so->YomiLastName)) {
+            $co->Name->PhoneticLast = $so->YomiLastName->getContents();
+        }
+        // Name - Phonetic - First
+        if (isset($so->YomiFirstName)) {
+            $co->Name->PhoneticFirst = $so->YomiFirstName->getContents();
+        }
+        // Name - Aliases
+        if (isset($so->NickName)) {
+            $co->Name->Aliases = $so->NickName->getContents();
         }
         // Birth Day
-        if (!empty($data->Birthday)) {
-            $o->BirthDay =  new DateTime($data->Birthday);
+        if (!empty($so->Birthday)) {
+            $co->BirthDay =  new DateTime($so->Birthday->getContents());
         }
         // Partner
-        if (!empty($data->SpouseName)) {
-            $o->Partner = $data->SpouseName;
+        if (!empty($so->Spouse)) {
+            $co->Partner = $so->Spouse->getContents();
         }
         // Anniversary Day
-        if (!empty($data->WeddingAnniversary)) {
-            $o->AnniversaryDay =  new DateTime($data->WeddingAnniversary);
+        if (!empty($so->Anniversary)) {
+            $co->AnniversaryDay =  new DateTime($so->Anniversary->getContents());
         }
         // Address(es)
-        if (isset($data->PhysicalAddresses)) {
-            foreach($data->PhysicalAddresses->Entry as $entry) {
-                $o->addAddress(
+        // Work
+        if (isset($so->BusinessAddressStreet) ||
+            isset($so->BusinessAddressCity) ||
+            isset($so->BusinessAddressState) ||
+            isset($so->BusinessAddressPostalCode) ||
+            isset($so->BusinessAddressCountry)
+        ) {
+            $address = new \OCA\EAS\Objects\ContactAddressObject();
+            $address->Type = 'WORK';
+            // Street
+            if (isset($so->BusinessAddressStreet)) {
+                $address->Street = $so->BusinessAddressStreet->getContents();
+            }
+            // Locality
+            if (isset($so->BusinessAddressCity)) {
+                $address->Locality = $so->BusinessAddressCity->getContents();
+            }
+            // Region
+            if (isset($so->BusinessAddressState)) {
+                $address->Region = $so->BusinessAddressState->getContents();
+            }
+            // Code
+            if (isset($so->BusinessAddressPostalCode)) {
+                $address->Code = $so->BusinessAddressPostalCode->getContents();
+            }
+            // Country
+            if (isset($so->BusinessAddressCountry)) {
+                $address->Country = $so->BusinessAddressCountry->getContents();
+            }
+            // add address to collection
+            $co->Address[] = $address;
+        }
+        // Home
+        if (isset($so->HomeAddressStreet) ||
+            isset($so->HomeAddressCity) ||
+            isset($so->HomeAddressState) ||
+            isset($so->HomeAddressPostalCode) ||
+            isset($so->HomeAddressCountry)
+        ) {
+            $address = new \OCA\EAS\Objects\ContactAddressObject();
+            $address->Type = 'HOME';
+            // Street
+            if (isset($so->HomeAddressStreet)) {
+                $address->Street = $so->HomeAddressStreet->getContents();
+            }
+            // Locality
+            if (isset($so->HomeAddressCity)) {
+                $address->Locality = $so->HomeAddressCity->getContents();
+            }
+            // Region
+            if (isset($so->HomeAddressState)) {
+                $address->Region = $so->HomeAddressState->getContents();
+            }
+            // Code
+            if (isset($so->HomeAddressPostalCode)) {
+                $address->Code = $so->HomeAddressPostalCode->getContents();
+            }
+            // Country
+            if (isset($so->HomeAddressCountry)) {
+                $address->Country = $so->HomeAddressCountry->getContents();
+            }
+            // add address to collection
+            $co->Address[] = $address;
+        }
+        // Other
+        if (isset($so->OtherAddressStreet) ||
+            isset($so->OtherAddressCity) ||
+            isset($so->OtherAddressState) ||
+            isset($so->OtherAddressPostalCode) ||
+            isset($so->OtherAddressCountry)
+        ) {
+            $address = new \OCA\EAS\Objects\ContactAddressObject();
+            $address->Type = 'OTHER';
+            // Street
+            if (isset($so->OtherAddressStreet)) {
+                $address->Street = $so->OtherAddressStreet->getContents();
+            }
+            // Locality
+            if (isset($so->OtherAddressCity)) {
+                $address->Locality = $so->OtherAddressCity->getContents();
+            }
+            // Region
+            if (isset($so->OtherAddressState)) {
+                $address->Region = $so->OtherAddressState->getContents();
+            }
+            // Code
+            if (isset($so->OtherAddressPostalCode)) {
+                $address->Code = $so->OtherAddressPostalCode->getContents();
+            }
+            // Country
+            if (isset($so->OtherAddressCountry)) {
+                $address->Country = $so->OtherAddressCountry->getContents();
+            }
+            // add address to collection
+            $co->Address[] = $address;
+        }
+        // Phone - Business 1
+        if (!empty($so->BusinessPhoneNumber)) {
+            $co->addPhone('WORK', null, $so->BusinessPhoneNumber->getContents());
+        }
+        // Phone - Business 2
+        if (!empty($so->Business2PhoneNumber)) {
+            $co->addPhone('WORK', null, $so->Business2PhoneNumber->getContents());
+        }
+        // Phone - Home 1
+        if (!empty($so->HomePhoneNumber)) {
+            $co->addPhone('HOME', null, $so->HomePhoneNumber->getContents());
+        }
+        // Phone - Home 2
+        if (!empty($so->Home2PhoneNumber)) {
+            $co->addPhone('HOME', null, $so->Home2PhoneNumber->getContents());
+        }
+        // Phone - Mobile
+        if (!empty($so->MobilePhoneNumber)) {
+            $co->addPhone('CELL', null, $so->HomePhoneNumber->getContents());
+        }
+        // Email(s)
+        if (!empty($so->Email1Address)) {
+            $co->addEmail('WORK', $so->Email1Address->getContents());
+        }
+        if (!empty($so->Email2Address)) {
+            $co->addEmail('HOME', $so->Email2Address->getContents());
+        }
+        if (!empty($so->Email3Address)) {
+            $co->addEmail('OTHER', $so->Email3Address->getContents());
+        }
+        // IMPP(s)
+        if (!empty($so->IMAddress)) {
+            $co->addIMPP('WORK', $so->IMAddress->getContents());
+        }
+        if (!empty($so->IMAddress2)) {
+            $co->addIMPP('HOME', $so->IMAddress2->getContents());
+        }
+        if (!empty($so->IMAddress3)) {
+            $co->addIMPP('OTHER', $so->IMAddress3->getContents());
+        }
+        // Manager Name
+        if (!empty($so->ManagerName)) {
+            $co->Name->Manager =  $so->ManagerName->getContents();
+        }
+        // Assistant Name
+        if (!empty($so->AssistantName)) {
+            $co->Name->Assistant =  $so->AssistantName->getContents();
+        }
+        // Occupation Organization
+        if (!empty($so->CompanyName)) {
+            $co->Occupation->Organization = $so->CompanyName->getContents();
+        }
+        // Occupation Department
+        if (!empty($so->Department)) {
+            $co->Occupation->Department = $so->Department->getContents();
+        }
+        // Occupation Title
+        if (!empty($so->JobTitle)) {
+            $co->Occupation->Title = $so->JobTitle->getContents();
+        }
+        // Occupation Role
+        if (!empty($so->Profession)) {
+            $co->Occupation->Role = $so->Profession->getContents();
+        }
+        // Occupation Location
+        if (!empty($so->OfficeLocation)) {
+            $co->Occupation->Location = $so->OfficeLocation->getContents();
+        }
+        // Tag(s)
+        if (isset($so->Categories)) {
+            if (is_array($so->Categories->Category)) {
+                foreach($so->Categories->Category as $entry) {
+                    $co->addTag($entry->getContents());
+                }
+            }
+            else {
+                $co->addTag($so->Categories->Category->getContents());
+            }
+        }
+        // Notes
+        if (!empty($so->Body)) {
+            $co->Notes = $so->Body->Data->getContents();
+        }
+        // URL / Website
+        if (isset($so->WebPage)) {
+            $this->URI = $so->WebPage->getContents();
+        }
+
+		return $co;
+
+    }
+
+    /**
+     * convert remote ContactObject to local EasObject
+     * 
+     * @since Release 1.0.0
+     * 
+	 * @param ContactObject $so     entity as ContactObject
+	 * 
+	 * @return EasObject            entity as EasObject
+	 */
+	public function fromContactObject(EasObject $so): ContactObject {
+
+		// create object
+		$eo = new EasObject();
+        // Label
+        if (!empty($so->Label)) {
+            $eo->FileAs = new EasPropert('Contacts', $so->Label);
+        }
+		// Name - Last
+        if (!empty($so->Name->Last)) {
+            $eo->LastName = new EasPropert('Contacts', $so->Name->Last);
+        }
+        // Name - First
+        if (!empty($so->Name->First)) {
+            $eo->FirstName = new EasPropert('Contacts', $so->Name->First);
+        }
+        // Name - Other
+        if (!empty($so->Name->Other)) {
+            $eo->MiddleName = new EasPropert('Contacts', $so->Name->Other);
+        }
+        // Name - Prefix
+        if (!empty($so->Name->Prefix)) {
+            $eo->Title = new EasPropert('Contacts', $so->Name->Prefix);
+        }
+        // Name - Suffix
+        if (!empty($so->Name->Suffix)) {
+            $eo->Suffix = new EasPropert('Contacts', $so->Name->Suffix);
+        }
+        // Name - Phonetic - Last
+        if (!empty($so->Name->PhoneticLast)) {
+            $eo->YomiLastName = new EasPropert('Contacts', $so->Name->PhoneticLast);
+        }
+        // Name - Phonetic - First
+        if (!empty($so->Name->PhoneticFirst)) {
+            $eo->YomiFirstName = new EasPropert('Contacts', $so->Name->PhoneticFirst);
+        }
+        // Name - Aliases
+        if (!empty($so->Name->Aliases)) {
+            $eo->NickName = new EasPropert('Contacts', $so->Name->Aliases);
+        }
+        // Birth Day
+        if (!empty($so->BirthDay)) {
+            $eo->BirthDay = new EasPropert('Contacts', $so->Birthday->format('Y-m-d\TH:i:s\Z'));
+        }
+        // Partner
+        if (!empty($so->Partner)) {
+            $eo->Spouse = new EasPropert('Contacts', $so->Partner);
+        }
+        // Anniversary Day
+        if (!empty($so->AnniversaryDay)) {
+            $eo->Anniversary = new EasPropert('Contacts', $so->Anniversary->format('Y-m-d\TH:i:s\Z'));
+        }
+        // Address(es)
+        if (isset($so->PhysicalAddresses)) {
+            foreach($so->PhysicalAddresses->Entry as $entry) {
+                $co->addAddress(
                     $entry->Key,
                     $entry->Street,
                     $entry->City,
@@ -1657,94 +1436,96 @@ class RemoteContactsService {
                 );
             }
         }
-        // Phone(s)
-        if (isset($data->PhoneNumbers)) {
-            foreach($data->PhoneNumbers->Entry as $entry) {
-                $t = $this->fromTelType($entry->Key); 
-                if ($t) {
-                    $o->addPhone(
-                        $t,
-                        null,
-                        $entry->_
-                    );
-                }
-            }
+        // Phone - Business 1
+        if (!empty($so->BusinessPhoneNumber)) {
+            $co->addPhone('WORK', null, $so->BusinessPhoneNumber->getContents());
+        }
+        // Phone - Business 2
+        if (!empty($so->Business2PhoneNumber)) {
+            $co->addPhone('WORK', null, $so->Business2PhoneNumber->getContents());
+        }
+        // Phone - Home 1
+        if (!empty($so->HomePhoneNumber)) {
+            $co->addPhone('HOME', null, $so->HomePhoneNumber->getContents());
+        }
+        // Phone - Home 2
+        if (!empty($so->Home2PhoneNumber)) {
+            $co->addPhone('HOME', null, $so->Home2PhoneNumber->getContents());
+        }
+        // Phone - Mobile
+        if (!empty($so->MobilePhoneNumber)) {
+            $co->addPhone('HOME', null, $so->HomePhoneNumber->getContents());
         }
         // Email(s)
-        if (isset($data->EmailAddresses)) {
-            foreach($data->EmailAddresses->Entry as $entry) {
-                $t = $this->fromEmailType($entry->Key);
-                if ($t) {
-                    $o->addEmail(
-                        $t, 
-                        $entry->_
-                    );
-                }
-            }
+        if (!empty($so->Email1Address)) {
+            $co->addEmail('WORK', $so->Email1Address->getContents());
+        }
+        if (!empty($so->Email2Address)) {
+            $co->addEmail('HOME', $so->Email2Address->getContents());
+        }
+        if (!empty($so->Email3Address)) {
+            $co->addEmail('OTHER', $so->Email3Address->getContents());
         }
         // IMPP(s)
-        if (isset($data->ImAddresses)) {
-            foreach($data->ImAddresses->Entry as $entry) {
-                $o->addIMPP(
-                    $entry->Key, 
-                    $entry->_
-                );
-            }
+        if (!empty($so->IMAddress)) {
+            $co->addIMPP('WORK', $so->IMAddress->getContents());
+        }
+        if (!empty($so->IMAddress2)) {
+            $co->addIMPP('HOME', $so->IMAddress2->getContents());
+        }
+        if (!empty($so->IMAddress3)) {
+            $co->addIMPP('OTHER', $so->IMAddress3->getContents());
         }
         // Manager Name
-        if (!empty($data->Manager)) {
-            $o->Name->Manager =  $data->Manager;
+        if (!empty($so->ManagerName)) {
+            $co->Name->Manager =  $so->ManagerName->getContents();
         }
         // Assistant Name
-        if (!empty($data->AssistantName)) {
-            $o->Name->Assistant =  $data->AssistantName;
+        if (!empty($so->AssistantName)) {
+            $co->Name->Assistant =  $so->AssistantName->getContents();
         }
         // Occupation Organization
-        if (!empty($data->CompanyName)) {
-            $o->Occupation->Organization = $data->CompanyName;
+        if (!empty($so->CompanyName)) {
+            $co->Occupation->Organization = $so->CompanyName->getContents();
         }
         // Occupation Department
-        if (!empty($data->Department)) {
-            $o->Occupation->Department = $data->Department;
+        if (!empty($so->Department)) {
+            $co->Occupation->Department = $so->Department->getContents();
         }
         // Occupation Title
-        if (!empty($data->JobTitle)) {
-            $o->Occupation->Title = $data->JobTitle;
+        if (!empty($so->JobTitle)) {
+            $co->Occupation->Title = $so->JobTitle->getContents();
         }
         // Occupation Role
-        if (!empty($data->Profession)) {
-            $o->Occupation->Role = $data->Profession;
+        if (!empty($so->Profession)) {
+            $co->Occupation->Role = $so->Profession->getContents();
         }
         // Occupation Location
-        if (!empty($data->OfficeLocation)) {
-            $o->Occupation->Location = $data->OfficeLocation;
+        if (!empty($so->OfficeLocation)) {
+            $co->Occupation->Location = $so->OfficeLocation->getContents();
         }
-        // Relation
-        //if ($data->RELATED) {
-        //    $this->Relation = new ContactRelationObject($data->RELATED->parameters()['TYPE']->getValue(), $data->RELATED->getValue());
-        //}
         // Tag(s)
-        if (isset($data->Categories)) {
-            foreach($data->Categories->String as $entry) {
-                $o->addTag($entry);
+        if (isset($so->Categories)) {
+            if (is_array($so->Categories->Category)) {
+                foreach($so->Categories->Category as $entry) {
+                    $co->addTag($entry->getContents());
+                }
+            }
+            else {
+                $co->addTag($so->Categories->Category->getContents());
             }
         }
         // Notes
-        if (!empty($data->Body)) {
-            $o->Notes = $data->Body->_;
+        if (!empty($so->Body)) {
+            $co->Notes = $so->Body->Data->getContents();
         }
-        // Sound
-        //if ($data->SOUND) {
-        //    $this->Sound = $data->SOUND->getValue();
-        //}
         // URL / Website
-        if (isset($o->URL)) {
-            $this->URI = $data->URL->getValue();
+        if (isset($so->WebPage)) {
+            $this->URI = $so->WebPage->getContents();
         }
-
         // Attachment(s)
-        if (isset($data->Attachments)) {
-            foreach($data->Attachments->FileAttachment as $entry) {
+        if (isset($so->Attachments)) {
+            foreach($so->Attachments->FileAttachment as $entry) {
                 // evaluate mime type
                 if ($entry->ContentType == 'application/octet-stream') {
                     $type = \OCA\EAS\Utile\MIME::fromFileName($entry->Name);
@@ -1754,13 +1535,13 @@ class RemoteContactsService {
                 // evaluate attachemnt type
                 if ($entry->IsContactPhoto || str_contains($entry->Name, 'ContactPicture')) {
                     $flag = 'CP';
-                    $o->Photo->Type = 'data';
-                    $o->Photo->Data = $entry->AttachmentId->Id;
+                    $co->Photo->Type = 'data';
+                    $co->Photo->Data = $entry->AttachmentId->Id;
                 }
                 else {
                     $flag = null;
                 }
-                $o->addAttachment(
+                $co->addAttachment(
 					$entry->AttachmentId->Id, 
 					$entry->Name,
 					$type,
@@ -1772,250 +1553,8 @@ class RemoteContactsService {
             }
         }
 
-        // UID / Dates
-        if (isset($data->ExtendedProperty)) {
-            foreach ($data->ExtendedProperty as $entry) {
-                switch ($entry->ExtendedFieldURI->PropertyName) {
-                    case 'DAV:uid': // UUID
-                        $o->UID = $entry->Value;
-                        break;
-                }
-                switch ($entry->ExtendedFieldURI->PropertyTag) {
-                    case '0x3007': // Created Date/Time
-                        $o->CreatedOn = new DateTime($entry->Value);
-                        break;
-                    case '0x3008': // Modified Date/Time
-                        $o->ModifiedOn = new DateTime($entry->Value);
-                        break;
-                    case '0x3A45': // Yomi / Name Prefix
-                        break;
-                    case '0x802D': // Yomi / Phonetic Last Name
-                        break;
-                    case '0x802C': // Yomi / Phonetic First Name
-                        break;
-                }
-            }
-        }
+		return $co;
 
-		return $o;
-
-    }
-
-    /**
-     * convert remote email type to contact object type
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param sting $type - remote email type
-	 * 
-	 * @return string|null contact object email type
-	 */
-    private function fromEmailType(string $type): ?string {
-
-        // type conversion reference
-        $_tm = array(
-			'EmailAddress1' => 'WORK',
-			'EmailAddress2' => 'HOME',
-			'EmailAddress3' => 'OTHER'
-		);
-        // evaluate if type value exists
-		if (isset($_tm[$type])) {
-			// return converted type value
-			return $_tm[$type];
-		} else {
-            // return default type value
-			return null;
-		}
-
-    }
-
-    /**
-     * convert local email type to remote type
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param sting $type - contact object email type
-	 * 
-	 * @return string|null remote email type
-	 */
-    private function toEmailType(string $type): string {
-
-        // type conversion reference
-        $_tm = array(
-			'WORK' => 'EmailAddress1',
-			'HOME' => 'EmailAddress2',
-			'OTHER' => 'EmailAddress3'
-		);
-        // evaluate if type value exists
-		if (isset($_tm[$type])) {
-			// return converted type value
-			return $_tm[$type];
-		} else {
-            // return default type value
-			return '';
-		}
-
-    }
-
-    /**
-     * convert remote telephone type to contact object type
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param sting $type - remote telephone type
-	 * 
-	 * @return string|null contact object telephone type
-	 */
-    private function fromTelType(string $type): ?string {
-        switch ($type) {
-            case 'BusinessPhone':
-                return 'WORK,VOICE,1';
-                break;
-            case 'BusinessPhone2':
-                return 'WORK,VOICE,2';
-                break;
-            case 'BusinessFax':
-                return 'WORK,FAX,1';
-                break;
-            case 'HomePhone':
-                return 'HOME,VOICE,1';
-                break;
-            case 'HomePhone2':
-                return 'HOME,VOICE,2';
-                break;
-            case 'HomeFax':
-                return 'HOME,FAX,1';
-                break;
-            case 'AssistantPhone':
-                return null;
-                break;
-            case 'Callback':
-                return null;
-                break;
-            case 'CarPhone':
-                return 'CAR';
-                break;
-            case 'CompanyMainPhone':
-                return null;
-                break;
-            case 'Isdn':
-                return 'ISDN';
-                break;
-            case 'MobilePhone':
-                return 'CELL';
-                break;
-            case 'OtherFax':
-                return 'OTHER,FAX,1';
-                break;
-            case 'OtherTelephone':
-                return 'OTHER,VOICE,1';
-                break;
-            case 'Pager':
-                return 'PAGER';
-                break;
-            case 'PrimaryPhone':
-                return null;
-                break;
-            case 'RadioPhone':
-                return null;
-                break;
-            case 'Telex':
-                return null;
-                break;
-            case 'TtyTddPhone':
-                return null;
-                break;
-        }
-    }
-
-    /**
-     * convert local telephone type to remote type
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param sting $type - contact object telephone type
-	 * 
-	 * @return string|null remote telephone type
-	 */
-    private function toTelType(string $type): ?string {
-        $parts = explode(",", $type);
-        $part2 = false;
-        $part3 = false;
-
-        switch ($parts[0]) {
-            case 'WORK':
-                $type = "Business";
-                $part2 = true;
-                $part3 = true;
-                break;
-            case 'HOME':
-                $type = "Home";
-                $part2 = true;
-                $part3 = true;
-                break;
-            case 'OTHER':
-                $type = "Other";
-                $part2 = true;
-                $part3 = true;
-                break;
-            case 'CELL':
-                $type = "MobilePhone";
-                $part2 = false;
-                $part3 = false;
-                break;
-            case 'CAR':
-                $type = "CarPhone";
-                $part2 = false;
-                $part3 = false;
-                break;
-            case 'PAGER':
-                $type = "Pager";
-                $part2 = false;
-                $part3 = false;
-                break;
-            case 'ISDN':
-                $type = "Isdn";
-                $part2 = false;
-                $part3 = false;
-                break;
-            default:
-                $type = null;
-                $part2 = false;
-                $part3 = false;
-                break;
-        }
-
-        if ($part2) {
-            switch ($parts[1]) {
-                case 'VOICE':
-                    $type .= "Phone";
-                    break;
-                case 'FAX':
-                    $type .= "Fax";
-                    break;
-                default:
-                    $part3 = false;
-                    $type = null;
-                    break;
-            }
-        }
-
-        if ($part3 && isset($parts[2])) {
-            switch ($parts[2]) {
-                case '0':
-                case '1':
-                    $type .= '';
-                    break;
-                case '2':
-                    $type .= '2';
-                    break;
-                default:
-                    $type = null;
-                    break;
-            }
-        }
-
-        return $type;
     }
 
     /**

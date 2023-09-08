@@ -462,11 +462,14 @@ class RemoteCommonService {
 			$o->Sync->Collections->Collection->Options = new EasObject('AirSync');		
 			$o->Sync->Collections->Collection->Options->FilterType = new EasProperty('AirSync', $options['FILTER']);
 		}
-		//$o->Sync->Collections->Collection->Options->MIMESupport = new EasProperty('AirSync', 2);
-		//$o->Sync->Collections->Collection->Options->MIMETruncation = new EasProperty('AirSync', 8);
-		//$o->Sync->Collections->Collection->Options->BodyPreference = new EasObject('AirSyncBase');
-		//$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', 1);
-		//$o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
+		if (isset($options['MIME'])) {
+			$o->Sync->Collections->Collection->Options->MIMESupport = new EasProperty('AirSync', 2);
+			$o->Sync->Collections->Collection->Options->MIMETruncation = new EasProperty('AirSync', 8);
+			$o->Sync->Collections->Collection->Options->BodyPreference = new EasObject('AirSyncBase');
+			$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', 4);
+			$o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
+		}
+		//
 		//$o->Sync->WindowSize = new EasProperty('AirSync', $max);
 
 		// serialize request message
@@ -521,11 +524,10 @@ class RemoteCommonService {
 		$o->GetItemEstimate = new EasObject('GetItemEstimate');
 		$o->GetItemEstimate->Collections = new EasObject('GetItemEstimate');
 		
-			$o->GetItemEstimate->Collections->Collection = new EasObject('GetItemEstimate');
-			$o->GetItemEstimate->Collections->Collection->CollectionId = new EasProperty('GetItemEstimate', $fid);
-			$o->GetItemEstimate->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
-		
-		
+		$o->GetItemEstimate->Collections->Collection = new EasObject('GetItemEstimate');
+		$o->GetItemEstimate->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
+		$o->GetItemEstimate->Collections->Collection->CollectionId = new EasProperty('GetItemEstimate', $fid);
+
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
