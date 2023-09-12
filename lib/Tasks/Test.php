@@ -82,14 +82,13 @@ try {
 	$RemoteContactsService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteContactsService::class);
 
 	// construct decoder
-	
-	/**/
 	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
 	$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
 	
-
 	// construct remote data store client
 	$EasClient = $CoreService->createClient($uid);
+	// assign remote data store to module
+	$RemoteContactsService->DataStore = $EasClient;
 
 	// perform initial connect
 	$EasClient->performConnect();
@@ -127,24 +126,16 @@ try {
 	$cid = '5'; // MS365 5 - OP - 8
 
 	// sync collection
-	$rs = $RemoteCommonService->syncEntities($EasClient, $cid, $token, []); // ['SUPPORTED' => true]
+	$rs = $RemoteContactsService->syncEntities($cid, $token);
 	
-	$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
+	$token = $rs->SyncKey->getContents();
 
-	//$rs = $RemoteCommonService->fetchFolderEstimate($EasClient, $cid, $token);
+	if (isset($rs->Commands)) {
 
-	$rs = $RemoteCommonService->syncEntities($EasClient, $cid, $token, ['CHANGES' => 1, 'LIMIT' => 32, 'FILTER' => 0, 'MIME' => 0]); // 
-
-	$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
-
-	if (isset($rs->Sync->Collections->Collection->Commands)) {
-
-		foreach ($rs->Sync->Collections->Collection->Commands->Add as $entry) {
-			
-			//$entry = $rs->Sync->Collections->Collection->Commands->Add[0];
+		foreach ($rs->Commands->Add as $entry) {
 
 			if ($entry->Data->FileAs->getContents() == 'NC Homer J. Simpson') {
-				$rs = $RemoteCommonService->deleteEntity($EasClient, $cid, $token, $entry->EntityId->getContents());
+				$rs = $RemoteContactsService->deleteEntity($cid, $token, $entry->EntityId->getContents());
 			}
 
 		}
@@ -201,10 +192,8 @@ try {
 	$co->Occupation->Title = 'Chief Safety Officer';
 	$co->Occupation->Role = 'Safety Inspector';
 	$co->addTag('Simpson Family');
-
-	$o = $RemoteContactsService->fromContactObject($co);
 	
-	$rs = $RemoteCommonService->createEntity($EasClient, $cid, $token, 'Contacts', $o);
+	$rs = $RemoteContactsService->createEntity($cid, $token, $co);
 
 	$test = $rs;
 	

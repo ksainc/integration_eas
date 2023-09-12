@@ -38,6 +38,7 @@ use OCA\DAV\CalDAV\CalDavBackend;
 
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Utile\Eas\EasClient;
+use OCA\EAS\Utile\Eas\EasTypes;
 use OCA\EAS\Service\ConfigurationService;
 use OCA\EAS\Service\CorrelationsService;
 /*
@@ -655,7 +656,7 @@ class CoreService {
 		// create remote store client
 		$RemoteStore = $this->createClient($uid);
 		// retrieve remote collections
-		$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
+		$rs = $this->RemoteCommonService->syncCollections($RemoteStore);
 		// construct response object
 		$data = ['ContactCollections' => [], 'EventCollections' => [], 'TaskCollections' => []];
 		// evaluate response status and structure
@@ -663,15 +664,49 @@ class CoreService {
 			// iterate throught collections 
 			foreach ($rs->CollectionSync->Changes->Add as $Collection) {
 				switch ($Collection->Type->getContents()) {
-					case RemoteCommonService::CONTACTS_COLLECTION_TYPE:
-						$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>' '];
+					case EasTypes::COLLECTION_TYPE_SYSTEM_CONTACTS:
+					case EasTypes::COLLECTION_TYPE_USER_CONTACTS:
+						$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
 						break;
-					case RemoteCommonService::CALENDAR_COLLECTION_TYPE:
-						$data['EventCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>' '];
+					case EasTypes::COLLECTION_TYPE_SYSTEM_CALENDAR:
+					case EasTypes::COLLECTION_TYPE_USER_CALENDAR:
+						$data['EventCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
 						break;
-					case RemoteCommonService::TASKS_COLLECTION_TYPE:
-						$data['TaskCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>' '];
+					case EasTypes::COLLECTION_TYPE_SYSTEM_TASKS:
+					case EasTypes::COLLECTION_TYPE_USER_TASKS:
+						$data['TaskCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>''];
 						break;
+				}
+			}
+		}
+
+		// retrieve entiry counts
+		foreach ($data as $gid => $group) {
+			if (count($group) > 0) {
+				// extract id's
+				$a = array_map(function($a) {return ['cid' => $a['id'], 'cst' => 0];}, $group);
+				// retrieve initial syncronization token(s)
+				$rs = $this->RemoteCommonService->syncEntitiesVarious($RemoteStore, $a, []);
+				// evaluate, if response returned an array
+				if (!is_array($rs->Sync->Collections->Collection)) {
+					// convery to array
+					$rs->Sync->Collections->Collection = [$rs->Sync->Collections->Collection];
+				}
+				// extract id's and tokens
+				$a = array_map(function($a) {
+					return ['cid' => $a->CollectionId->getContents(), 'cst' => $a->SyncKey->getContents()];
+				}, $rs->Sync->Collections->Collection);
+				// retrieve entity counts
+				$rs = $this->RemoteCommonService->estimateEntitiesVarious($RemoteStore, $a);
+				// evaluate, if response returned an array
+				if (!is_array($rs->EntityEstimate->Response)) {
+					// convery to array
+					$rs->EntityEstimate->Response = [$rs->EntityEstimate->Response];
+				}
+				// extract entity counts
+				foreach ($rs->EntityEstimate->Response as $entry) {
+					$k = array_search($entry->Collection->CollectionId->getContents(), array_column($group, 'id'));
+					$data[$gid][$k]['count'] = $entry->Collection->Estimate->getContents();
 				}
 			}
 		}

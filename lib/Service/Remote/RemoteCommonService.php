@@ -35,6 +35,7 @@ use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Utile\Eas\EasXmlEncoder;
 use OCA\EAS\Utile\Eas\EasXmlDecoder;
 use OCA\EAS\Utile\Eas\EasObject;
+use OCA\EAS\Utile\Eas\EasCollection;
 use OCA\EAS\Utile\Eas\EasProperty;
 use OCA\EAS\Utile\Eas\EasException;
 use OCA\EAS\Utile\Eas\EasTypes;
@@ -72,9 +73,9 @@ class RemoteCommonService {
      * 
 	 * @param EasClient $DataStore		Storage interface
 	 * 
-	 * @return object Collection List Object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function provisionInit(EasClient $DataStore, string $model, string $name, string $agent): ?object {
+	public function provisionInit(EasClient $DataStore, string $model, string $name, string $agent): ?EasObject {
 		
 		// construct provision command
 		$o = new \stdClass();
@@ -121,9 +122,9 @@ class RemoteCommonService {
      * 
 	 * @param EasClient $DataStore		Storage interface
 	 * 
-	 * @return object Provision object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function provisionAccept(EasClient $DataStore, string $token): ?object {
+	public function provisionAccept(EasClient $DataStore, string $token): ?EasObject {
 		
 		// construct provision command
 		$o = new \stdClass();
@@ -168,9 +169,9 @@ class RemoteCommonService {
 	 * @param EasClient $DataStore		Storage interface
 	 * @param string $cst				Synchronization State Token
 	 * 
-	 * @return object Collection list object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function syncCollections(EasClient $DataStore, string $cst = '0'): ?object {
+	public function syncCollections(EasClient $DataStore, string $cst = '0'): ?EasObject {
 		
 		// construct command
 		$o = new \stdClass();
@@ -207,9 +208,9 @@ class RemoteCommonService {
 	 * @param EasClient $DataStore		Storage Interface
 	 * @param string $cid				Collection ID
 	 * 
-	 * @return object Collection object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function fetchCollection(EasClient $DataStore, string $cid): ?object {
+	public function fetchCollection(EasClient $DataStore, string $cid): ?EasObject {
 		
 		return null;
 
@@ -226,9 +227,9 @@ class RemoteCommonService {
 	 * @param string $name				Collection Name
 	 * @param int $type					Collection Type
 	 * 
-	 * @return object 					EasObject on success / Null on failure
+	 * @return EasObject|null			EasObject on success / Null on failure
 	 */
-	public function createCollection(EasClient $DataStore, string $cht, string $chl, string $name, int $type): ?object {
+	public function createCollection(EasClient $DataStore, string $cht, string $chl, string $name, int $type): ?EasObject {
 
 		// construct command
 		$o = new \stdClass();
@@ -270,9 +271,9 @@ class RemoteCommonService {
 	 * @param string $cid				Collection Id
 	 * @param string $name				Collection Name
 	 * 
-	 * @return object 					EasObject on success / Null on failure
+	 * @return EasObject|null			EasObject on success / Null on failure
 	 */
-	public function updateCollection(EasClient $DataStore, string $cht, string $chl, string $cid, string $name): ?object {
+	public function updateCollection(EasClient $DataStore, string $cht, string $chl, string $cid, string $name): ?EasObject {
 
 		// construct command
 		$o = new \stdClass();
@@ -344,24 +345,24 @@ class RemoteCommonService {
 	}
 
 	/**
-     * retrieve list of changes for specific folder from remote storage
+     * retrieve list of entities for specific folder from remote storage
      * 
      * @since Release 1.0.0
      * 
 	 * @param EasClient $DataStore		Storage Interface
 	 * @param string $cid				Collection Id
-	 * @param string $state				Collection Synchronization State Token
+	 * @param string $cst				Collections Synchronization Token
 	 * 
-	 * @return EasObject|null 			object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function syncEntities(EasClient $DataStore, string $cid, string $state, array $options): ?EasObject {
+	public function syncEntities(EasClient $DataStore, string $cst, string $cid, array $options): ?EasObject {
 		
 		// construct Sync request
 		$o = new \stdClass();
 		$o->Sync = new EasObject('AirSync');
 		$o->Sync->Collections = new EasObject('AirSync');
 		$o->Sync->Collections->Collection = new EasObject('AirSync');
-		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
+		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $cst);
 		$o->Sync->Collections->Collection->CollectionId = new EasProperty('AirSync', $cid);
 
 		if (isset($options['SUPPORTED']) && $options['SUPPORTED'] == true) {
@@ -412,15 +413,68 @@ class RemoteCommonService {
 	}
 
 	/**
+     * retrieve list of entities for specific folder from remote storage
+     * 
+     * @since Release 1.0.0
+     * 
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param array $collections		Collections List (cid, cst)
+	 * 
+	 * @return EasObject|null 			EasObject on success / Null on failure
+	 */
+	public function syncEntitiesVarious(EasClient $DataStore, array $collections, array $options): ?EasObject {
+		
+		// construct Sync request
+		$o = new \stdClass();
+		$o->Sync = new EasObject('AirSync');
+		$o->Sync->Collections = new EasObject('AirSync');
+		$o->Sync->Collections->Collection = new EasCollection('AirSync');
+		
+		foreach ($collections as $entry) {
+			if (isset($entry['cid']) && isset($entry['cst'])) {
+
+				$c = new EasObject('AirSync');
+				$c->SyncKey = new EasProperty('AirSync', $entry['cst']);
+				$c->CollectionId = new EasProperty('AirSync', $entry['cid']);
+				
+				$o->Sync->Collections->Collection[] = $c;
+
+			}
+		}
+
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performSync($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+
+			// TODO: Add error checking
+
+			// return response object
+			return $o;
+		}
+		else {
+			// return blank response
+			return null;
+		}
+
+	}
+
+	/**
      * retrieve list of all folders starting with root folder from remote storage
      * 
      * @since Release 1.0.0
      * 
 	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cid				Collection Id
+	 * @param string $cst				Collections Synchronization Token
 	 * 
-	 * @return EasObject|null 			object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function estimateEntities(EasClient $DataStore, string $cid, string $state): ?EasObject {
+	public function estimateEntities(EasClient $DataStore, string $cst, string $cid): ?EasObject {
 	
 		// construct EntityEstimate request
 		$o = new \stdClass();
@@ -428,7 +482,7 @@ class RemoteCommonService {
 		$o->EntityEstimate->Collections = new EasObject('EntityEstimate');
 		
 		$o->EntityEstimate->Collections->Collection = new EasObject('EntityEstimate');
-		$o->EntityEstimate->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
+		$o->EntityEstimate->Collections->Collection->SyncKey = new EasProperty('AirSync', $cst);
 		$o->EntityEstimate->Collections->Collection->CollectionId = new EasProperty('EntityEstimate', $cid);
 
 		// serialize request message
@@ -439,6 +493,54 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
+			
+			// return response message
+			return $o;
+		}
+		else {
+			// return blank response
+			return null;
+		}
+		
+	}
+
+	/**
+     * retrieve list of all folders starting with root folder from remote storage
+     * 
+     * @since Release 1.0.0
+     * 
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param array $collections		Collections List (cid, cst)
+	 * 
+	 * @return EasObject|null 			EasObject on success / Null on failure
+	 */
+	public function estimateEntitiesVarious(EasClient $DataStore, array $collections): ?EasObject {
+	
+		// construct EntityEstimate request
+		$o = new \stdClass();
+		$o->EntityEstimate = new EasObject('EntityEstimate');
+		$o->EntityEstimate->Collections = new EasObject('EntityEstimate');
+		$o->EntityEstimate->Collections->Collection = new EasCollection('EntityEstimate');
+		
+		foreach ($collections as $entry) {
+			if (isset($entry['cid']) && isset($entry['cst'])) {
+				$c = new EasObject('EntityEstimate');
+				$c->SyncKey = new EasProperty('AirSync', $entry['cst']);
+				$c->CollectionId = new EasProperty('EntityEstimate', $entry['cid']);
+				$o->EntityEstimate->Collections->Collection[] = $c;
+			}
+		}
+		
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performEntityEstimate($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			
+			// TODO: Add error checking
 			
 			// return response message
 			return $o;
@@ -462,9 +564,9 @@ class RemoteCommonService {
 	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
 	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
 	 * 
-	 * @return object Item Object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function findEntities(EasClient $DataStore, string $fid, object $restriction, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
+	public function findEntities(EasClient $DataStore, string $fid, object $restriction, bool $ftype = false, string $base = 'D', object $additional = null): ?EasObject {
 		
 		return null;
 
@@ -480,7 +582,7 @@ class RemoteCommonService {
 	 * @param string $cst				Collection Synchronization Token
 	 * @param string $eid				Entity Id
 	 * 
-	 * @return EasObject|null 			object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
 	public function fetchEntity(EasClient $DataStore, string $cid, string $cst, string $eid): ?EasObject {
 		
@@ -536,7 +638,7 @@ class RemoteCommonService {
 	 * @param string $ec				Entity Type
 	 * @param EasObject $ed				Entity Object
 	 * 
-	 * @return EasObject|null 			object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
 	public function createEntity(EasClient $DataStore, string $cid, string $cst, string $ec, EasObject $ed): ?EasObject {
 		
@@ -587,7 +689,7 @@ class RemoteCommonService {
 	 * @param string $eid				Entity Id
 	 * @param EasObject $ed				Entity Object
 	 * 
-	 * @return EasObject|null 			object on success / Null on failure
+	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
 	public function updateEntity(EasClient $DataStore, string $cid, string $cst, string $eid, object $data): ?EasObject {
 		
