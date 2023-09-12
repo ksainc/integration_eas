@@ -24,9 +24,8 @@
 */
 
 require_once __DIR__ . '/../../../../lib/versioncheck.php';
-/*
+
 try {
-*/
 
 	require_once __DIR__ . '/../../../../lib/base.php';
 
@@ -84,9 +83,8 @@ try {
 
 	// construct decoder
 	
-	/*
+	/**/
 	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
-	*/
 	$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
 	
 
@@ -97,42 +95,118 @@ try {
 	$EasClient->performConnect();
 
 	// Load From File
-	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync-Sync-Response', 'r');
+	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync-Add2', 'r');
 	//$msg_ref_raw = stream_get_contents($stream);
 	//$msg_ref_obj = $EasXmlDecoder->streamToObject($stream);
 	//fclose($stream);
 	//$msg_ref_hex = unpack('H*', $msg_ref_raw);
 	//exit;
 
-
-	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync2', 'r');
-	//$msg2_ref_raw = stream_get_contents($stream);
-	//fclose($stream);
-	//$msg2_ref_obj = $EasXmlDecoder->stringToObject($msg2_ref_raw);
-	//$msg2_ref_hex = unpack('H*', $msg2_ref_raw)[1];
-
-	//$msg_ref_hex = '03016a00455c4f4b03564430794d44497a4d446b774d5651794d6a55774e4456614f3155394d44744750545537545430784f444d314d546b37557a30774f773d3d000152033100015e03310001135503353000015758033500010018450331000100114546033200010101010101';
-	//$msg_ref_raw = pack('H*', $msg_ref_hex);
-	//$msg_ref_obj = $EasXmlDecoder->stringToObject($msg_ref_raw);
-
 	$token = 0;
-	$cid = '8'; // MS365 5
 
-	//$rs = $RemoteCommonService->fetchFolders($EasClient);
+	// Fetch collections
+	$rs = $RemoteCommonService->syncCollections($EasClient);
 
-	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, ['MOVED' => 1]);
+	/* ====== Working ============
+	// retrieve sync token
+	$token = $rs->CollectionSync->SyncKey->getContents();
+	// create collection
+	$rs = $RemoteCommonService->createCollection($EasClient, $token, '0', 'Test Contacts', \OCA\EAS\Utile\Eas\EasTypes::COLLECTION_TYPE_USER_CONTACTS);
+	// retrieve collection id and sync token
+	$cid = $rs->CollectionCreate->Id->getContents();
+	//$token = $rs->CollectionCreate->SyncKey->getContents();
+	// update collection
+	$rs = $RemoteCommonService->updateCollection($EasClient, $token, '0', $cid, 'Test Contacts 2');
+	// retrieve sync token
+	//$token = $rs->CollectionCreate->SyncKey->getContents();
+	// delete collection
+	$rs = $RemoteCommonService->deleteCollection($EasClient, $token, $cid);
+	*/
+
+	// select collection
+	$cid = '5'; // MS365 5 - OP - 8
+
+	// sync collection
+	$rs = $RemoteCommonService->syncEntities($EasClient, $cid, $token, []); // ['SUPPORTED' => true]
 	
 	$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
 
 	//$rs = $RemoteCommonService->fetchFolderEstimate($EasClient, $cid, $token);
 
-	$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, ['MOVED' => 1, 'CHANGES' => 1, 'FILTER' => 0, 'MIME' => 1]);
+	$rs = $RemoteCommonService->syncEntities($EasClient, $cid, $token, ['CHANGES' => 1, 'LIMIT' => 32, 'FILTER' => 0, 'MIME' => 0]); // 
+
+	$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
 
 	if (isset($rs->Sync->Collections->Collection->Commands)) {
+
 		foreach ($rs->Sync->Collections->Collection->Commands->Add as $entry) {
-			$contact = $RemoteContactsService->toContactObject($entry->Data);
+			
+			//$entry = $rs->Sync->Collections->Collection->Commands->Add[0];
+
+			if ($entry->Data->FileAs->getContents() == 'NC Homer J. Simpson') {
+				$rs = $RemoteCommonService->deleteEntity($EasClient, $cid, $token, $entry->EntityId->getContents());
+			}
+
 		}
+
+		//$rs = $RemoteCommonService->fetchEntity($EasClient, $cid, $token, $entry->EntityId->getContents());
+
 	}
+
+	$co = new \OCA\EAS\Objects\ContactObject();
+	$co->Label = 'NC Homer J. Simpson';
+	$co->Name->Last = "Simpson";
+	$co->Name->First = 'Homer';
+	$co->Name->Other = 'J';
+	$co->Name->Prefix = 'Mr';
+	$co->Name->Suffix = 'Dooh';
+	$co->Aliases = 'Pieman';
+	$co->BirthDay = new \Datetime('May 12, 1956');
+	$co->AnniversaryDay = new \Datetime('April 19, 1987');
+	$co->addAddress(
+		'HOME',
+		'742 Evergreen Terrace',
+		'Springfield',
+		'Oregon',
+		'97477',
+		'United States'
+	);
+	$co->addAddress(
+		'WORK',
+		'1 Atomic Lane',
+		'Springfield',
+		'Oregon',
+		'97408',
+		'United States'
+	);
+	$co->addPhone(
+		'HOME',
+		'VOICE',
+		'(939) 555-0113'
+	);
+	$co->addPhone(
+		'WORK',
+		'VOICE',
+		'(939) 555-7334'
+	);
+	$co->addEmail(
+		'HOME',
+		'homer@simpsons.fake'
+	);
+	$co->addEmail(
+		'WORK',
+		'hsimpson@springfieldpower.fake'
+	);
+	$co->Occupation->Organization = 'Springfield Power Company';
+	$co->Occupation->Title = 'Chief Safety Officer';
+	$co->Occupation->Role = 'Safety Inspector';
+	$co->addTag('Simpson Family');
+
+	$o = $RemoteContactsService->fromContactObject($co);
+	
+	$rs = $RemoteCommonService->createEntity($EasClient, $cid, $token, 'Contacts', $o);
+
+	$test = $rs;
 	
 
 	//$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
@@ -141,7 +215,6 @@ try {
 
 	exit;
 
-/*
 } catch (Exception $ex) {
 	$logger->logException($ex, ['app' => 'integration_eas']);
 	$logger->info('Test ended unexpectedly', ['app' => 'integration_eas']);
@@ -153,4 +226,4 @@ try {
 	echo $ex . PHP_EOL;
 	exit(1);
 }
-*/
+

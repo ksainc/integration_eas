@@ -490,28 +490,28 @@ class EasClient
 
     }
 
-    public function performFolderCreate($data): null|string {
+    public function performCollectionCreate($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=FolderCreate';
         return $this->performCommand($data);
 
     }
 
-    public function performFolderDelete($data): null|string {
+    public function performCollectionDelete($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=FolderDelete';
         return $this->performCommand($data);
 
     }
 
-    public function performFolderUpdate($data): null|string {
+    public function performCollectionUpdate($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=FolderUpdate';
         return $this->performCommand($data);
 
     }
 
-    public function performFolderSync($data): null|string {
+    public function performCollectionSync($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=FolderSync';
         return $this->performCommand($data);
@@ -532,14 +532,14 @@ class EasClient
 
     }
 
-    public function performGetItemEstimate($data): null|string {
+    public function performEntityEstimate($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=GetItemEstimate';
         return $this->performCommand($data);
 
     }
 
-    public function performItemOperations($data): null|string {
+    public function performEntityOperations($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=ItemOperations';
         return $this->performCommand($data);

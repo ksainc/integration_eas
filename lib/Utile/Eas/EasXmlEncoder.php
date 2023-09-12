@@ -46,8 +46,8 @@ class EasXmlEncoder{
 		'Email' => 0x02,
 		'Calendar' => 0x04,
 		'Move' => 0x05,
-		'GetItemEstimate' => 0x06,
-		'FolderHierarchy' => 0x07,
+		'EntityEstimate' => 0x06,
+		'CollectionHierarchy' => 0x07,
 		'MeetingResponse' => 0x08,
 		'Tasks' => 0x09,
 		'ResolveRecipients' => 0x0A,
@@ -60,7 +60,7 @@ class EasXmlEncoder{
 		'AirSyncBase' => 0x11,
 		'Settings' => 0x12,
 		'DocumentLibrary' => 0x13,
-		'ItemOperations' => 0x14,
+		'EntityOperations' => 0x14,
 		'ComposeMail' => 0x15,
 		'Email2' => 0x16,
 		'Notes' => 0x17,
@@ -110,7 +110,7 @@ class EasXmlEncoder{
 			'Partial' => 0x26,
 			// EAS 14.0
 			'ConversationMode' => 0x27,
-			'MaxItems' => 0x28,
+			'MaxEntitys' => 0x28,
 			'HeartbeatInterval' => 0x29,
 		],
 		// #1 Contacts
@@ -123,11 +123,11 @@ class EasXmlEncoder{
 			'BodySize' => 0x0A,
 			'BodyTruncated' => 0x0B,
 			'Business2PhoneNumber' => 0x0C,
-			'BusinessCity' => 0x0D,
-			'BusinessCountry' => 0x0E,
-			'BusinessPostalCode' => 0x0F,
-			'BusinessState' => 0x10,
-			'BusinessStreet' => 0x11,
+			'BusinessAddressCity' => 0x0D,
+			'BusinessAddressCountry' => 0x0E,
+			'BusinessAddressPostalCode' => 0x0F,
+			'BusinessAddressState' => 0x10,
+			'BusinessAddressStreet' => 0x11,
 			'BusinessFaxNumber' => 0x12,
 			'BusinessPhoneNumber' => 0x13,
 			'CarPhoneNumber' => 0x14,
@@ -143,11 +143,11 @@ class EasXmlEncoder{
 			'FileAs' => 0x1E,
 			'FirstName' => 0x1F,
 			'Home2PhoneNumber' => 0x20,
-			'HomeCity' => 0x21,
-			'HomeCountry' => 0x22,
-			'HomePostalCode' => 0x23,
-			'HomeState' => 0x24,
-			'HomeStreet' => 0x25,
+			'HomeAddressCity' => 0x21,
+			'HomeAddressCountry' => 0x22,
+			'HomeAddressPostalCode' => 0x23,
+			'HomeAddressState' => 0x24,
+			'HomeAddressStreet' => 0x25,
 			'HomeFaxNumber' => 0x26,
 			'HomePhoneNumber' => 0x27,
 			'JobTitle' => 0x28,
@@ -155,11 +155,11 @@ class EasXmlEncoder{
 			'MiddleName' => 0x2A,
 			'MobilePhoneNumber' => 0x2B,
 			'OfficeLocation' => 0x2C,
-			'OtherCity' => 0x2D,
-			'OtherCountry' => 0x2E,
-			'OtherPostalCode' => 0x2F,
-			'OtherState' => 0x30,
-			'OtherStreet' => 0x31,
+			'OtherAddressCity' => 0x2D,
+			'OtherAddressCountry' => 0x2E,
+			'OtherAddressPostalCode' => 0x2F,
+			'OtherAddressState' => 0x30,
+			'OtherAddressStreet' => 0x31,
 			'PagerNumber' => 0x32,
 			'RadioPhoneNumber' => 0x33,
 			'Spouse' => 0x34,
@@ -315,9 +315,9 @@ class EasXmlEncoder{
 			'Status' => 0x0B,
 			'DstMsgId' => 0x0C,
 		],
-		// #6 GetItemEstimate
+		// #6 EntityEstimate
 		0x06 => [
-			'GetItemEstimate' => 0x05,
+			'EntityEstimate' => 0x05,
 			'Version' => 0x06,    // 12.1
 			'Collections' => 0x07,
 			'Collection' => 0x08,
@@ -328,7 +328,7 @@ class EasXmlEncoder{
 			'Response' => 0x0D,
 			'Status' => 0x0E,
 		],
-		// #7 FolderHierarchy
+		// #7 CollectionHierarchy
 		0x07 => [
 			'Collections' => 0x05,
 			'Collection' => 0x06,
@@ -344,10 +344,10 @@ class EasXmlEncoder{
 			'Remove' => 0x10,
 			'Update' => 0x11,
 			'SyncKey' => 0x12,
-			'FolderCreate' => 0x13,
-			'FolderDelete' => 0x14,
-			'FolderUpdate' => 0x15,
-			'FolderSync' => 0x16,
+			'CollectionCreate' => 0x13,
+			'CollectionDelete' => 0x14,
+			'CollectionUpdate' => 0x15,
+			'CollectionSync' => 0x16,
 			'Count' => 0x17,
 			'Version' => 0x18
 		],
@@ -461,11 +461,11 @@ class EasXmlEncoder{
 			'AutdState' => 0x06,
 			'Status' => 0x07,
 			'HeartbeatInterval' => 0x08,
-			'Folders' => 0x09,
-			'Folder' => 0x0A,
-			'ServerEntryId' => 0x0B,
-			'FolderType' => 0x0C,
-			'MaxFolders' => 0x0D,
+			'Collections' => 0x09,
+			'Collection' => 0x0A,
+			'EntityId' => 0x0B,
+			'CollectionType' => 0x0C,
+			'MaxCollections' => 0x0D,
 		],
 		// #14 Provision
 		0x0E => [
@@ -672,16 +672,16 @@ class EasXmlEncoder{
 		0x13 => [
 			'LinkId' => 0x05,
 			'DisplayName' => 0x06,
-			'IsFolder' => 0x07,
+			'IsCollection' => 0x07,
 			'CreationDate' => 0x08,
 			'LastModifiedDate' => 0x09,
 			'IsHidden' => 0x0A,
 			'ContentLength' => 0x0B,
 			'ContentType' => 0x0C,
 		],
-		// #20 ItemOperations
+		// #20 EntityOperations
 		0x14 => [
-			'ItemOperations' => 0x05,
+			'EntityOperations' => 0x05,
 			'Fetch' => 0x06,
 			'Store' => 0x07,
 			'Options' => 0x08,
@@ -694,8 +694,8 @@ class EasXmlEncoder{
 			'Version' => 0x0F,
 			'Schema' => 0x10,
 			'Part' => 0x11,
-			'EmptyFolderContent' => 0x12,
-			'DeleteSubFolders' => 0x13,
+			'EmptyCollectionContent' => 0x12,
+			'DeleteSubCollections' => 0x13,
 			// EAS 12.1
 			'UserName' => 0x14,
 			'Password' => 0x15,
@@ -710,12 +710,12 @@ class EasXmlEncoder{
 			'SendMail' => 0x05,
 			'SmartForward' => 0x06,
 			'SmartReply' => 0x07,
-			'SaveInSentItems' => 0x08,
+			'SaveInSentEntitys' => 0x08,
 			'ReplaceMime' => 0x09,
 			'Type' => 0x0A,
 			'Source' => 0x0B,
-			'FolderId' => 0x0C,
-			'ItemId' => 0x0D,
+			'CollectionId' => 0x0C,
+			'EntityId' => 0x0D,
 			'LongId' => 0x0E,
 			'InstanceId' => 0x0F,
 			'MIME' => 0x10,
@@ -908,13 +908,13 @@ class EasXmlEncoder{
 						// write node contents
 						$this->_writeString($stream, $property->getContents());
 					}
+					// write node end
+					$this->_writeNodeEnd($stream);
 				}
 				else {
 					// write node start
 					$this->_writeNodeStart($stream, $page, $token, false, false);
 				}
-				// write node end
-				$this->_writeNodeEnd($stream);
 
 			}
 			elseif ($property instanceof EasCollection) {

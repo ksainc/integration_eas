@@ -31,20 +31,15 @@ use Throwable;
 use Psr\Log\LoggerInterface;
 
 use OCA\EAS\AppInfo\Application;
-
 use OCA\EAS\Utile\Eas\EasClient;
 use OCA\EAS\Utile\Eas\EasXmlEncoder;
 use OCA\EAS\Utile\Eas\EasXmlDecoder;
 use OCA\EAS\Utile\Eas\EasObject;
 use OCA\EAS\Utile\Eas\EasProperty;
-
+use OCA\EAS\Utile\Eas\EasException;
+use OCA\EAS\Utile\Eas\EasTypes;
 
 class RemoteCommonService {
-
-	const CONTACTS_COLLECTION_TYPE = '9';
-	const CALENDAR_COLLECTION_TYPE = '8';
-	const TASKS_COLLECTION_TYPE = '7';
-	const NOTES_COLLECTION_TYPE = '10';
 
 	/**
 	 * @var LoggerInterface
@@ -75,9 +70,9 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore		Storage Interface
+	 * @param EasClient $DataStore		Storage interface
 	 * 
-	 * @return object Folder List Object on success / Null on failure
+	 * @return object Collection List Object on success / Null on failure
 	 */
 	public function provisionInit(EasClient $DataStore, string $model, string $name, string $agent): ?object {
 		
@@ -124,9 +119,9 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore		Storage Interface
+	 * @param EasClient $DataStore		Storage interface
 	 * 
-	 * @return object Folder List Object on success / Null on failure
+	 * @return object Provision object on success / Null on failure
 	 */
 	public function provisionAccept(EasClient $DataStore, string $token): ?object {
 		
@@ -170,27 +165,28 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore		Storage Interface
+	 * @param EasClient $DataStore		Storage interface
+	 * @param string $cst				Synchronization State Token
 	 * 
-	 * @return object Folder List Object on success / Null on failure
+	 * @return object Collection list object on success / Null on failure
 	 */
-	public function fetchFolders(EasClient $DataStore): ?object {
+	public function syncCollections(EasClient $DataStore, string $cst = '0'): ?object {
 		
 		// construct command
 		$o = new \stdClass();
-		$o->FolderSync = new EasObject('FolderHierarchy');
-		$o->FolderSync->SyncKey = new EasProperty('FolderHierarchy', '0');
+		$o->CollectionSync = new EasObject('CollectionHierarchy');
+		$o->CollectionSync->SyncKey = new EasProperty('CollectionHierarchy', $cst);
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performFolderSync($rq);
+		$rs = $DataStore->performCollectionSync($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
 
-			if ($o->FolderSync->Status->getContents() != '1' && $o->FolderSync->Status->getContents() != '142') {
-				throw new Exception("FolderSync: Unknow error occured" . $o->FolderSync->Status->getContents(), 1);
+			if ($o->CollectionSync->Status->getContents() != '1' && $o->CollectionSync->Status->getContents() != '142') {
+				throw new Exception("CollectionSync: Unknow error occured" . $o->CollectionSync->Status->getContents(), 1);
 			}
 
 			// return response message
@@ -204,96 +200,56 @@ class RemoteCommonService {
 	}
 
 	/**
-     * retrieve list of specific folders starting with root folder from remote storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $type - Folder Type
-	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
-	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
-	 * 
-	 * @return object Folder Object on success / Null on failure
-	 */
-	public function fetchFoldersByType(EasClient $DataStore, string $type, string $base = 'D', object $additional = null, string $source = 'U'): ?object {
-		
-		return null;
-
-	}
-
-	/**
      * retrieve all information for specific folder from remote storage
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $fid - Folder ID
-	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
-	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
-	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cid				Collection ID
 	 * 
-	 * @return object Folder Object on success / Null on failure
+	 * @return object Collection object on success / Null on failure
 	 */
-	public function fetchFolder(EasClient $DataStore, string $fid, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
+	public function fetchCollection(EasClient $DataStore, string $cid): ?object {
 		
 		return null;
 
 	}
 
 	/**
-     * create folder in remote storage
+     * create collection in remote storage
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $fid - Folder ID
-	 * @param string $fid - Item Data
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cht				Collections Hierarchy Synchronization Token
+	 * @param string $chl				Collections Hierarchy Location
+	 * @param string $name				Collection Name
+	 * @param int $type					Collection Type
 	 * 
-	 * @return object Folders Object on success / Null on failure
+	 * @return object 					EasObject on success / Null on failure
 	 */
-	public function createFolder(EasClient $DataStore, string $cid, string $name, string $type): ?object {
+	public function createCollection(EasClient $DataStore, string $cht, string $chl, string $name, int $type): ?object {
 
 		// construct command
 		$o = new \stdClass();
-		$o->FolderCreate = new EasObject('FolderHierarchy');
-		//$o->FolderCreate->SyncKey = new EasProperty('FolderHierarchy', '0');
-		$o->FolderCreate->ParentId = new EasProperty('FolderHierarchy', $cid);
-		$o->FolderCreate->Name = new EasProperty('FolderHierarchy', $name);
-		$o->FolderCreate->Type = new EasProperty('FolderHierarchy', $type);
+		$o->CollectionCreate = new EasObject('CollectionHierarchy');
+		$o->CollectionCreate->SyncKey = new EasProperty('CollectionHierarchy', $cht);
+		$o->CollectionCreate->ParentId = new EasProperty('CollectionHierarchy', $chl);
+		$o->CollectionCreate->Name = new EasProperty('CollectionHierarchy', $name);
+		$o->CollectionCreate->Type = new EasProperty('CollectionHierarchy', $type);
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performFolderCreate($rq);
+		$rs = $DataStore->performCollectionCreate($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-
-			switch ($o->FolderCreate->Status->getContents()) {
-				case '2':
-					throw new Exception("The parent folder already contains a folder with the same name. Create the folder under a different name.", 2);
-					break;
-				case '3':
-					throw new Exception("The specified parent folder is a special system folder. Create the folder under a different parent.", 3);
-					break;
-				case '5':
-					throw new Exception("The parent folder does not exist on the server, possibly because it has been deleted or moved.", 5);
-					break;
-				case '6':
-					throw new Exception("An error occurred on the server.", 6);
-					break;
-				case '9':
-					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
-					break;
-				case '10':
-					throw new Exception("Incorrectly formatted request.", 10);
-					break;
-				case '11':
-				case '12':
-					throw new Exception("An unknown error occurred.", 11);
-					break;
+			// evaluate response status
+			if ($o->CollectionCreate->Status->getContents() != '1' && $o->CollectionCreate->Status->getContents() != '110') {
+				throw new EasException($o->CollectionCreate->Status->getContents(), 'CC');
 			}
-
+			// return response object
 			return $o;
 		}
 		else {
@@ -304,119 +260,81 @@ class RemoteCommonService {
 	}
 
 	/**
-     * delete folder from remote storage
+     * update collection in remote storage
+	 * 
+     * @since Release 1.0.0
+     * 
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cht				Collections Hierarchy Synchronization Token
+	 * @param string $chl				Collections Hierarchy Location
+	 * @param string $cid				Collection Id
+	 * @param string $name				Collection Name
+	 * 
+	 * @return object 					EasObject on success / Null on failure
+	 */
+	public function updateCollection(EasClient $DataStore, string $cht, string $chl, string $cid, string $name): ?object {
+
+		// construct command
+		$o = new \stdClass();
+		$o->CollectionUpdate = new EasObject('CollectionHierarchy');
+		$o->CollectionUpdate->SyncKey = new EasProperty('CollectionHierarchy', $cht);
+		$o->CollectionUpdate->Id = new EasProperty('CollectionHierarchy', $cid);
+		$o->CollectionUpdate->ParentId = new EasProperty('CollectionHierarchy', $chl);
+		$o->CollectionUpdate->Name = new EasProperty('CollectionHierarchy', $name);
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performCollectionUpdate($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			// evaluate response status
+			if ($o->CollectionUpdate->Status->getContents() != '1' && $o->CollectionUpdate->Status->getContents() != '110') {
+				throw new EasException($o->CollectionUpdate->Status->getContents(), 'CU');
+			}
+			// return response object
+			return $o;
+		}
+		else {
+			// return blank response
+			return null;
+		}
+
+	}
+
+	/**
+     * delete collection from remote storage
      * 
      * @since Release 1.0.0
      * 
 	 * @param EasClient $DataStore		Storage Interface
-	 * @param string $cid				Id
+	 * @param string $cht				Collections Hierarchy Synchronization Token
+	 * @param string $cid				Collection Id
 	 * 
-	 * @return object Attachement Collection Object on success / Null on failure
+	 * @return bool 					True on success / Null on failure
 	 */
-	public function deleteFolder(EasClient $DataStore, string $cid): ?bool {
+	public function deleteCollection(EasClient $DataStore, string $cht, string $cid): ?bool {
 		
 		// construct command
 		$o = new \stdClass();
-		$o->FolderDelete = new EasObject('FolderHierarchy');
-		//$o->FolderDelete->SyncKey = new EasProperty('FolderHierarchy', '0');
-		$o->FolderDelete->Id = new EasProperty('FolderHierarchy', $cid);
+		$o->CollectionDelete = new EasObject('CollectionHierarchy');
+		$o->CollectionDelete->SyncKey = new EasProperty('CollectionHierarchy', $cht);
+		$o->CollectionDelete->Id = new EasProperty('CollectionHierarchy', $cid);
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performFolderDelete($rq);
+		$rs = $DataStore->performCollectionDelete($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-
-			switch ($o->FolderDelete->Status->getContents()) {
-				case '3':
-					throw new Exception("The specified folder is a special system folder and cannot be deleted.", 3);
-					break;
-				case '4':
-					throw new Exception("The specified folder does not exist.", 4);
-					break;
-				case '6':
-					throw new Exception("An error occurred on the server.", 6);
-					break;
-				case '9':
-					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
-					break;
-				case '10':
-					throw new Exception("Incorrectly formatted request.", 10);
-					break;
-				case '11':
-				case '12':
-					throw new Exception("An unknown error occurred.", 11);
-					break;
+			// evaluate response status
+			if ($o->CollectionDelete->Status->getContents() != '1' && $o->CollectionDelete->Status->getContents() != '110') {
+				throw new EasException($o->CollectionDelete->Status->getContents(), 'CD');
 			}
-
+			// return response object
 			return true;
-		}
-		else {
-			// return blank response
-			return null;
-		}
-
-	}
-
-	/**
-     * update folder in remote storage
-	 * 
-     * @since Release 1.0.0
-     * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $fid - Folder ID
-	 * 
-	 * @return object Folders Object on success / Null on failure
-	 */
-	public function updateFolder(EasClient $DataStore, string $cid, string $pid, string $name, string $type): ?object {
-
-		// construct command
-		$o = new \stdClass();
-		$o->FolderUpdate = new EasObject('FolderHierarchy');
-		//$o->FolderCreate->SyncKey = new EasProperty('FolderHierarchy', '0');
-		$o->FolderUpdate->ParentId = new EasProperty('FolderHierarchy', $pid);
-		$o->FolderUpdate->Id = new EasProperty('FolderHierarchy', $cid);
-		$o->FolderUpdate->Name = new EasProperty('FolderHierarchy', $name);
-		// serialize request message
-		$rq = $this->_encoder->stringFromObject($o);
-		// execute request
-		$rs = $DataStore->performFolderUpdate($rq);
-		// evaluate, if data was returned
-		if (!empty($rs)) {
-			// deserialize response message
-			$o = $this->_decoder->stringToObject($rs);
-
-			switch ($o->FolderUpdate->Status->getContents()) {
-				case '2':
-					throw new Exception("A folder with that name already exists or the specified folder is a special folder.", 2);
-					break;
-				case '3':
-					throw new Exception("The specified folder is a special folder. Special folders cannot be updated.", 3);
-					break;
-				case '4':
-					throw new Exception("The specified folder does not exist.", 4);
-					break;
-				case '5':
-					throw new Exception("The specified parent folder does not exist.", 5);
-					break;
-				case '6':
-					throw new Exception("An error occurred on the server.", 6);
-					break;
-				case '9':
-					throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
-					break;
-				case '10':
-					throw new Exception("Incorrectly formatted request.", 10);
-					break;
-				case '11':
-				case '12':
-					throw new Exception("An unknown error occurred.", 11);
-					break;
-			}
-
-			return $o;
 		}
 		else {
 			// return blank response
@@ -430,17 +348,13 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $fid - Folder ID
-	 * @param string $state - Folder Synchronization State
-	 * @param bool $ftype - Folder ID Type (True - Distinguished / False - Normal)
-	 * @param int $max - Maximum Number of changes to list
-	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
-	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cid				Collection Id
+	 * @param string $state				Collection Synchronization State Token
 	 * 
-	 * @return object Folder Changes Object on success / Null on failure
+	 * @return EasObject|null 			object on success / Null on failure
 	 */
-	public function fetchFolderChanges(EasClient $DataStore, string $cid, string $state, array $options): ?object {
+	public function syncEntities(EasClient $DataStore, string $cid, string $state, array $options): ?EasObject {
 		
 		// construct Sync request
 		$o = new \stdClass();
@@ -449,8 +363,10 @@ class RemoteCommonService {
 		$o->Sync->Collections->Collection = new EasObject('AirSync');
 		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
 		$o->Sync->Collections->Collection->CollectionId = new EasProperty('AirSync', $cid);
-		if (isset($options['MOVED'])) {
-			$o->Sync->Collections->Collection->DeletesAsMoves = new EasProperty('AirSync', $options['MOVED']);
+
+		if (isset($options['SUPPORTED']) && $options['SUPPORTED'] == true) {
+			$o->Sync->Collections->Collection->Supported = new EasObject('AirSync');
+			$o->Sync->Collections->Collection->Supported->Picture = new EasProperty('Contacts', null);
 		}
 		if (isset($options['CHANGES'])) {
 			$o->Sync->Collections->Collection->GetChanges = new EasProperty('AirSync', $options['CHANGES']);
@@ -458,19 +374,20 @@ class RemoteCommonService {
 		if (isset($options['LIMIT'])) {
 			$o->Sync->Collections->Collection->WindowSize = new EasProperty('AirSync', $options['LIMIT']);
 		}
-		if (isset($options['FILTER'])) {
-			$o->Sync->Collections->Collection->Options = new EasObject('AirSync');		
-			$o->Sync->Collections->Collection->Options->FilterType = new EasProperty('AirSync', $options['FILTER']);
+		if (isset($options['FILTER']) && isset($options['MIME'])) {
+			$o->Sync->Collections->Collection->Options = new EasObject('AirSync');
+
+			if (isset($options['FILTER'])) {
+				$o->Sync->Collections->Collection->Options->FilterType = new EasProperty('AirSync', $options['FILTER']);
+			}
+			if (isset($options['MIME'])) {
+				$o->Sync->Collections->Collection->Options->MIMESupport = new EasProperty('AirSync', 2);
+				$o->Sync->Collections->Collection->Options->MIMETruncation = new EasProperty('AirSync', 8);
+				$o->Sync->Collections->Collection->Options->BodyPreference = new EasObject('AirSyncBase');
+				$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', 4);
+				$o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
+			}
 		}
-		if (isset($options['MIME'])) {
-			$o->Sync->Collections->Collection->Options->MIMESupport = new EasProperty('AirSync', 2);
-			$o->Sync->Collections->Collection->Options->MIMETruncation = new EasProperty('AirSync', 8);
-			$o->Sync->Collections->Collection->Options->BodyPreference = new EasObject('AirSyncBase');
-			$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', 4);
-			$o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
-		}
-		//
-		//$o->Sync->WindowSize = new EasProperty('AirSync', $max);
 
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
@@ -480,25 +397,11 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-
-			if (isset($o->Sync->Status)) {
-				switch ($o->Sync->Status->getContents()) {
-					case '6':
-						throw new Exception("An error occurred on the server.", 6);
-						break;
-					case '9':
-						throw new Exception("Synchronization key mismatch or invalid synchronization key.", 9);
-						break;
-					case '10':
-						throw new Exception("Incorrectly formatted request.", 10);
-						break;
-					case '11':
-					case '12':
-						throw new Exception("An unknown error occurred.", 11);
-						break;
-				}
+			// evaluate response status
+			if ($o->Sync->Collections->Collection->Status->getContents() != '1') {
+				throw new EasException($o->Collections->Collection->Status->getContents(), 'CS');
 			}
-			
+			// return response object
 			return $o;
 		}
 		else {
@@ -515,23 +418,23 @@ class RemoteCommonService {
      * 
 	 * @param EasClient $DataStore		Storage Interface
 	 * 
-	 * @return object Folder List Object on success / Null on failure
+	 * @return EasObject|null 			object on success / Null on failure
 	 */
-	public function fetchFolderEstimate(EasClient $DataStore, string $fid, string $state): ?object {
+	public function estimateEntities(EasClient $DataStore, string $cid, string $state): ?EasObject {
 	
-		// construct GetItemEstimate request
+		// construct EntityEstimate request
 		$o = new \stdClass();
-		$o->GetItemEstimate = new EasObject('GetItemEstimate');
-		$o->GetItemEstimate->Collections = new EasObject('GetItemEstimate');
+		$o->EntityEstimate = new EasObject('EntityEstimate');
+		$o->EntityEstimate->Collections = new EasObject('EntityEstimate');
 		
-		$o->GetItemEstimate->Collections->Collection = new EasObject('GetItemEstimate');
-		$o->GetItemEstimate->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
-		$o->GetItemEstimate->Collections->Collection->CollectionId = new EasProperty('GetItemEstimate', $fid);
+		$o->EntityEstimate->Collections->Collection = new EasObject('EntityEstimate');
+		$o->EntityEstimate->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
+		$o->EntityEstimate->Collections->Collection->CollectionId = new EasProperty('EntityEstimate', $cid);
 
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performGetItemEstimate($rq);
+		$rs = $DataStore->performEntityEstimate($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
@@ -548,95 +451,128 @@ class RemoteCommonService {
 	}
 
 	/**
-     * retrieve all item ids in specific folder from remote storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $fid - Folder ID
-	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
-	 * @param string $ioff - Items Offset
-	 * 
-	 * @return object Item Object on success / Null on failure
-	 */
-	public function fetchItemsIds(EasClient $DataStore, string $fid, bool $ftype = false, int $ioff = 0): ?object {
-		
-		return null;
-
-	}
-
-	/**
      * retrieve information for specific item from remote storage
      * 
      * @since Release 1.0.0
      * 
 	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $uuid - Item UUID
-	 * @param string $fid - Folder ID
-	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
+	 * @param string $fid - Collection ID
+	 * @param string $ftype - Collection ID Type (True - Distinguished / False - Normal)
 	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
 	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
 	 * 
 	 * @return object Item Object on success / Null on failure
 	 */
-	public function findItem(EasClient $DataStore, string $fid, object $restriction, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
+	public function findEntities(EasClient $DataStore, string $fid, object $restriction, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
 		
 		return null;
 
 	}
 
 	/**
-     * retrieve all information for specific item by uuid from remote storage
+     * retrieve all information for specific entity from remote storage
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $uuid - Item UUID
-	 * @param string $fid - Folder ID
-	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
-	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
-	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cid				Collection Id
+	 * @param string $cst				Collection Synchronization Token
+	 * @param string $eid				Entity Id
 	 * 
-	 * @return array Item Object on success / Null on failure
+	 * @return EasObject|null 			object on success / Null on failure
 	 */
-	public function findItemByUUID(EasClient $DataStore, string $fid, string $uuid, bool $ftype = false, string $base = 'D', object $additional = null): ?object {
+	public function fetchEntity(EasClient $DataStore, string $cid, string $cst, string $eid): ?EasObject {
 		
-		return null;
+		// construct Entityoperation request
+		/*
+		$o = new \stdClass();
+		$o->EntityOperations = new EasObject('EntityOperations');
+		$o->EntityOperations->Fetch = new EasObject('EntityOperations');
+		$o->EntityOperations->Fetch->Store = new EasProperty('EntityOperations', 'Mailbox');
+		$o->EntityOperations->Fetch->CollectionId = new EasProperty('AirSync', $cid);
+		$o->EntityOperations->Fetch->EntityId = new EasProperty('AirSync', $eid);
+		*/
+
+		// construct Sync request
+		$o = new \stdClass();
+		$o->Sync = new EasObject('AirSync');
+		$o->Sync->Collections = new EasObject('AirSync');
+		$o->Sync->Collections->Collection = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $cst);
+		$o->Sync->Collections->Collection->CollectionId = new EasProperty('AirSync', $cid);
+		$o->Sync->Collections->Collection->GetChanges = new EasProperty('AirSync', '0');
+		$o->Sync->Collections->Collection->Commands = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Commands->Fetch = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Commands->Fetch->EntityId = new EasProperty('AirSync', $eid);
+
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performSync($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			
+			// return response message
+			return $o;
+		}
+		else {
+			// return blank response
+			return null;
+		}
 
 	}
 
 	/**
-     * retrieve all information for specific item from remote storage
+     * create entity in remote storage
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param array $ioc - Collection of Id Objects
-	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
-	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cid				Collection Id
+	 * @param string $cst				Collection Synchronization Token
+	 * @param string $ec				Entity Type
+	 * @param EasObject $ed				Entity Object
 	 * 
-	 * @return object Item Object on success / Null on failure
+	 * @return EasObject|null 			object on success / Null on failure
 	 */
-	public function fetchItem(EasClient $DataStore, array $ioc, string $base = 'D', object $additional = null): ?object {
+	public function createEntity(EasClient $DataStore, string $cid, string $cst, string $ec, EasObject $ed): ?EasObject {
 		
-		return null;
+		// construct Sync request
+		$o = new \stdClass();
+		$o->Sync = new EasObject('AirSync');
+		$o->Sync->Collections = new EasObject('AirSync');
+		$o->Sync->Collections->Collection = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $cst);
+		$o->Sync->Collections->Collection->CollectionId = new EasProperty('AirSync', $cid);
+		$o->Sync->Collections->Collection->GetChanges = new EasProperty('AirSync', '0');
+		$o->Sync->Collections->Collection->Options = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Options->BodyPreference = new EasObject('AirSyncBase');
+		$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', 2);
+		$o->Sync->Collections->Collection->Commands = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Commands->Add = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Commands->Add->Class = new EasProperty('AirSync', $ec);
+		$o->Sync->Collections->Collection->Commands->Add->ClientId = new EasProperty('AirSync', \OCA\EAS\Utile\UUID::v4());
+		$o->Sync->Collections->Collection->Commands->Add->Data = $ed;
 
-	}
-
-	/**
-     * create item in remote storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $fid - Folder ID
-	 * @param string $fid - Item Data
-	 * 
-	 * @return object Attachement Collection Object on success / Null on failure
-	 */
-	public function createItem(EasClient $DataStore, string $fid, object $data): ?object {
-		
-		return null;
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performSync($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			
+			// return response message
+			return $o;
+		}
+		else {
+			// return blank response
+			return null;
+		}
 
 	}
 
@@ -645,18 +581,45 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $fid - Folder ID
-	 * @param string $iid - Item ID
-	 * @param string $a - Item Append Commands
-	 * @param string $u - Item Update Commands
-	 * @param string $d - Item Delete Commands
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cid				Collection Id
+	 * @param string $cst				Collection Synchronization Token
+	 * @param string $eid				Entity Id
+	 * @param EasObject $ed				Entity Object
 	 * 
-	 * @return object Items Array on success / Null on failure
+	 * @return EasObject|null 			object on success / Null on failure
 	 */
-	public function updateItem(EasClient $DataStore, string $fid, string $iid, array $additions = null, array $modifications = null, array $deletions = null): ?object {
+	public function updateEntity(EasClient $DataStore, string $cid, string $cst, string $eid, object $data): ?EasObject {
 		
-		return null;
+		// construct Sync request
+		$o = new \stdClass();
+		$o->Sync = new EasObject('AirSync');
+		$o->Sync->Collections = new EasObject('AirSync');
+		$o->Sync->Collections->Collection = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $state);
+		$o->Sync->Collections->Collection->CollectionId = new EasProperty('AirSync', $cid);
+		$o->Sync->Collections->Collection->GetChanges = new EasProperty('AirSync', '0');
+		$o->Sync->Collections->Collection->Commands = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Commands->Modify = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Commands->Modify->EntityId = new EasProperty('AirSync', $eid);
+		$o->Sync->Collections->Collection->Commands->Modify->Data = $data;
+
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performSync($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			
+			// return response message
+			return $o;
+		}
+		else {
+			// return blank response
+			return null;
+		}
 
 	}
 
@@ -665,15 +628,44 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $ids - Item ID's Array
-	 * @param string $fid - Item Data
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cid				Collection Id
+	 * @param string $cst				Collection Synchronization Token
+	 * @param string $eid				Entity Id
 	 * 
-	 * @return object Attachement Collection Object on success / Null on failure
+	 * @return EasObject|null 			True on success / Null on failure
 	 */
-	public function deleteItem(EasClient $DataStore, array $ids = null, string $type = 'SoftDelete'): ?bool {
+	public function deleteEntity(EasClient $DataStore, string $cid, string $cst, string $eid): ?bool {
 		
-		return null;
+		// construct Sync request
+		$o = new \stdClass();
+		$o->Sync = new EasObject('AirSync');
+		$o->Sync->Collections = new EasObject('AirSync');
+		$o->Sync->Collections->Collection = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $cst);
+		$o->Sync->Collections->Collection->CollectionId = new EasProperty('AirSync', $cid);
+		$o->Sync->Collections->Collection->DeletesAsMoves = new EasProperty('AirSync', '0');
+		$o->Sync->Collections->Collection->GetChanges = new EasProperty('AirSync', '0');
+		$o->Sync->Collections->Collection->Commands = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Commands->Delete = new EasObject('AirSync');
+		$o->Sync->Collections->Collection->Commands->Delete->EntityId = new EasProperty('AirSync', $eid);
+
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performSync($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			
+			// return response message
+			return true;
+		}
+		else {
+			// return blank response
+			return null;
+		}
 
 	}
 
@@ -732,8 +724,8 @@ class RemoteCommonService {
      * 
 	 * @param EasClient $DataStore - Storage Interface
 	 * @param string $uuid - Item UUID
-	 * @param string $fid - Folder ID
-	 * @param string $ftype - Folder ID Type (True - Distinguished / False - Normal)
+	 * @param string $fid - Collection ID
+	 * @param string $ftype - Collection ID Type (True - Distinguished / False - Normal)
 	 * 
 	 * @return object Item Object on success / Null on failure
 	 */

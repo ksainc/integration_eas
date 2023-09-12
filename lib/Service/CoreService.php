@@ -317,9 +317,9 @@ class CoreService {
 		);
 
 		// perform folder fetch
-		$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+		$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
 		// evaluate, response status
-		if ($rs->FolderSync->Status->getContents() == '142') {
+		if ($rs->CollectionSync->Status->getContents() == '142') {
 			// Step 1
 			// initilize provisioning
 			$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
@@ -344,9 +344,9 @@ class CoreService {
 			// assign device policy token
 			$RemoteStore->setDeviceKey($account_device_key);
 			// perform folder fetch
-			$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+			$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
 			// evaluate response status
-			if ($rs->FolderSync->Status->getContents() != '1') {
+			if ($rs->CollectionSync->Status->getContents() != '1') {
 				throw new Exception("Failed to provision account.");
 			}
 		}
@@ -418,9 +418,9 @@ class CoreService {
 			);
 
 			// perform folder fetch
-			$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+			$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
 			// evaluate, response status
-			if ($rs->FolderSync->Status->getContents() == '142') {
+			if ($rs->CollectionSync->Status->getContents() == '142') {
 				// Step 1
 				// initilize provisioning
 				$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
@@ -445,9 +445,9 @@ class CoreService {
 				// assign device policy token
 				$RemoteStore->setDeviceKey($account_device_key);
 				// perform folder fetch
-				$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+				$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
 				// evaluate response status
-				if ($rs->FolderSync->Status->getContents() != '1') {
+				if ($rs->CollectionSync->Status->getContents() != '1') {
 					throw new Exception("Failed to provision account.");
 				}
 			}
@@ -655,13 +655,13 @@ class CoreService {
 		// create remote store client
 		$RemoteStore = $this->createClient($uid);
 		// retrieve remote collections
-		$rs = $this->RemoteCommonService->fetchFolders($RemoteStore);
+		$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
 		// construct response object
 		$data = ['ContactCollections' => [], 'EventCollections' => [], 'TaskCollections' => []];
 		// evaluate response status and structure
-		if ($rs->FolderSync->Status->getContents() == '1' && isset($rs->FolderSync->Changes->Add)) {
+		if ($rs->CollectionSync->Status->getContents() == '1' && isset($rs->CollectionSync->Changes->Add)) {
 			// iterate throught collections 
-			foreach ($rs->FolderSync->Changes->Add as $Collection) {
+			foreach ($rs->CollectionSync->Changes->Add as $Collection) {
 				switch ($Collection->Type->getContents()) {
 					case RemoteCommonService::CONTACTS_COLLECTION_TYPE:
 						$data['ContactCollections'][] = ['id'=>$Collection->Id->getContents(), 'name'=>'Personal - '.$Collection->Name->getContents(),'count'=>' '];
