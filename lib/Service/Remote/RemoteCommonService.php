@@ -185,13 +185,12 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-
+			// evaluate response status
 			if ($o->CollectionSync->Status->getContents() != '1' && $o->CollectionSync->Status->getContents() != '142') {
 				throw new Exception("CollectionSync: Unknow error occured" . $o->CollectionSync->Status->getContents(), 1);
 			}
-
 			// return response message
-			return $o;
+			return $o->CollectionSync;
 		}
 		else {
 			// return blank response
@@ -251,7 +250,7 @@ class RemoteCommonService {
 				throw new EasException($o->CollectionCreate->Status->getContents(), 'CC');
 			}
 			// return response object
-			return $o;
+			return $o->CollectionCreate;
 		}
 		else {
 			// return blank response
@@ -295,7 +294,7 @@ class RemoteCommonService {
 				throw new EasException($o->CollectionUpdate->Status->getContents(), 'CU');
 			}
 			// return response object
-			return $o;
+			return $o->CollectionUpdate;
 		}
 		else {
 			// return blank response
@@ -313,9 +312,9 @@ class RemoteCommonService {
 	 * @param string $cht				Collections Hierarchy Synchronization Token
 	 * @param string $cid				Collection Id
 	 * 
-	 * @return bool 					True on success / Null on failure
+	 * @return EasObject|null			EasObject on success / Null on failure
 	 */
-	public function deleteCollection(EasClient $DataStore, string $cht, string $cid): ?bool {
+	public function deleteCollection(EasClient $DataStore, string $cht, string $cid): ?EasObject {
 		
 		// construct command
 		$o = new \stdClass();
@@ -335,7 +334,7 @@ class RemoteCommonService {
 				throw new EasException($o->CollectionDelete->Status->getContents(), 'CD');
 			}
 			// return response object
-			return true;
+			return $o->CollectionDelete;
 		}
 		else {
 			// return blank response
@@ -375,17 +374,19 @@ class RemoteCommonService {
 		if (isset($options['LIMIT'])) {
 			$o->Sync->Collections->Collection->WindowSize = new EasProperty('AirSync', $options['LIMIT']);
 		}
-		if (isset($options['FILTER']) && isset($options['MIME'])) {
+		if (isset($options['FILTER']) && isset($options['BODY'])) {
 			$o->Sync->Collections->Collection->Options = new EasObject('AirSync');
 
 			if (isset($options['FILTER'])) {
 				$o->Sync->Collections->Collection->Options->FilterType = new EasProperty('AirSync', $options['FILTER']);
 			}
-			if (isset($options['MIME'])) {
-				$o->Sync->Collections->Collection->Options->MIMESupport = new EasProperty('AirSync', 2);
-				$o->Sync->Collections->Collection->Options->MIMETruncation = new EasProperty('AirSync', 8);
+			if (isset($options['BODY'])) {
+				if ($options['BODY'] == EasTypes::BODY_TYPE_MIME) {
+					$o->Sync->Collections->Collection->Options->MIMESupport = new EasProperty('AirSync', 2);
+					$o->Sync->Collections->Collection->Options->MIMETruncation = new EasProperty('AirSync', 8);
+				}
 				$o->Sync->Collections->Collection->Options->BodyPreference = new EasObject('AirSyncBase');
-				$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', 4);
+				$o->Sync->Collections->Collection->Options->BodyPreference->Type = new EasProperty('AirSyncBase', $options['BODY']);
 				$o->Sync->Collections->Collection->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
 			}
 		}
@@ -400,10 +401,10 @@ class RemoteCommonService {
 			$o = $this->_decoder->stringToObject($rs);
 			// evaluate response status
 			if ($o->Sync->Collections->Collection->Status->getContents() != '1') {
-				throw new EasException($o->Collections->Collection->Status->getContents(), 'CS');
+				throw new EasException($o->Collections->Collection->Status->getContents(), 'ES');
 			}
 			// return response object
-			return $o;
+			return $o->Sync->Collections->Collection;
 		}
 		else {
 			// return blank response
@@ -420,9 +421,9 @@ class RemoteCommonService {
 	 * @param EasClient $DataStore		Storage Interface
 	 * @param array $collections		Collections List (cid, cst)
 	 * 
-	 * @return EasObject|null 			EasObject on success / Null on failure
+	 * @return array|null 				Array on success / Null on failure
 	 */
-	public function syncEntitiesVarious(EasClient $DataStore, array $collections, array $options): ?EasObject {
+	public function syncEntitiesVarious(EasClient $DataStore, array $collections, array $options): ?array {
 		
 		// construct Sync request
 		$o = new \stdClass();
@@ -432,13 +433,10 @@ class RemoteCommonService {
 		
 		foreach ($collections as $entry) {
 			if (isset($entry['cid']) && isset($entry['cst'])) {
-
 				$c = new EasObject('AirSync');
 				$c->SyncKey = new EasProperty('AirSync', $entry['cst']);
 				$c->CollectionId = new EasProperty('AirSync', $entry['cid']);
-				
 				$o->Sync->Collections->Collection[] = $c;
-
 			}
 		}
 
@@ -450,11 +448,19 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-
-			// TODO: Add error checking
-
-			// return response object
-			return $o;
+			// evaluate response status
+			if (isset($o->Sync->Status) && $o->Sync->Status->getContents() != '1') {
+				throw new EasException($o->Sync->Status->getContents(), 'ES');
+			}
+			// evaluate, if response returned an array
+			if (!is_array($o->Sync->Collections->Collection)) {
+				// return response array
+				return [$o->Sync->Collections->Collection];
+			}
+			else {
+				// return response array
+				return $o->Sync->Collections->Collection;
+			}
 		}
 		else {
 			// return blank response
@@ -480,7 +486,6 @@ class RemoteCommonService {
 		$o = new \stdClass();
 		$o->EntityEstimate = new EasObject('EntityEstimate');
 		$o->EntityEstimate->Collections = new EasObject('EntityEstimate');
-		
 		$o->EntityEstimate->Collections->Collection = new EasObject('EntityEstimate');
 		$o->EntityEstimate->Collections->Collection->SyncKey = new EasProperty('AirSync', $cst);
 		$o->EntityEstimate->Collections->Collection->CollectionId = new EasProperty('EntityEstimate', $cid);
@@ -493,9 +498,12 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			
+			// evaluate response status
+			if (isset($o->EntityEstimate->Status) && $o->EntityEstimate->Status->getContents() != '1') {
+				throw new EasException($o->EntityEstimate->Status->getContents(), 'ES');
+			}
 			// return response message
-			return $o;
+			return $o->EntityEstimate->Response;
 		}
 		else {
 			// return blank response
@@ -512,9 +520,9 @@ class RemoteCommonService {
 	 * @param EasClient $DataStore		Storage Interface
 	 * @param array $collections		Collections List (cid, cst)
 	 * 
-	 * @return EasObject|null 			EasObject on success / Null on failure
+	 * @return array|null 				Array on success / Null on failure
 	 */
-	public function estimateEntitiesVarious(EasClient $DataStore, array $collections): ?EasObject {
+	public function estimateEntitiesVarious(EasClient $DataStore, array $collections): ?array {
 	
 		// construct EntityEstimate request
 		$o = new \stdClass();
@@ -530,7 +538,7 @@ class RemoteCommonService {
 				$o->EntityEstimate->Collections->Collection[] = $c;
 			}
 		}
-		
+
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
@@ -539,11 +547,19 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			
-			// TODO: Add error checking
-			
-			// return response message
-			return $o;
+			// evaluate response status
+			if (isset($o->EntityEstimate->Status) && $o->EntityEstimate->Status->getContents() != '1') {
+				throw new EasException($o->EntityEstimate->Status->getContents(), 'ES');
+			}
+			// evaluate, if response returned an array
+			if (!is_array($o->EntityEstimate->Response)) {
+				// return response array
+				return [$o->EntityEstimate->Response];
+			}
+			else {
+				// return response array
+				return $o->EntityEstimate->Response;
+			}
 		}
 		else {
 			// return blank response
@@ -579,46 +595,44 @@ class RemoteCommonService {
      * 
 	 * @param EasClient $DataStore		Storage Interface
 	 * @param string $cid				Collection Id
-	 * @param string $cst				Collection Synchronization Token
 	 * @param string $eid				Entity Id
 	 * 
 	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function fetchEntity(EasClient $DataStore, string $cid, string $cst, string $eid): ?EasObject {
+	public function fetchEntity(EasClient $DataStore, string $cid, string $eid, array $options = []): ?EasObject {
 		
 		// construct Entityoperation request
-		/*
 		$o = new \stdClass();
 		$o->EntityOperations = new EasObject('EntityOperations');
 		$o->EntityOperations->Fetch = new EasObject('EntityOperations');
 		$o->EntityOperations->Fetch->Store = new EasProperty('EntityOperations', 'Mailbox');
-		$o->EntityOperations->Fetch->CollectionId = new EasProperty('AirSync', $cid);
 		$o->EntityOperations->Fetch->EntityId = new EasProperty('AirSync', $eid);
-		*/
+		$o->EntityOperations->Fetch->CollectionId = new EasProperty('AirSync', $cid);
 
-		// construct Sync request
-		$o = new \stdClass();
-		$o->Sync = new EasObject('AirSync');
-		$o->Sync->Collections = new EasObject('AirSync');
-		$o->Sync->Collections->Collection = new EasObject('AirSync');
-		$o->Sync->Collections->Collection->SyncKey = new EasProperty('AirSync', $cst);
-		$o->Sync->Collections->Collection->CollectionId = new EasProperty('AirSync', $cid);
-		$o->Sync->Collections->Collection->GetChanges = new EasProperty('AirSync', '0');
-		$o->Sync->Collections->Collection->Commands = new EasObject('AirSync');
-		$o->Sync->Collections->Collection->Commands->Fetch = new EasObject('AirSync');
-		$o->Sync->Collections->Collection->Commands->Fetch->EntityId = new EasProperty('AirSync', $eid);
-
+		if (isset($options['BODY'])) {
+			$o->EntityOperations->Fetch->Options = new EasObject('EntityOperations');
+			if ($options['BODY'] == EasTypes::BODY_TYPE_MIME) {
+				$o->EntityOperations->Fetch->Options->MIMESupport = new EasProperty('AirSync', 2);
+				//$o->EntityOperations->Fetch->Options->MIMETruncation = new EasProperty('AirSync', 8);
+			}
+			$o->EntityOperations->Fetch->Options->BodyPreference = new EasObject('AirSyncBase');
+			$o->EntityOperations->Fetch->Options->BodyPreference->Type = new EasProperty('AirSyncBase', $options['BODY']);
+			$o->EntityOperations->Fetch->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
+		}
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performSync($rq);
+		$rs = $DataStore->performEntityOperations($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			
+			// evaluate response status
+			if (isset($o->EntityOperations->Status) && $o->EntityOperations->Status->getContents() != '1') {
+				throw new EasException($o->EntityOperations->Status->getContents(), 'EF');
+			}
 			// return response message
-			return $o;
+			return $o->EntityOperations->Response->Fetch;
 		}
 		else {
 			// return blank response
@@ -667,9 +681,12 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			
+			// evaluate response status
+			if (isset($o->Sync->Status) && $o->Sync->Status->getContents() != '1') {
+				throw new EasException($o->Sync->Status->getContents(), 'EC');
+			}
 			// return response message
-			return $o;
+			return $o->Sync->Collections->Collection;
 		}
 		else {
 			// return blank response
@@ -714,9 +731,12 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			
+			// evaluate response status
+			if (isset($o->Sync->Status) && $o->Sync->Status->getContents() != '1') {
+				throw new EasException($o->Sync->Status->getContents(), 'EU');
+			}
 			// return response message
-			return $o;
+			return $o->Sync->Collections->Collection;
 		}
 		else {
 			// return blank response
@@ -760,7 +780,10 @@ class RemoteCommonService {
 		if (!empty($rs)) {
 			// deserialize response message
 			$o = $this->_decoder->stringToObject($rs);
-			
+			// evaluate response status
+			if (isset($o->Sync->Status) && $o->Sync->Status->getContents() != '1') {
+				throw new EasException($o->Sync->Status->getContents(), 'ED');
+			}
 			// return response message
 			return true;
 		}

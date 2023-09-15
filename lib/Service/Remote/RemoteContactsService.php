@@ -120,11 +120,11 @@ class RemoteContactsService {
 		// execute command
 		$rs = $RemoteCommonService->createCollection($this->DataStore, $cht, $chl, $name, EasTypes::COLLECTION_TYPE_USER_CONTACTS);
         // process response
-		if (isset($rs) && isset($rs->CollectionCreate) && $rs->CollectionDelete->Status->getContents() == '1') {
+		if (isset($rs->Status) && $rs->Status->getContents() == '1') {
 		    return new ContactCollectionObject(
-				$rs->CollectionCreate->Id->getContents(),
+				$rs->Id->getContents(),
 				$name,
-				$rs->CollectionCreate->SyncKey->getContents()
+				$rs->SyncKey->getContents()
 			);
 		} else {
 			return null;
@@ -149,11 +149,11 @@ class RemoteContactsService {
 		// execute command
 		$rs = $RemoteCommonService->createCollection($this->DataStore, $cht, $chl, $cid, $name);
         // process response
-		if (isset($rs) && isset($rs->CollectionCreate) && $rs->CollectionUpdate->Status->getContents() == '1') {
+		if (isset($rs->Status) && $rs->Status->getContents() == '1') {
 		    return new ContactCollectionObject(
-				$rs->CollectionUpdate->Id->getContents(),
+				$rs->Id->getContents(),
 				$name,
-				$rs->CollectionUpdate->SyncKey->getContents()
+				$rs->SyncKey->getContents()
 			);
 		} else {
 			return null;
@@ -176,7 +176,7 @@ class RemoteContactsService {
 		// execute command
         $rs = $this->RemoteCommonService->deleteCollection($this->DataStore, $cht, $cid);
 		// process response
-        if (isset($rs) && isset($rs->CollectionDelete->Status) && $rs->CollectionDelete->Status->getContents() == '1') {
+        if (isset($rs->CollectionDelete->Status) && $rs->CollectionDelete->Status->getContents() == '1') {
             return true;
         } else {
             return false;
@@ -201,13 +201,13 @@ class RemoteContactsService {
             // execute command
             $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, []);
             // extract synchronization token
-            $cst = $rs->Sync->Collections->Collection->SyncKey->getContents();
+            $cst = $rs->SyncKey->getContents();
         }
         // execute command
-        $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, ['CHANGES' => 1, 'LIMIT' => 32, 'FILTER' => 0, 'MIME' => 0]);
+        $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, ['CHANGES' => 1, 'LIMIT' => 32, 'FILTER' => 0, 'BODY' => EasTypes::BODY_TYPE_TEXT]);
         // evaluate response
-		if (isset($rs) && isset($rs->Sync->Collections->Collection) && $rs->Sync->Collections->Collection->Status->getContents() == '1') {
-		    return $rs->Sync->Collections->Collection;
+		if (isset($rs->Status) && $rs->Status->getContents() == '1') {
+		    return $rs;
 		} else {
 			return null;
 		}
@@ -221,21 +221,20 @@ class RemoteContactsService {
      * @since Release 1.0.0
      * 
 	 * @param string $cid			Collection Id
-	 * @param string $cst			Collection Synchronization Token
 	 * @param string $eid			Entity Id
 	 * 
 	 * @return ContactObject        ContactObject on success / Null on failure
 	 */
-	public function fetchEntity(string $cid, string $cst, string $eid): ?ContactObject {
+	public function fetchEntity(string $cid, string $eid): ?ContactObject {
 
-        // construct identification object
-        $io = new \OCA\EAS\Utile\Eas\Type\ItemIdType($iid);
         // execute command
-		$ro = $this->RemoteCommonService->fetchItem($this->DataStore, array($io), 'D', $this->constructDefaultItemProperties());
+		$ro = $this->RemoteCommonService->fetchEntity($this->DataStore, $cid, $eid, ['BODY' => EasTypes::BODY_TYPE_TEXT]);
         // validate response
-		if (isset($ro->Contact)) {
+		if (isset($ro->Status) && $ro->Status->getContents() == '1') {
             // convert to contact object
-            $co = $this->toContactObject($ro->Contact[0]);
+            $co = $this->toContactObject($ro->Properties);
+            $co->ID = $ro->EntityId->getContents();
+            $co->CID = $ro->CollectionId->getContents();
             // retrieve attachment(s) from remote data store
 			if (count($co->Attachments) > 0) {
 				$co->Attachments = $this->fetchCollectionItemAttachment(array_column($co->Attachments, 'Id'));
@@ -265,12 +264,12 @@ class RemoteContactsService {
         // convert source ContactObject to EasObject
         $eo = $this->fromContactObject($so);
 	    // execute command
-	    $rs = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_CONTACT, $eo);
+	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_CONTACT, $eo);
         // evaluate response
-        if (isset($rs->Sync->Collections->Collection->Responses->Add)) {
+        if (isset($ro->Status) && $ro->Status->getContents() == '1') {
 			$co = clone $so;
-			$co->ID = $rs->Sync->Collections->Collection->Responses->Add->EntityId->getContents();
-            $co->CID = $rs->Sync->Collections->Collection->CollectionId->getContents();
+			$co->ID = $ro->Responses->Add->EntityId->getContents();
+            $co->CID = $ro->CollectionId->getContents();
 			// deposit attachment(s)
 			if (count($co->Attachments) > 0) {
 				// create attachments in remote data store
@@ -302,11 +301,11 @@ class RemoteContactsService {
         // convert source ContactObject to EasObject
         $eo = $this->fromContactObject($so);
 	    // execute command
-	    $rs = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $eo);
+	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $eo);
         // evaluate response
-        if (isset($rs->Sync->Collections->Collection->Responses->Modify)) {
+        if (isset($ro->Status) && $ro->Status->getContents() == '1') {
 			$co = clone $so;
-			$co->ID = $rs->Sync->Collections->Collection->Responses->Modify->EntityId;
+			$co->ID = $ro->Responses->Modify->EntityId;
             $co->CID = $cid;
 			// deposit attachment(s)
 			if (count($so->Attachments) > 0) {

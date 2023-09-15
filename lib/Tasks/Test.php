@@ -94,7 +94,7 @@ try {
 	$EasClient->performConnect();
 
 	// Load From File
-	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync-Add2', 'r');
+	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync', 'r');
 	//$msg_ref_raw = stream_get_contents($stream);
 	//$msg_ref_obj = $EasXmlDecoder->streamToObject($stream);
 	//fclose($stream);
@@ -106,24 +106,29 @@ try {
 	// Fetch collections
 	$rs = $RemoteCommonService->syncCollections($EasClient);
 
-	/* ====== Working ============
+	// ====== Working ============
 	// retrieve sync token
-	$token = $rs->CollectionSync->SyncKey->getContents();
+	//$token = $rs->SyncKey->getContents();
 	// create collection
-	$rs = $RemoteCommonService->createCollection($EasClient, $token, '0', 'Test Contacts', \OCA\EAS\Utile\Eas\EasTypes::COLLECTION_TYPE_USER_CONTACTS);
+	//$rs = $RemoteCommonService->createCollection($EasClient, $token, '0', 'Test Contacts', \OCA\EAS\Utile\Eas\EasTypes::COLLECTION_TYPE_USER_CONTACTS);
 	// retrieve collection id and sync token
-	$cid = $rs->CollectionCreate->Id->getContents();
+	//$cid = $rs->Id->getContents();
 	//$token = $rs->CollectionCreate->SyncKey->getContents();
 	// update collection
-	$rs = $RemoteCommonService->updateCollection($EasClient, $token, '0', $cid, 'Test Contacts 2');
+	//$rs = $RemoteCommonService->updateCollection($EasClient, $token, '0', $cid, 'Test Contacts 2');
 	// retrieve sync token
-	//$token = $rs->CollectionCreate->SyncKey->getContents();
+	//$token = $rs->SyncKey->getContents();
 	// delete collection
-	$rs = $RemoteCommonService->deleteCollection($EasClient, $token, $cid);
-	*/
+	//$rs = $RemoteCommonService->deleteCollection($EasClient, $token, $cid);
+	
 
-	// select collection
-	$cid = '5'; // MS365 5 - OP - 8
+	// find contacts collection
+	foreach ($rs->Changes->Add as $entry) {
+		if ($entry->Name->getContents() == 'Contacts') {
+			$cid = $entry->Id->getContents();
+			break;
+		}
+	}
 
 	// sync collection
 	$rs = $RemoteContactsService->syncEntities($cid, $token);
@@ -138,11 +143,16 @@ try {
 				$rs = $RemoteContactsService->deleteEntity($cid, $token, $entry->EntityId->getContents());
 			}
 
+			if ($entry->Data->FileAs->getContents() == 'SimpsonMarge (123 Inc)') {
+				$testid = $entry->EntityId->getContents();
+			}
+
 		}
-
-		//$rs = $RemoteCommonService->fetchEntity($EasClient, $cid, $token, $entry->EntityId->getContents());
-
+	
 	}
+
+	// retrieve entity
+	$rs = $RemoteContactsService->fetchEntity($cid, $testid);
 
 	$co = new \OCA\EAS\Objects\ContactObject();
 	$co->Label = 'NC Homer J. Simpson';
@@ -192,15 +202,9 @@ try {
 	$co->Occupation->Title = 'Chief Safety Officer';
 	$co->Occupation->Role = 'Safety Inspector';
 	$co->addTag('Simpson Family');
-	
+
+	// create Item
 	$rs = $RemoteContactsService->createEntity($cid, $token, $co);
-
-	$test = $rs;
-	
-
-	//$token = $rs->Sync->Collections->Collection->SyncKey->getContents();
-	
-	//$rs = $RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, 0, 32);
 
 	exit;
 

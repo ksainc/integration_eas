@@ -872,10 +872,6 @@ class EasXmlEncoder{
     private function _writeBodyFromObject($stream, $object, &$page): void {
 
 		foreach (get_object_vars($object) as $token => $property) {
-
-			/**
-			 * TODO: Handel arrays
-			 */
 			
 			$namespace = $property->getNamespace();
 			

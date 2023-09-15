@@ -318,7 +318,7 @@ class CoreService {
 		);
 
 		// perform folder fetch
-		$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
+		$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 		// evaluate, response status
 		if ($rs->CollectionSync->Status->getContents() == '142') {
 			// Step 1
@@ -345,7 +345,7 @@ class CoreService {
 			// assign device policy token
 			$RemoteStore->setDeviceKey($account_device_key);
 			// perform folder fetch
-			$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
+			$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 			// evaluate response status
 			if ($rs->CollectionSync->Status->getContents() != '1') {
 				throw new Exception("Failed to provision account.");
@@ -419,7 +419,7 @@ class CoreService {
 			);
 
 			// perform folder fetch
-			$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
+			$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 			// evaluate, response status
 			if ($rs->CollectionSync->Status->getContents() == '142') {
 				// Step 1
@@ -446,7 +446,7 @@ class CoreService {
 				// assign device policy token
 				$RemoteStore->setDeviceKey($account_device_key);
 				// perform folder fetch
-				$rs = $this->RemoteCommonService->fetchCollections($RemoteStore);
+				$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 				// evaluate response status
 				if ($rs->CollectionSync->Status->getContents() != '1') {
 					throw new Exception("Failed to provision account.");
@@ -656,13 +656,13 @@ class CoreService {
 		// create remote store client
 		$RemoteStore = $this->createClient($uid);
 		// retrieve remote collections
-		$rs = $this->RemoteCommonService->syncCollections($RemoteStore);
+		$ro = $this->RemoteCommonService->syncCollections($RemoteStore);
 		// construct response object
 		$data = ['ContactCollections' => [], 'EventCollections' => [], 'TaskCollections' => []];
 		// evaluate response status and structure
-		if ($rs->CollectionSync->Status->getContents() == '1' && isset($rs->CollectionSync->Changes->Add)) {
+		if ($ro->Status->getContents() == '1' && isset($ro->Changes->Add)) {
 			// iterate throught collections 
-			foreach ($rs->CollectionSync->Changes->Add as $Collection) {
+			foreach ($ro->Changes->Add as $Collection) {
 				switch ($Collection->Type->getContents()) {
 					case EasTypes::COLLECTION_TYPE_SYSTEM_CONTACTS:
 					case EasTypes::COLLECTION_TYPE_USER_CONTACTS:
@@ -686,25 +686,15 @@ class CoreService {
 				// extract id's
 				$a = array_map(function($a) {return ['cid' => $a['id'], 'cst' => 0];}, $group);
 				// retrieve initial syncronization token(s)
-				$rs = $this->RemoteCommonService->syncEntitiesVarious($RemoteStore, $a, []);
-				// evaluate, if response returned an array
-				if (!is_array($rs->Sync->Collections->Collection)) {
-					// convery to array
-					$rs->Sync->Collections->Collection = [$rs->Sync->Collections->Collection];
-				}
+				$ro = $this->RemoteCommonService->syncEntitiesVarious($RemoteStore, $a, []);
 				// extract id's and tokens
 				$a = array_map(function($a) {
 					return ['cid' => $a->CollectionId->getContents(), 'cst' => $a->SyncKey->getContents()];
-				}, $rs->Sync->Collections->Collection);
+				}, $ro);
 				// retrieve entity counts
-				$rs = $this->RemoteCommonService->estimateEntitiesVarious($RemoteStore, $a);
-				// evaluate, if response returned an array
-				if (!is_array($rs->EntityEstimate->Response)) {
-					// convery to array
-					$rs->EntityEstimate->Response = [$rs->EntityEstimate->Response];
-				}
+				$ro = $this->RemoteCommonService->estimateEntitiesVarious($RemoteStore, $a);
 				// extract entity counts
-				foreach ($rs->EntityEstimate->Response as $entry) {
+				foreach ($ro as $entry) {
 					$k = array_search($entry->Collection->CollectionId->getContents(), array_column($group, 'id'));
 					$data[$gid][$k]['count'] = $entry->Collection->Estimate->getContents();
 				}

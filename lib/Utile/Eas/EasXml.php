@@ -27,22 +27,21 @@ namespace OCA\EAS\Utile\Eas;
 
 class EasXml {
 
-	// Implemented Tokens
+	// Implemented tokens by MS-ASWBXML
 	public const VERSION_V10 = 0x00;
 	public const VERSION_V11 = 0x01;
 	public const VERSION_V12 = 0x02;
 	public const VERSION_V13 = 0x03;
-	public const IDENTIFIER = 0x01;
-	public const ENCODING = 0x6A;
+	public const IDENTIFIER = 0x01;			// Only public unknown identifier supported by MS-ASWBXML
+	public const ENCODING = 0x6A; 			// Only UTF-8 is supported by MS-ASWBXML
 	public const CODESPACE = 0x00;
 	public const NODE_CONTENTS  = 0x40;
 	public const NODE_ATTRIBUTES  = 0x80;
 	public const NODE_END = 0x01;
 	public const STRING_INLINE = 0x03;
-	public const STRING_REFERENCE = 0x83;
 	public const STRING_COMPLETION = 0x00;
 	public const DATA = 0xC3;
-	// Unimplemented Tokens
+	// Unimplemented tokens by MS-ASWBXML
 	public const ENTITY = 0x02;
 	public const LITERAL = 0x04;
 	public const EXT_I_0 = 0x40;

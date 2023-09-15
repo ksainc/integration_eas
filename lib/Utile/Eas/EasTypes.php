@@ -55,4 +55,9 @@ class EasTypes {
 	const ENTITY_TYPE_SMS = 'SMS';
 	const ENTITY_TYPE_NOTE = 'Notes';
 
+	const BODY_TYPE_TEXT = 1;
+	const BODY_TYPE_HTML = 2;
+	const BODY_TYPE_RTF = 3;
+	const BODY_TYPE_MIME = 4;
+
 }
