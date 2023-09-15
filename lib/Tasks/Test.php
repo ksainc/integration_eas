@@ -121,7 +121,6 @@ try {
 	// delete collection
 	//$rs = $RemoteCommonService->deleteCollection($EasClient, $token, $cid);
 	
-
 	// find contacts collection
 	foreach ($rs->Changes->Add as $entry) {
 		if ($entry->Name->getContents() == 'Contacts') {
@@ -129,6 +128,13 @@ try {
 			break;
 		}
 	}
+
+	// find name
+	$rs = $RemoteCommonService->findEntities($EasClient, $cid, 'Homer', ['BODY' => \OCA\EAS\Utile\Eas\EasTypes::BODY_TYPE_TEXT]);
+
+
+	exit;
+
 
 	// sync collection
 	$rs = $RemoteContactsService->syncEntities($cid, $token);

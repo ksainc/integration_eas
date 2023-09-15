@@ -569,22 +569,61 @@ class RemoteCommonService {
 	}
 
 	/**
-     * retrieve information for specific item from remote storage
+     * retrieve list of all folders starting with root folder from remote storage
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $uuid - Item UUID
-	 * @param string $fid - Collection ID
-	 * @param string $ftype - Collection ID Type (True - Distinguished / False - Normal)
-	 * @param string $base - Base Properties / D - Default / A - All / I - ID's
-	 * @param object $additional - Additional Properties object of NonEmptyArrayOfPathsToElementType
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $cid				Collection Id
+	 * @param string $value				Search value 
 	 * 
 	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function findEntities(EasClient $DataStore, string $fid, object $restriction, bool $ftype = false, string $base = 'D', object $additional = null): ?EasObject {
+	public function findEntities(EasClient $DataStore, string $cid, string $value, array $options = []): ?EasObject {
 		
-		return null;
+		// construct EntityEstimate request
+		$o = new \stdClass();
+		$o->Search = new EasObject('Search');
+		$o->Search->Store = new EasObject('Search');
+		$o->Search->Store->Name = new EasProperty('Search', 'Mailbox');
+		$o->Search->Store->Query = new EasObject('Search');
+		$o->Search->Store->Query->And = new EasObject('Search');
+		$o->Search->Store->Query->And->CollectionId = new EasProperty('AirSync', $cid);
+		$o->Search->Store->Query->And->FreeText = new EasProperty('Search', $value);
+		$o->Search->Store->Options = new EasObject('Search');
+		$o->Search->Store->Options->RebuildResults = new EasProperty('Search', null);
+		$o->Search->Store->Options->Range = new EasProperty('Search', '0-99');
+		//$o->Search->Store->Options->DeepTraversal = new EasProperty('Search', null);
+
+		if (isset($options['BODY'])) {
+			if ($options['BODY'] == EasTypes::BODY_TYPE_MIME) {
+				$o->Search->Store->Options->MIMESupport = new EasProperty('AirSync', 2);
+				//$o->Search->Store->Options->MIMETruncation = new EasProperty('AirSync', 8);
+			}
+			$o->Search->Store->Options->BodyPreference = new EasObject('AirSyncBase');
+			$o->Search->Store->Options->BodyPreference->Type = new EasProperty('AirSyncBase', $options['BODY']);
+			$o->Search->Store->Options->BodyPreference->AllOrNone = new EasProperty('AirSyncBase', 1);
+		}
+
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performEntitySearch($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			// evaluate response status
+			if (isset($o->Search->Status) && $o->Search->Status->getContents() != '1') {
+				throw new EasException($o->Search->Status->getContents(), 'ES');
+			}
+			// return response message
+			return $o->Search->Response->Store;
+		}
+		else {
+			// return blank response
+			return null;
+		}
 
 	}
 

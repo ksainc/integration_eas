@@ -581,7 +581,7 @@ class EasClient
 
     }
     
-    public function performSearch($data): null|string {
+    public function performEntitySearch($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Search';
         return $this->performCommand($data);
