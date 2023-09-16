@@ -83,11 +83,11 @@ class RemoteCommonService {
 		$o->Provision->Policies = new EasObject('Provision');
 		$o->Provision->Policies->Policy = new EasObject('Provision');
 		$o->Provision->Policies->Policy->PolicyType = new EasProperty('Provision', 'MS-EAS-Provisioning-WBXML');
-		$o->Provision->DeviceInformation = new EasObject('Settings');
-		$o->Provision->DeviceInformation->Set = new EasObject('Settings');
-		$o->Provision->DeviceInformation->Set->Model = new EasProperty('Settings', $model);
-		$o->Provision->DeviceInformation->Set->FriendlyName = new EasProperty('Settings', $name);
-		$o->Provision->DeviceInformation->Set->UserAgent = new EasProperty('Settings', $agent);
+		$o->Provision->Device = new EasObject('Settings');
+		$o->Provision->Device->Set = new EasObject('Settings');
+		$o->Provision->Device->Set->Model = new EasProperty('Settings', $model);
+		$o->Provision->Device->Set->FriendlyName = new EasProperty('Settings', $name);
+		$o->Provision->Device->Set->UserAgent = new EasProperty('Settings', $agent);
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
@@ -106,7 +106,7 @@ class RemoteCommonService {
 					break;
 			}
 
-			return $o;
+			return $o->Provision;
 		}
 		else {
 			// return blank response
@@ -152,7 +152,7 @@ class RemoteCommonService {
 					break;
 			}
 
-			return $o;
+			return $o->Provision;
 		}
 		else {
 			// return blank response
@@ -394,7 +394,7 @@ class RemoteCommonService {
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performSync($rq);
+		$rs = $DataStore->performEntitySync($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
@@ -443,7 +443,7 @@ class RemoteCommonService {
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performSync($rq);
+		$rs = $DataStore->performEntitySync($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
@@ -579,26 +579,52 @@ class RemoteCommonService {
 	 * 
 	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function findEntities(EasClient $DataStore, string $cid, string $value, array $options = []): ?EasObject {
+	public function searchEntities(EasClient $DataStore, string $cid, string $query, array $options = []): ?EasObject {
 		
 		// construct EntityEstimate request
 		$o = new \stdClass();
 		$o->Search = new EasObject('Search');
 		$o->Search->Store = new EasObject('Search');
-		$o->Search->Store->Name = new EasProperty('Search', 'Mailbox');
-		$o->Search->Store->Query = new EasObject('Search');
-		$o->Search->Store->Query->And = new EasObject('Search');
-		$o->Search->Store->Query->And->CollectionId = new EasProperty('AirSync', $cid);
-		$o->Search->Store->Query->And->FreeText = new EasProperty('Search', $value);
+		// evaluate, if store option is present
+		if (isset($options['STORE']) && $options['STORE'] == 'GAL') {
+			$o->Search->Store->Name = new EasProperty('Search', 'GAL');
+			$o->Search->Store->Query = new EasProperty('Search', $query);
+		}
+		else {
+			$o->Search->Store->Name = new EasProperty('Search', 'Mailbox');
+			$o->Search->Store->Query = new EasObject('Search');
+			$o->Search->Store->Query->And = new EasObject('Search');
+			// evaluate, if category option is present
+			if (isset($options['CATEGORY']) && $options['CATEGORY'] == 'CLS') {
+				$o->Search->Store->Query->And->Class = new EasProperty('AirSync', $cid);
+				$options['BROAD'] = true;
+			}
+			elseif (isset($options['CATEGORY']) && $options['CATEGORY'] == 'CVS') {
+				$o->Search->Store->Query->And->ConversationId = new EasProperty('AirSync', $cid);
+			}
+			else {
+				$o->Search->Store->Query->And->CollectionId = new EasProperty('AirSync', $cid);
+			}
+			$o->Search->Store->Query->And->FreeText = new EasProperty('Search', $query);
+		}
+
 		$o->Search->Store->Options = new EasObject('Search');
 		$o->Search->Store->Options->RebuildResults = new EasProperty('Search', null);
-		$o->Search->Store->Options->Range = new EasProperty('Search', '0-99');
-		//$o->Search->Store->Options->DeepTraversal = new EasProperty('Search', null);
-
+		// evaluate, if range option is present
+		if (isset($options['RANGE'])) {
+			$o->Search->Store->Options->Range = new EasProperty('Search', $options['RANGE']);
+		}
+		else {
+			$o->Search->Store->Options->Range = new EasProperty('Search', '0-99');
+		}
+		// evaluate, if broad option is present
+		if (isset($options['BROAD']) && $options['BROAD'] == true) {
+			$o->Search->Store->Options->DeepTraversal = new EasProperty('Search', null);
+		}
+		// evaluate, if body option is present
 		if (isset($options['BODY'])) {
 			if ($options['BODY'] == EasTypes::BODY_TYPE_MIME) {
 				$o->Search->Store->Options->MIMESupport = new EasProperty('AirSync', 2);
-				//$o->Search->Store->Options->MIMETruncation = new EasProperty('AirSync', 8);
 			}
 			$o->Search->Store->Options->BodyPreference = new EasObject('AirSyncBase');
 			$o->Search->Store->Options->BodyPreference->Type = new EasProperty('AirSyncBase', $options['BODY']);
@@ -615,7 +641,7 @@ class RemoteCommonService {
 			$o = $this->_decoder->stringToObject($rs);
 			// evaluate response status
 			if (isset($o->Search->Status) && $o->Search->Status->getContents() != '1') {
-				throw new EasException($o->Search->Status->getContents(), 'ES');
+				throw new EasException($o->Search->Status->getContents(), 'FN');
 			}
 			// return response message
 			return $o->Search->Response->Store;
@@ -661,7 +687,7 @@ class RemoteCommonService {
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performEntityOperations($rq);
+		$rs = $DataStore->performEntityOperation($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
@@ -715,7 +741,7 @@ class RemoteCommonService {
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performSync($rq);
+		$rs = $DataStore->performEntitySync($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
@@ -765,7 +791,7 @@ class RemoteCommonService {
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performSync($rq);
+		$rs = $DataStore->performEntitySync($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
@@ -814,7 +840,7 @@ class RemoteCommonService {
 		// serialize request message
 		$rq = $this->_encoder->stringFromObject($o);
 		// execute request
-		$rs = $DataStore->performSync($rq);
+		$rs = $DataStore->performEntitySync($rq);
 		// evaluate, if data was returned
 		if (!empty($rs)) {
 			// deserialize response message
@@ -882,24 +908,6 @@ class RemoteCommonService {
 	}
 
 	/**
-     * retrieve time zone information from remote storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $uuid - Item UUID
-	 * @param string $fid - Collection ID
-	 * @param string $ftype - Collection ID Type (True - Distinguished / False - Normal)
-	 * 
-	 * @return object Item Object on success / Null on failure
-	 */
-	public function fetchTimeZone(EasClient $DataStore, string $zone = null): ?object {
-		
-		return null;
-
-	}
-
-	/**
      * connect to event nofifications
      * 
      * @since Release 1.0.0
@@ -944,4 +952,46 @@ class RemoteCommonService {
 
 	}
 
+	/**
+     * retrieve settings from remote storage
+	 * 
+     * @since Release 1.0.0
+     * 
+	 * @param EasClient $DataStore		Storage Interface
+	 * 
+	 * @return EasObject|null			EasObject on success / Null on failure
+	 */
+	public function retrieveSettings(EasClient $DataStore, string $class): ?EasObject {
+
+		// construct command
+		$o = new \stdClass();
+		$o->Settings = new EasObject('Settings');
+		$o->Settings->$class = new EasObject('Settings');
+		$o->Settings->$class->Get = new EasObject('Settings', null);
+		// evaluate settings class
+		if ($class == 'Oof') {
+			$o->Settings->$class->Get->BodyType = new EasProperty('Settings', 'Text');
+		}
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performSettings($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			// evaluate response status
+			if ($o->Settings->Status->getContents() != '1' && $o->Settings->Status->getContents() != '110') {
+				throw new EasException($o->Settings->Status->getContents(), 'ST');
+			}
+			// return response object
+			return $o->Settings->$class->Get;
+		}
+		else {
+			// return blank response
+			return null;
+		}
+
+	}
+	
 }

@@ -33,10 +33,6 @@ class EasException extends Exception {
 	private static $_messages = [
 		// Autodiscovery
 		'AD-2' => 'Protocol error',
-		// Find
-		'FN-2' => 'The request was invalid. The search failed to validate.',
-		'FN-3' => 'FolderSync required. The folder hierarchy is out of date.',
-		'FN-4' => 'The requested range does not begin with 0.',
 		// Collection Create
 		'CC-2' => 'The parent folder already contains a folder with the same name. Create the folder under a different name.',
 		'CC-3' => 'The specified parent folder is a special system folder. Create the folder under a different parent.',
@@ -57,9 +53,55 @@ class EasException extends Exception {
 		'CD-4' => 'The specified folder does not exist.',
 		'CD-6' => 'An error occurred on the server.',
 		'CD-9' => 'Synchronization key mismatch or invalid synchronization key.',
+		// Collection Sync
 		'CS-6' => 'An error occurred on the server.',
 		'CS-9' => 'Synchronization key mismatch or invalid synchronization key.',
 		'CS-10' => 'Incorrectly formatted request.',
+		// Entity Estimate
+		'EE-2' => 'One or more of the specified folders does not exist or an incorrect folder was requested.',
+		'EE-3' => 'The synchronization state has not been primed.',
+		'EE-4' => 'The specified synchronization key was invalid. Malformed or mismatched synchronization key.',
+		// Entity Find
+		'EF-2' => 'The request was invalid. The search failed to validate.',
+		'EF-3' => 'FolderSync required. The folder hierarchy is out of date.',
+		'EF-4' => 'The requested range does not begin with 0.',
+		// Entity Operation
+		'EO-2' => 'Protocol error. Protocol violation/XML validation error.',
+		'EO-3' => 'Server error.',
+		'EO-4' => 'Document library. The specified URI is bad.',
+		'EO-5' => 'Document library. Access denied.',
+		'EO-6' => 'Document library. The object was not found or access denied.',
+		'EO-7' => 'Document library. Failed to connect to the server.',
+		'EO-8' => 'The byte-range is invalid or too large.',
+		'EO-9' => 'The store is unknown or unsupported.',
+		'EO-10' => 'The file is empty.',
+		'EO-11' => 'The requested data size is too large.',
+		'EO-12' => 'Failed to download file because of input/output (I/O) failure.',
+		'EO-14' => 'Fetch. The item failed conversion.',
+		'EO-15' => 'Fetch. Attachment or attachment ID is invalid.',
+		'EO-16' => 'Access to the resource is denied.',
+		'EO-17' => 'Partial success; a Fetch, Move, or EmptyFolderContents operation completed partially.',
+		'EO-18' => 'Credentials required.',
+		// Entity Sync
+		'ES-3' => 'Invalid or mismatched synchronization key.',
+		'ES-4' => 'Protocol error. There was a semantic error in the request. The request that not comply with the specification requirements.',
+		'ES-5' => 'Server error. Server misconfiguration, temporary system issue, or bad item. This is frequently a transient condition.',
+		'ES-6' => 'Error in client/server conversion. A malformed or invalid item was sent',
+		'ES-7' => 'Conflict matching the client and server object. The client has changed an item for which the conflict policy indicates that the server\'s changes take precedence.',
+		'ES-8' => 'Object not found. The client issued a fetch or change operation that has a Collection Id or Entity Id value that is no longer valid on the server (for example, the item was deleted).',
+		'ES-9' => 'The Sync command cannot be completed. User account could be out of disk space.',
+		'ES-12' => 'The collection hierarchy has changed. Mailbox collections are not synchronized.',
+		'ES-13' => 'The sync command request is not complete. An empty or partial sync command request was received and the cached set of notify-able collections is missing.',
+		'ES-14' => 'Invalid Wait or HeartbeatInterval value.',
+		'ES-15' => 'Invalid sync command request.',
+		'ES-16' => 'Retry. Something on the server caused a retriable error.',
+		// Settings
+		'ST-2' => 'Protocol error.',
+		'ST-3' => 'Access denied.',
+		'ST-4' => 'Server unavailable.',
+		'ST-5' => 'Invalid arguments.',
+		'ST-6' => 'Conflicting arguments.',
+		'ST-7' => 'Denied by policy.',
 		// Global
 		101 => 'Invalid Content. The body of the HTTP request sent by the client is invalid.',
 		102 => 'Invalid WBXML. The request contains WBXML but it could not be decoded.',
@@ -97,8 +139,8 @@ class EasException extends Exception {
 		}
 
 		if (!isset($message)) {
-			if (isset($this->_messages[$mcode])) {
-				$message = $mcode . ': ' . $this->_messages[$mcode];
+			if (isset(self::$_messages[$mcode])) {
+				$message = $mcode . ': ' . self::$_messages[$mcode];
 			}
 			else {
 				$message = $code . ': Unknown Error';

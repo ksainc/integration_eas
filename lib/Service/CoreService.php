@@ -320,34 +320,34 @@ class CoreService {
 		// perform folder fetch
 		$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 		// evaluate, response status
-		if ($rs->CollectionSync->Status->getContents() == '142') {
+		if ($rs->Status->getContents() == '142') {
 			// Step 1
 			// initilize provisioning
 			$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
 			// evaluate response status
-			if (isset($rs->Provision->Status) && $rs->Provision->Status->getContents() != '1') {
-				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Status);
+			if (isset($rs->Status) && $rs->Status->getContents() != '1') {
+				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Status);
 			}
 			// step 2
 			// retrieve device policy token
-			$account_device_key = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+			$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
 			// assign device policy token
 			$RemoteStore->setDeviceKey($account_device_key);
 			// accept provisioning
 			$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_device_key);
 			// evaluate response status
-			if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
-				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
+			if (isset($rs->Policies->Policy->Status) && $rs->Policies->Policy->Status->getContents() != '1') {
+				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Policies->Policy->Status);
 			}
 			// step 3
 			// retrieve device policy token
-			$account_device_key = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+			$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
 			// assign device policy token
 			$RemoteStore->setDeviceKey($account_device_key);
 			// perform folder fetch
 			$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 			// evaluate response status
-			if ($rs->CollectionSync->Status->getContents() != '1') {
+			if ($rs->Status->getContents() != '1') {
 				throw new Exception("Failed to provision account.");
 			}
 		}
@@ -421,34 +421,34 @@ class CoreService {
 			// perform folder fetch
 			$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 			// evaluate, response status
-			if ($rs->CollectionSync->Status->getContents() == '142') {
+			if ($rs->Status->getContents() == '142') {
 				// Step 1
 				// initilize provisioning
 				$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
 				// evaluate response status
-				if (isset($rs->Provision->Status) && $rs->Provision->Status->getContents() != '1') {
-					throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Status);
+				if (isset($rs->Status) && $rs->Status->getContents() != '1') {
+					throw new Exception("Failed to provision account. Unexpected error occured", $rs->Status);
 				}
 				// step 2
 				// retrieve device policy token
-				$account_device_key = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+				$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
 				// assign device policy token
 				$RemoteStore->setDeviceKey($account_device_key);
 				// accept provisioning
 				$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_device_key);
 				// evaluate response status
-				if (isset($rs->Provision->Policies->Policy->Status) && $rs->Provision->Policies->Policy->Status->getContents() != '1') {
-					throw new Exception("Failed to provision account. Unexpected error occured", $rs->Provision->Policies->Policy->Status);
+				if (isset($rs->Policies->Policy->Status) && $rs->Policies->Policy->Status->getContents() != '1') {
+					throw new Exception("Failed to provision account. Unexpected error occured", $rs->Policies->Policy->Status);
 				}
 				// step 3
 				// retrieve device policy token
-				$account_device_key = $rs->Provision->Policies->Policy->PolicyKey->getContents();
+				$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
 				// assign device policy token
 				$RemoteStore->setDeviceKey($account_device_key);
 				// perform folder fetch
 				$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 				// evaluate response status
-				if ($rs->CollectionSync->Status->getContents() != '1') {
+				if ($rs->Status->getContents() != '1') {
 					throw new Exception("Failed to provision account.");
 				}
 			}

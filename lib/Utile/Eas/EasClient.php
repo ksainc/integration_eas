@@ -482,13 +482,6 @@ class EasClient
         return $data;
 
     }
-    
-    public function performFind($data): null|string {
-
-        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Find';
-        return $this->performCommand($data);
-
-    }
 
     public function performCollectionCreate($data): null|string {
 
@@ -518,17 +511,17 @@ class EasClient
 
     }
 
-    public function performGetAttachment($data): null|string {
+    // Performs same function as performCollectionSync but only valid for protocol versions 2.5, 12.0, and 12.1
+    public function performCollectionHierarchy($data): null|string {
 
-        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=GetAttachment';
-        return $this->performCommand($data);
-
+        throw new Exception("Command not implemented, use CollectionsSync instead.");
+        
     }
 
-    public function performGetHierarchy($data): null|string {
+    // Performs same function as performEntityOperation or performEntitySync but only valid for protocol versions 2.5, 12.0, and 12.1
+    public function performEntityAttachment($data): null|string {
 
-        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=GetHierarchy';
-        return $this->performCommand($data);
+        throw new Exception("Command not implemented, use performEntityOperation or performEntitySync instead.");
 
     }
 
@@ -539,9 +532,30 @@ class EasClient
 
     }
 
-    public function performEntityOperations($data): null|string {
+    // Performs same function as performEntitySearch and only valid only for protocol version 16.1
+    public function performEntityFind($data): null|string {
+
+        throw new Exception("Command not implemented, use performEntitySearch instead.");
+
+    }
+
+    public function performEntityOperation($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=ItemOperations';
+        return $this->performCommand($data);
+
+    }
+
+    public function performEntitySearch($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Search';
+        return $this->performCommand($data);
+
+    }
+
+    public function performEntitySync($data): null|string {
+
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Sync';
         return $this->performCommand($data);
 
     }
@@ -581,44 +595,30 @@ class EasClient
 
     }
     
-    public function performEntitySearch($data): null|string {
-
-        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Search';
-        return $this->performCommand($data);
-
-    }
-    
-    public function performSendMail($data): null|string {
+    public function performMailSend($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=SendMail';
         return $this->performCommand($data);
 
     }
     
-    public function performSettings($data): null|string {
-
-        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Settings';
-        return $this->performCommand($data);
-
-    }
-    
-    public function performSmartForward($data): null|string {
+    public function performMailForward($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=SmartForward';
         return $this->performCommand($data);
 
     }
     
-    public function performSmartReply($data): null|string {
+    public function performMailReply($data): null|string {
 
         $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=SmartReply';
         return $this->performCommand($data);
 
     }
 
-    public function performSync($data): null|string {
+    public function performSettings($data): null|string {
 
-        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Sync';
+        $this->_TransportOptions[CURLOPT_URL] = $this->_ServiceUriBase . $this->_ServiceUriQuery . '&Cmd=Settings';
         return $this->performCommand($data);
 
     }

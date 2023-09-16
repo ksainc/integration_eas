@@ -130,8 +130,10 @@ try {
 	}
 
 	// find name
-	$rs = $RemoteCommonService->findEntities($EasClient, $cid, 'Homer', ['BODY' => \OCA\EAS\Utile\Eas\EasTypes::BODY_TYPE_TEXT]);
+	$rs = $RemoteCommonService->searchEntities($EasClient, 'Contact', 'adele', ['STORE' => 'GAL', 'CATEGORY' => 'CLS', 'BODY' => \OCA\EAS\Utile\Eas\EasTypes::BODY_TYPE_TEXT]); // 
 
+	//<Settings> <UserInformation> <Get/> </UserInformation> </Settings>
+	//$rs = $RemoteCommonService->retrieveSettings($EasClient, 'Device');
 
 	exit;
 
