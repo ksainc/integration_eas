@@ -36,6 +36,10 @@ use OCA\EAS\Objects\TaskCollectionObject;
 use OCA\EAS\Objects\TaskObject;
 use OCA\EAS\Objects\TaskAttachmentObject;
 use OCA\EAS\Utile\Eas\EasClient;
+use OCA\EAS\Utile\Eas\EasCollection;
+use OCA\EAS\Utile\Eas\EasObject;
+use OCA\EAS\Utile\Eas\EasProperty;
+use OCA\EAS\Utile\Eas\EasTypes;
 
 class RemoteTasksService {
 	/**
@@ -67,19 +71,21 @@ class RemoteTasksService {
 	}
 
 	/**
-	 * retrieve properties for specific collection
+     * retrieve properties for specific collection
      * 
      * @since Release 1.0.0
+     * 
+	 * @param string $cht				Collections Hierarchy Synchronization Token
+	 * @param string $chl				Collections Hierarchy Location
+	 * @param string $cid				Collection Id
 	 * 
-	 * @param string $cid - Collection Id
-	 * 
-	 * @return TaskCollectionObject
+	 * @return TaskCollectionObject  	TaskCollectionObject on success / Null on failure
 	 */
-	public function fetchCollection(string $cid): ?TaskCollectionObject {
+	public function fetchCollection(string $cht, string $chl, string $cid): ?TaskCollectionObject {
 
         // execute command
 		$cr = $this->RemoteCommonService->fetchFolder($this->DataStore, $cid, false, 'I', $this->constructDefaultCollectionProperties());
-		// process response
+        // process response
 		if (isset($cr) && (count($cr->TasksFolder) > 0)) {
 		    $ec = new TaskCollectionObject(
 				$cr->TasksFolder[0]->FolderId->Id,
@@ -94,28 +100,30 @@ class RemoteTasksService {
 		} else {
 			return null;
 		}
-
+        
     }
-	
+
 	/**
      * create collection in remote storage
      * 
      * @since Release 1.0.0
      * 
-	 * @param string $cid - Collection Item ID
+	 * @param string $cht				Collections Hierarchy Synchronization Token
+	 * @param string $chl				Collections Hierarchy Location
+	 * @param string $name				Collection Name
 	 * 
-	 * @return TaskCollectionObject
+	 * @return TaskCollectionObject  	TaskCollectionObject on success / Null on failure
 	 */
-	public function createCollection(string $cid, string $name): ?TaskCollectionObject {
+	public function createCollection(string $cht, string $chl, string $name): ?TaskCollectionObject {
         
 		// execute command
-		$rs = $RemoteCommonService->createFolder($EasClient, $cid, $name, '13');
+		$rs = $RemoteCommonService->createCollection($this->DataStore, $cht, $chl, $name, EasTypes::COLLECTION_TYPE_USER_TASKS);
         // process response
-		if (isset($rs) && isset($rs->FolderCreate) && $rs->FolderDelete->Status == '1') {
+		if (isset($rs->Status) && $rs->Status->getContents() == '1') {
 		    return new TaskCollectionObject(
-				$rs->FolderCreate->Id->getContents(),
+				$rs->Id->getContents(),
 				$name,
-				$rs->FolderCreate->SyncKey->getContents()
+				$rs->SyncKey->getContents()
 			);
 		} else {
 			return null;
@@ -123,21 +131,51 @@ class RemoteTasksService {
 
     }
 
-	/**
+    /**
+     * update collection in remote storage
+     * 
+     * @since Release 1.0.0
+     * 
+	 * @param string $cht				Collections Hierarchy Synchronization Token
+	 * @param string $chl				Collections Hierarchy Location
+	 * @param string $cid				Collection Id
+	 * @param string $name				Collection Name
+	 * 
+	 * @return TaskCollectionObject  	TaskCollectionObject on success / Null on failure
+	 */
+	public function updateCollection(string $cht, string $chl, string $cid, string $name): ?TaskCollectionObject {
+        
+		// execute command
+		$rs = $RemoteCommonService->updateCollection($this->DataStore, $cht, $chl, $cid, $name);
+        // process response
+		if (isset($rs->Status) && $rs->Status->getContents() == '1') {
+		    return new TaskCollectionObject(
+				$rs->Id->getContents(),
+				$name,
+				$rs->SyncKey->getContents()
+			);
+		} else {
+			return null;
+		}
+
+    }
+
+    /**
      * delete collection in remote storage
      * 
      * @since Release 1.0.0
      * 
-     * @param string $cid - Collection ID
+     * @param string $cht				Collections Hierarchy Synchronization Token
+	 * @param string $cid				Collection Id
 	 * 
-	 * @return bool Ture - successfully destroyed / False - failed to destory
+	 * @return bool 					True on success / Null on failure
 	 */
-    public function deleteCollection(string $cid): bool {
+    public function deleteCollection(string $cht, string $cid): bool {
         
 		// execute command
-        $rs = $this->RemoteCommonService->deleteFolder($this->DataStore, $cid);
+        $rs = $this->RemoteCommonService->deleteCollection($this->DataStore, $cht, $cid);
 		// process response
-        if (isset($rs) && isset($rs->FolderDelete->Status) && $rs->FolderDelete->Status == '1') {
+        if (isset($rs->CollectionDelete->Status) && $rs->CollectionDelete->Status->getContents() == '1') {
             return true;
         } else {
             return false;
@@ -145,678 +183,176 @@ class RemoteTasksService {
 
     }
 
-	/**
+    /**
 	 * retrieve alteration for specific collection
      * 
      * @since Release 1.0.0
 	 * 
-	 * @param string $cid - Collection Id
-	 * @param string $state - Collection State (Initial/Last)
+     * @param string $cid		Collection Id
+	 * @param string $cst		Collections Synchronization Token
 	 * 
 	 * @return object
 	 */
-	public function fetchCollectionChanges(string $cid, string $state, string $scheme = 'I'): ?object {
+	public function syncEntities(string $cid, string $cst): ?object {
 
-        // execute command
-        if ($state == '0') {
-            $rs = $this->RemoteCommonService->fetchFolderChanges($EasClient, $cid, $state, ['MOVED' => 1]);
-            $state = $rs->Sync->Collections->Collection->SyncKey->getContents();
+        // evaluate synchronization token, if 0 retrieve initial synchronization token
+        if ($cst == '0') {
+            // execute command
+            $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, []);
+            // extract synchronization token
+            $cst = $rs->SyncKey->getContents();
         }
-        $rs = $this->RemoteCommonService->fetchFolderChanges($EasClient, $cid, $token, ['MOVED' => 1, 'CHANGES' => 1, 'FILTER' => 0]);
-
-		// return response
-		return $rs;
-
-    }
-
-	/**
-     * retrieve collection item in remote storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $iid - Collection Item ID
-	 * 
-	 * @return ContactObject
-	 */
-	public function fetchCollectionItem(string $iid): ?TaskObject {
-        
-		// construct identification object
-        $io = new \OCA\EAS\Utile\Eas\Type\ItemIdType($iid);
-		// execute command
-		$ro = $this->RemoteCommonService->fetchItem($this->DataStore, array($io), 'D', $this->constructDefaultItemProperties());
-        // validate response
-		if (isset($ro->Task)) {
-			// convert to task object
-            $to = $this->toTaskObject($ro->Task[0]);
-            // retrieve attachment(s) from remote data store
-			if (count($to->Attachments) > 0) {
-				$to->Attachments = $this->fetchCollectionItemAttachment(array_column($to->Attachments, 'Id'));
-			}
-            // return object
-		    return $to;
+        // execute command
+        $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, ['CHANGES' => 1, 'LIMIT' => 32, 'FILTER' => 0, 'BODY' => EasTypes::BODY_TYPE_TEXT]);
+        // evaluate response
+		if (isset($rs->Status) && $rs->Status->getContents() == '1') {
+		    return $rs;
 		} else {
 			return null;
 		}
 
-    }
-
-	/**
-     * create collection item in remote storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param TaskObject $so - Source Data
-	 * 
-	 * @return TaskObject
-	 */
-	public function createCollectionItem(string $cid, TaskObject $so): ?TaskObject {
-
-        // construct request object
-        $ro = new TaskType();
-		// UUID
-		if (!empty($so->UUID)) {
-			$ro->ExtendedProperty[] = $this->createFieldExtendedByName('PublicStrings', 'DAV:uid', 'String', $so->UUID);
-        }
-		// Start Date/Time
-        if (!empty($so->StartsOn)) {
-			// eas wants the date time in UTC
-			// clone start date
-			$dt = clone $so->StartsOn;
-			// change timezone on cloned date
-			$dt->setTimezone(new DateTimeZone('UTC'));
-			// construct start time attribute
-			$ro->StartDate = $dt->format('Y-m-d\\TH:i:s\Z');
-			// destory temporaty variable(s)
-			unset($dt);
-        }
-		// Due Date/Time
-		if (!empty($so->DueOn)) {
-			// eas wants the date time in UTC
-			// clone end date
-			$dt = clone $so->DueOn;
-			// change timezone on cloned date
-			$dt->setTimezone(new DateTimeZone('UTC'));
-			// construct end time attribute
-			$ro->DueDate = $dt->format('Y-m-d\\TH:i:s\Z');
-			// destory temporaty variable(s)
-			unset($dt);
-		}
-		// Conpleted Date/Time
-		if (!empty($so->CompletedOn)) {
-			// eas wants the date time in UTC
-			// clone end date
-			$dt = clone $so->CompletedOn;
-			// change timezone on cloned date
-			$dt->setTimezone(new DateTimeZone('UTC'));
-			// construct end time attribute
-			$ro->CompleteDate = $dt->format('Y-m-d\\TH:i:s\Z');
-			// destory temporaty variable(s)
-			unset($dt);
-		}
-		// Label
-        if (!empty($so->Label)) {
-            $ro->Subject = $so->Label;
-        }
-		// Notes
-		if (!empty($so->Notes)) {
-			$ro->Body = new \OCA\EAS\Utile\Eas\Type\BodyType(
-				'Text',
-				$so->Notes
-			);
-		}
-		// Progress
-		if (!empty($so->Progress)) {
-			$ro->PercentComplete = $so->Progress;
-		}
-		// Status
-		if (!empty($so->Status)) {
-			$ro->Status = $this->toStatus($so->Status);
-		}
-		// Priority
-		if (!empty($so->Priority)) {
-			$ro->Importance = $this->toImportance($so->Priority);
-		}
-		// Sensitivity
-		if (!empty($so->Sensitivity)) {
-			$ro->Sensitivity = $this->toSensitivity($so->Sensitivity);
-		}
-		// Tag(s)
-		if (count($so->Tags) > 0) {
-			$ro->Categories = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfStringsType;
-			foreach ($so->Tags as $entry) {
-				$ro->Categories->String[] = $entry;
-			}
-		}
-		// Notifications
-		if (count($so->Notifications) > 0) {
-			$ro->ReminderIsSet  = 'true';
-			if ($so->Notifications[0]->Type == 'D' && $so->Notifications[0]->Pattern == 'A') {
-				$t = ceil(($so->StartsOn->getTimestamp() - $so->Notifications[0]->When->getTimestamp() / 60));
-				$ro->ReminderIsSet = 'true';
-				$ro->ReminderMinutesBeforeStart = $t;
-				unset($t);
-			}
-			elseif ($so->Notifications[0]->Type == 'D' && $so->Notifications[0]->Pattern == 'R') {
-				if ($so->Notifications[0]->When->invert == 0) {
-					$t = ($so->Notifications[0]->When->y * -525600) +
-						($so->Notifications[0]->When->m * -43800) +
-						($so->Notifications[0]->When->d * -1440) +
-						($so->Notifications[0]->When->h * -60) +
-						($so->Notifications[0]->When->i * -1);
-				} else {
-					$t = ($so->Notifications[0]->When->y * 525600) +
-						($so->Notifications[0]->When->m * 43800) +
-						($so->Notifications[0]->When->d * 1440) +
-						($so->Notifications[0]->When->h * 60) +
-						($so->Notifications[0]->When->i);
-				}
-				$ro->ReminderIsSet = 'true';
-				$ro->ReminderMinutesBeforeStart = $t;
-				unset($t);
-			}
-		}
-		// Occurrence
-		if (isset($so->Occurrence) && !empty($so->Occurrence->Precision)) {
-
-			$ro->Recurrence = new \OCA\EAS\Utile\Eas\Type\RecurrenceType();
-
-			// Occurrence Iterations
-			if (!empty($so->Occurrence->Iterations)) {
-				$ro->Recurrence->NumberedRecurrence = new \OCA\EAS\Utile\Eas\Type\NumberedRecurrenceRangeType();
-				$ro->Recurrence->NumberedRecurrence->NumberOfOccurrences = $so->Occurrence->Iterations;
-			}
-			// Occurrence Conclusion
-			if (!empty($so->Occurrence->Concludes)) {
-				$ro->Recurrence->EndDateRecurrence = new \OCA\EAS\Utile\Eas\Type\EndDateRecurrenceRangeType();
-				if ($so->Origin == 'L') {
-					// subtract 1 day to adjust in how the end date is calculated in NC and EWS
-					$ro->Recurrence->EndDateRecurrence->EndDate = date_modify(clone $so->Occurrence->Concludes, '-1 day')->format('Y-m-d\TH:i:s');
-				}
-				else {
-					$ro->Recurrence->EndDateRecurrence->EndDate = $so->Occurrence->Concludes->format('Y-m-d\TH:i:s');
-				}
-			}
-			// No Iterations And No Conclusion Date
-			if (empty($so->Occurrence->Iterations) && empty($so->Occurrence->Concludes)) {
-				$ro->Recurrence->NoEndRecurrence = new \OCA\EAS\Utile\Eas\Type\NoEndRecurrenceRangeType();
-			}
-
-			// Based on Precision
-			// Occurrence Daily
-			if ($so->Occurrence->Precision == 'D') {
-				$ro->Recurrence->DailyRecurrence = new \OCA\EAS\Utile\Eas\Type\DailyRecurrencePatternType();
-				if (!empty($so->Occurrence->Interval)) {
-					$ro->Recurrence->DailyRecurrence->Interval = $so->Occurrence->Interval;
-				}
-				else {
-					$ro->Recurrence->DailyRecurrence->Interval = '1';
-				}
-			}
-			// Occurrence Weekly
-			elseif ($so->Occurrence->Precision == 'W') {
-				$ro->Recurrence->WeeklyRecurrence = new \OCA\EAS\Utile\Eas\Type\WeeklyRecurrencePatternType();
-				if (!empty($so->Occurrence->Interval)) {
-					$ro->Recurrence->WeeklyRecurrence->Interval = $so->Occurrence->Interval;
-				}
-				else {
-					$ro->Recurrence->WeeklyRecurrence->Interval = '1';
-				}
-				$ro->Recurrence->WeeklyRecurrence->DaysOfWeek = $this->toDaysOfWeek($so->Occurrence->OnDayOfWeek);
-				$ro->Recurrence->WeeklyRecurrence->FirstDayOfWeek = 'Monday';
-			}
-			// Occurrence Monthly
-			elseif ($so->Occurrence->Precision == 'M') {
-				if ($so->Occurrence->Pattern == 'A') {
-					$ro->Recurrence->AbsoluteMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteMonthlyRecurrencePatternType();
-					if (!empty($so->Occurrence->Interval)) {
-						$ro->Recurrence->AbsoluteMonthlyRecurrence->Interval = $so->Occurrence->Interval;
-					}
-					else {
-						$ro->Recurrence->AbsoluteMonthlyRecurrence->Interval = '1';
-					}
-					$ro->Recurrence->AbsoluteMonthlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
-				}
-				elseif ($so->Occurrence->Pattern == 'R') {
-					$ro->Recurrence->RelativeMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeMonthlyRecurrencePatternType();
-					if (!empty($so->Occurrence->Interval)) {
-						$ro->Recurrence->RelativeMonthlyRecurrence->Interval = $so->Occurrence->Interval;	
-					}
-					else {
-						$ro->Recurrence->RelativeMonthlyRecurrence->Interval = '1';
-					}
-					if (count($so->Occurrence->OnDayOfWeek) > 0) {
-						$ro->Recurrence->RelativeMonthlyRecurrence->DaysOfWeek = $this->toDaysOfWeek($so->Occurrence->OnDayOfWeek, true);
-					}
-					if (count($so->Occurrence->OnWeekOfMonth) > 0) {
-						$ro->Recurrence->RelativeMonthlyRecurrence->DayOfWeekIndex = $this->toWeekOfMonth($so->Occurrence->OnWeekOfMonth);
-					}
-				}
-
-
-			}
-			// Occurrence Yearly
-			elseif ($so->Occurrence->Precision == 'Y') {
-				if ($so->Occurrence->Pattern == 'A') {
-					$ro->Recurrence->AbsoluteYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteYearlyRecurrencePatternType();
-					if (!empty($so->Occurrence->Interval)) {
-						$ro->Recurrence->AbsoluteYearlyRecurrence->Interval = $so->Occurrence->Interval;
-					}
-					else {
-						$ro->Recurrence->AbsoluteYearlyRecurrence->Interval = '1';
-					}
-					$ro->Recurrence->AbsoluteYearlyRecurrence->Month = $this->toMonthOfYear($so->Occurrence->OnMonthOfYear);
-					$ro->Recurrence->AbsoluteYearlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
-				}
-				elseif ($so->Occurrence->Pattern == 'R') {
-					$ro->Recurrence->RelativeYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeYearlyRecurrencePatternType();
-					if (!empty($so->Occurrence->Interval)) {
-						$ro->Recurrence->RelativeYearlyRecurrence->Interval = $so->Occurrence->Interval;	
-					}
-					else {
-						$ro->Recurrence->RelativeYearlyRecurrence->Interval = '1';
-					}
-					if (count($so->Occurrence->OnDayOfWeek) > 0) {
-						$ro->Recurrence->RelativeYearlyRecurrence->DaysOfWeek = $this->toDaysOfWeek($so->Occurrence->OnDayOfWeek, true);
-					}
-					if (count($so->Occurrence->OnWeekOfMonth) > 0) {
-						$ro->Recurrence->RelativeYearlyRecurrence->DayOfWeekIndex = $this->toWeekOfMonth($so->Occurrence->OnWeekOfMonth);
-					}
-					if (count($so->Occurrence->OnMonthOfYear) > 0) {
-						$ro->Recurrence->RelativeYearlyRecurrence->Month = $this->toMonthOfYear($so->Occurrence->OnMonthOfYear);
-					}
-				}
-			}
-			// Occurrence Exclusions
-			if (count($so->Occurrence->Excludes) > 0) {
-				$ro->DeletedOccurrences = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfDeletedOccurrencesType();
-				foreach ($so->Occurrence->Excludes as $entry) {
-					// clone start date
-					$dt = clone $entry;
-					// change timezone on cloned date
-					$dt->setTimezone(new DateTimeZone('UTC'));
-					// construct start time property
-					$ro->DeletedOccurrence[] = new \OCA\EAS\Utile\Eas\Type\DeletedOccurrenceInfoType(
-						$dt->format('Y-m-d\\TH:i:s\Z')
-					);
-					unset($dt);
-				}
-			}
-		}
-		
-		// execute command
-        $rs = $this->RemoteCommonService->createItem($this->DataStore, $cid, $ro);
-        // process response
-        if ($rs->ItemId) {
-			$to = clone $so;
-			$to->ID = $rs->ItemId->Id;
-			$to->CID = $cid;
-			$to->State = $rs->ItemId->ChangeKey;
-			// deposit attachment(s)
-			if (count($to->Attachments) > 0) {
-				// create attachments in remote data store
-				$to->Attachments = $this->createCollectionItemAttachment($to->ID, $to->Attachments);
-				$to->State = $to->Attachments[0]->AffiliateState;
-			}
-            return $to;
-        } else {
-            return null;
-        }
 
     }
 
 	/**
-     * update collection item in remote storage
+     * retrieve collection entity in remote storage
      * 
      * @since Release 1.0.0
      * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Collection Item ID
-     * @param TaskObject $so - Source Data
+	 * @param string $cid			Collection Id
+	 * @param string $eid			Entity Id
 	 * 
-	 * @return TaskObject
+	 * @return TaskObject        TaskObject on success / Null on failure
 	 */
-	public function updateCollectionItem(string $cid, string $iid, TaskObject $so): ?TaskObject {
+	public function fetchEntity(string $cid, string $eid): ?TaskObject {
 
-        // request modifications array
-        $rm = array();
-        // request deletions array
-        $rd = array();
-		// UUID
-        if (!empty($so->UUID)) {
-            $rm[] = $this->updateFieldExtendedByName('PublicStrings', 'DAV:uid', 'String', $so->UUID);
-        }
-        else {
-            $rd[] = $this->deleteFieldExtendedByName('PublicStrings', 'DAV:uid', 'String');
-        }
-		
-        // Starts On
-        if (!empty($so->StartsOn)) {
-			// clone start date
-			$dt = clone $so->StartsOn;
-			// change timezone on cloned date
-			$dt->setTimezone(new DateTimeZone('UTC'));
-			// construct start time attribute
-			$rm[] = $this->updateFieldUnindexed('task:StartDate', 'StartDate', $dt->format('Y-m-d\\TH:i:s\Z'));
-			// destroy temporary variable(s)
-			unset($dt);
-        }
-        else {
-            $rd[] = $this->deleteFieldUnindexed('task:StartDate');
-        }
-		// Due On
-        if (!empty($so->DueOn)) {
-			// clone end date
-			$dt = clone $so->DueOn;
-			// change timezone on cloned date
-			$dt->setTimezone(new DateTimeZone('UTC'));
-			// construct end time property
-			$rm[] = $this->updateFieldUnindexed('task:DueDate', 'DueDate', $dt->format('Y-m-d\\TH:i:s\Z'));
-			// destroy temporary variable(s)
-			unset($dt);
-        }
-        else {
-            $rd[] = $this->deleteFieldUnindexed('task:DueDate');
-        }
-		// Completed On
-        if (!empty($so->CompletedOn)) {
-			// clone end date
-			$dt = clone $so->CompletedOn;
-			// change timezone on cloned date
-			$dt->setTimezone(new DateTimeZone('UTC'));
-			// construct end time property
-			$rm[] = $this->updateFieldUnindexed('task:CompleteDate', 'CompleteDate', $dt->format('Y-m-d\\TH:i:s\Z'));
-			// destroy temporary variable(s)
-			unset($dt);
-        }
-        else {
-            $rd[] = $this->deleteFieldUnindexed('task:CompleteDate');
-        }
-		// Label
-        if (!empty($so->Label)) {
-            $rm[] = $this->updateFieldUnindexed('item:Subject', 'Subject', $so->Label);
-        }
-        else {
-            $rd[] = $this->deleteFieldUnindexed('item:Subject');
-        }
-		// Notes
-        if (!empty($so->Notes)) {
-            $rm[] = $this->updateFieldUnindexed(
-                'item:Body',
-                'Body', 
-                new \OCA\EAS\Utile\Eas\Type\BodyType(
-                    'Text',
-                    $so->Notes
-            ));
-        }
-        else {
-            $rd[] = $this->deleteFieldUnindexed('item:Body');
-        }
-		// Progress
-		if (!empty($so->Progress)) {
-			$rm[] = $this->updateFieldUnindexed('task:PercentComplete', 'PercentComplete', $so->Progress);
-		}
-		else {
-			$rd[] = $this->deleteFieldUnindexed('task:PercentComplete');
-		}
-		// Status
-		if (!empty($so->Status)) {
-			$rm[] = $this->updateFieldUnindexed('task:Status', 'Status', $this->toStatus($so->Status));
-		}
-		else {
-			$rd[] = $this->deleteFieldUnindexed('task:Status');
-		}
-		// Priority
-		if (!empty($so->Priority)) {
-			$rm[] = $this->updateFieldUnindexed('item:Importance', 'Importance', $this->toImportance($so->Priority));
-		}
-		else {
-			$rd[] = $this->deleteFieldUnindexed('item:Importance');
-		}
-		// Sensitivity
-		if (!empty($so->Sensitivity)) {
-			$rm[] = $this->updateFieldUnindexed('item:Sensitivity', 'Sensitivity', $this->toSensitivity($so->Sensitivity));
-		}
-		else {
-			$rd[] = $this->deleteFieldUnindexed('item:Sensitivity');
-		}
-		// Tag(s)
-		if (count($so->Tags) > 0) {
-			$t = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfStringsType;
-			foreach ($so->Tags as $entry) {
-				$t->String[] = $entry;
-			}
-			$rm[] = $this->updateFieldUnindexed('item:Categories', 'Categories', $t);
-			unset($t);
-		}
-		else {
-			$rd[] = $this->deleteFieldUnindexed('item:Categories');
-		}
-		// Notification(s)
-		if (count($so->Notifications) > 0) {
-			$rm[] = $this->updateFieldUnindexed('item:ReminderIsSet', 'ReminderIsSet', 'true');
-			if ($so->Notifications[0]->Type == 'D' && $so->Notifications[0]->Pattern == 'A') {
-				$t = ceil(($so->StartsOn->getTimestamp() - $so->Notifications[0]->When->getTimestamp() / 60));
-				$rm[] = $this->updateFieldUnindexed('item:ReminderMinutesBeforeStart', 'ReminderMinutesBeforeStart', $t);
-				$rm[] = $this->updateFieldUnindexed('item:ReminderIsSet', 'ReminderIsSet', 'ture');
-				unset($t);
-			}
-			elseif ($so->Notifications[0]->Type == 'D' && $so->Notifications[0]->Pattern == 'R') {
-				if ($so->Notifications[0]->When->invert == 0) {
-					$t = ($so->Notifications[0]->When->y * -525600) +
-						($so->Notifications[0]->When->m * -43800) +
-						($so->Notifications[0]->When->d * -1440) +
-						($so->Notifications[0]->When->h * -60) +
-						($so->Notifications[0]->When->i * -1);
-				} else {
-					$t = ($so->Notifications[0]->When->y * 525600) +
-						($so->Notifications[0]->When->m * 43800) +
-						($so->Notifications[0]->When->d * 1440) +
-						($so->Notifications[0]->When->h * 60) +
-						($so->Notifications[0]->When->i);
-				}
-				$rm[] = $this->updateFieldUnindexed('item:ReminderMinutesBeforeStart', 'ReminderMinutesBeforeStart',(string) $t);
-				$rm[] = $this->updateFieldUnindexed('item:ReminderIsSet', 'ReminderIsSet', 'ture');
-				unset($t);
-			}
-		}
-		else {
-			$rm[] = $this->updateFieldUnindexed('item:ReminderIsSet', 'ReminderIsSet', 'false');
-			$rd[] = $this->deleteFieldUnindexed('item:ReminderMinutesBeforeStart');
-		}
-		// Occurrence
-		if (isset($so->Occurrence) && !empty($so->Occurrence->Precision)) {
-			// construct recurrence object
-			$f = new \OCA\EAS\Utile\Eas\Type\RecurrenceType();
-			// Iterations
-			if (!empty($so->Occurrence->Iterations)) {
-				$f->NumberedRecurrence = new \OCA\EAS\Utile\Eas\Type\NumberedRecurrenceRangeType();
-				$f->NumberedRecurrence->NumberOfOccurrences = $so->Occurrence->Iterations;
-			}
-			// Conclusion
-			if (!empty($so->Occurrence->Concludes)) {
-				$f->EndDateRecurrence = new \OCA\EAS\Utile\Eas\Type\EndDateRecurrenceRangeType();
-				if ($so->Origin == 'L') {
-					// subtract 1 day to adjust in how the end date is calculated in NC and EWS
-					$f->EndDateRecurrence->EndDate = date_modify(clone $so->Occurrence->Concludes, '-1 day')->format('Y-m-d\TH:i:s');
-				}
-				else {
-					$f->EndDateRecurrence->EndDate = $so->Occurrence->Concludes->format('Y-m-d\TH:i:s');
-				}
-			}
-			// No Iterations And No Conclusion Date
-			if (empty($so->Occurrence->Iterations) && empty($so->Occurrence->Concludes)) {
-				$f->NoEndRecurrence = new \OCA\EAS\Utile\Eas\Type\NoEndRecurrenceRangeType();
-			}
-
-			// Based on Precision
-			// Daily Task
-			if ($so->Occurrence->Precision == 'D') {
-				$f->DailyRecurrence = new \OCA\EAS\Utile\Eas\Type\DailyRecurrencePatternType();
-				if (!empty($so->Occurrence->Interval)) {
-					$f->DailyRecurrence->Interval = $so->Occurrence->Interval;
-				}
-				else {
-					$f->DailyRecurrence->Interval = '1';
-				}
-			}
-			// Weekly Task
-			elseif ($so->Occurrence->Precision == 'W') {
-				$f->WeeklyRecurrence = new \OCA\EAS\Utile\Eas\Type\WeeklyRecurrencePatternType();
-				if (!empty($so->Occurrence->Interval)) {
-					$f->WeeklyRecurrence->Interval = $so->Occurrence->Interval;
-				}
-				else {
-					$f->WeeklyRecurrence->Interval = '1';
-				}
-				$f->WeeklyRecurrence->DaysOfWeek = $this->toDaysOfWeek($so->Occurrence->OnDayOfWeek);
-				$f->WeeklyRecurrence->FirstDayOfWeek = 'Monday';
-			}
-			// Monthly Task
-			elseif ($so->Occurrence->Precision == 'M') {
-				if ($so->Occurrence->Pattern == 'A') {
-					$f->AbsoluteMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteMonthlyRecurrencePatternType();
-					if (!empty($so->Occurrence->Interval)) {
-						$f->AbsoluteMonthlyRecurrence->Interval = $so->Occurrence->Interval;
-					}
-					else {
-						$f->AbsoluteMonthlyRecurrence->Interval = '1';
-					}
-					$f->AbsoluteMonthlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
-				}
-				elseif ($so->Occurrence->Pattern == 'R') {
-					$f->RelativeMonthlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeMonthlyRecurrencePatternType();
-					if (!empty($so->Occurrence->Interval)) {
-						$f->RelativeMonthlyRecurrence->Interval = $so->Occurrence->Interval;	
-					}
-					else {
-						$f->RelativeMonthlyRecurrence->Interval = '1';
-					}
-					if (count($so->Occurrence->OnDayOfWeek) > 0) {
-						$f->RelativeMonthlyRecurrence->DaysOfWeek = $this->toDaysOfWeek($so->Occurrence->OnDayOfWeek, true);
-					}
-					if (count($so->Occurrence->OnWeekOfMonth) > 0) {
-						$f->RelativeMonthlyRecurrence->DayOfWeekIndex = $this->toWeekOfMonth($so->Occurrence->OnWeekOfMonth);
-					}
-				}
-			}
-			// Yearly Task
-			elseif ($so->Occurrence->Precision == 'Y') {
-				if ($so->Occurrence->Pattern == 'A') {
-					$f->AbsoluteYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\AbsoluteYearlyRecurrencePatternType();
-					if (!empty($so->Occurrence->Interval)) {
-						$f->AbsoluteYearlyRecurrence->Interval = $so->Occurrence->Interval;
-					}
-					else {
-						$f->AbsoluteYearlyRecurrence->Interval = '1';
-					}
-					$f->AbsoluteYearlyRecurrence->Month = $this->toMonthOfYear($so->Occurrence->OnMonthOfYear);
-					$f->AbsoluteYearlyRecurrence->DayOfMonth = $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth);
-				}
-				elseif ($so->Occurrence->Pattern == 'R') {
-					$f->RelativeYearlyRecurrence = new \OCA\EAS\Utile\Eas\Type\RelativeYearlyRecurrencePatternType();
-					if (!empty($so->Occurrence->Interval)) {
-						$f->RelativeYearlyRecurrence->Interval = $so->Occurrence->Interval;	
-					}
-					else {
-						$f->RelativeYearlyRecurrence->Interval = '1';
-					}
-					if (count($so->Occurrence->OnDayOfWeek) > 0) {
-						$f->RelativeYearlyRecurrence->DaysOfWeek = $this->toDaysOfWeek($so->Occurrence->OnDayOfWeek, true);
-					}
-					if (count($so->Occurrence->OnWeekOfMonth) > 0) {
-						$f->RelativeYearlyRecurrence->DayOfWeekIndex = $this->toWeekOfMonth($so->Occurrence->OnWeekOfMonth);
-					}
-					if (count($so->Occurrence->OnMonthOfYear) > 0) {
-						$f->RelativeYearlyRecurrence->Month = $this->toMonthOfYear($so->Occurrence->OnMonthOfYear);
-					}
-				}
-			}
-			
-			$rm[] = $this->updateFieldUnindexed('task:Recurrence', 'Recurrence', $f);
-		}
-		else {
-			$rd[] = $this->deleteFieldUnindexed('task:Recurrence');
-		}
         // execute command
-        $rs = $this->RemoteCommonService->updateItem($this->DataStore, $cid, $iid, null, $rm, $rd);
-		// process response
-        if ($rs->ItemId) {
-			$to = clone $so;
-			$to->ID = $rs->ItemId->Id;
-			$to->CID = $cid;
-			$to->State = $rs->ItemId->ChangeKey;
-			// deposit attachment(s)
-			if (count($to->Attachments) > 0) {
-				// create attachments in remote data store
-				$to->Attachments = $this->createCollectionItemAttachment($to->ID, $to->Attachments);
-				$to->State = $to->Attachments[0]->AffiliateState;
+		$ro = $this->RemoteCommonService->fetchEntity($this->DataStore, $cid, $eid, ['BODY' => EasTypes::BODY_TYPE_TEXT]);
+        // validate response
+		if (isset($ro->Status) && $ro->Status->getContents() == '1') {
+            // convert to contact object
+            $co = $this->toTaskObject($ro->Properties);
+            $co->ID = $ro->EntityId->getContents();
+            $co->CID = $ro->CollectionId->getContents();
+            // retrieve attachment(s) from remote data store
+			if (count($co->Attachments) > 0) {
+				$co->Attachments = $this->fetchCollectionItemAttachment(array_column($co->Attachments, 'Id'));
 			}
-            return $to;
+            // return object
+		    return $co;
         } else {
+            // return null
             return null;
         }
 
     }
-
+    
 	/**
-     * update collection item with uuid in remote storage
+     * create collection entity in remote storage
      * 
      * @since Release 1.0.0
      * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Collection Item ID
-     * @param string $cid - Collection Item UUID
+	 * @param string $cid			Collection Id
+	 * @param string $cst			Collection Synchronization Token
+     * @param TaskObject $so     Source Object
 	 * 
-	 * @return object Status Object - item id, item uuid, item state token / Null - failed to create
+	 * @return TaskObject        TaskObject on success / Null on failure
 	 */
-	public function updateCollectionItemUUID(string $cid, string $iid, string $uuid): ?object {
-		// request modifications array
-        $rm = array();
-        // construct update command object
-        $rm[] = $this->updateFieldExtendedByName('PublicStrings', 'DAV:uid', 'String', $uuid);
-        // execute request
-        $rs = $this->RemoteCommonService->updateItem($this->DataStore, $cid, $iid, null, $rm, null);
-        // return response
-        if ($rs->ItemId) {
-            return (object) array('ID' => $rs->ItemId->Id, 'UID' => $uuid, 'State' => $rs->ItemId->ChangeKey);
+	public function createEntity(string $cid, string $cst, TaskObject $so): ?TaskObject {
+
+        // convert source TaskObject to EasObject
+        $eo = $this->fromTaskObject($so);
+	    // execute command
+	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_TASK, $eo);
+        // evaluate response
+        if (isset($ro->Status) && $ro->Status->getContents() == '1') {
+			$co = clone $so;
+			$co->ID = $ro->Responses->Add->EntityId->getContents();
+            $co->CID = $ro->CollectionId->getContents();
+			// deposit attachment(s)
+			if (count($co->Attachments) > 0) {
+				// create attachments in remote data store
+				$co->Attachments = $this->createCollectionItemAttachment($co->ID, $co->Attachments);
+				$co->State = $co->Attachments[0]->AffiliateState;
+			}
+            return $co;
         } else {
             return null;
         }
+
     }
 
-    /**
-     * delete collection item in remote storage
+     /**
+     * update collection entity in remote storage
      * 
      * @since Release 1.0.0
      * 
-     * @param string $iid - Item ID
+     * @param string $cid			Collection Id
+	 * @param string $cst			Collection Synchronization Token
+     * @param TaskObject $so     Source Object
 	 * 
-	 * @return bool Ture - successfully destroyed / False - failed to destory
+	 * @return TaskObject        TaskObject on success / Null on failure
 	 */
-    public function deleteCollectionItem(string $iid): bool {
-        // create object
-        $o = new \OCA\EAS\Utile\Eas\Type\ItemIdType($iid);
+	public function updateEntity(string $cid, string $cst, TaskObject $so): ?TaskObject {
 
-        $result = $this->RemoteCommonService->deleteItem($this->DataStore, array($o));
-
-        if ($result) {
+        // extract source object id
+        $eid = $co->ID;
+        // convert source TaskObject to EasObject
+        $eo = $this->fromTaskObject($so);
+	    // execute command
+	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $eo);
+        // evaluate response
+        if (isset($ro->Status) && $ro->Status->getContents() == '1') {
+			$co = clone $so;
+			$co->ID = $ro->Responses->Modify->EntityId;
+            $co->CID = $cid;
+			// deposit attachment(s)
+			if (count($so->Attachments) > 0) {
+				// create attachments in remote data store
+				$co->Attachments = $this->createCollectionItemAttachment($co->ID, $co->Attachments);
+				$co->State = $co->Attachments[0]->AffiliateState;
+			}
+            return $co;
+        } else {
+            return null;
+        }
+        
+    }
+    
+    /**
+     * delete collection entity in remote storage
+     * 
+     * @since Release 1.0.0
+     * 
+     * @param string $cid			Collection Id
+	 * @param string $cst			Collection Synchronization Token
+	 * @param string $eid			Entity Id
+	 * 
+	 * @return bool                 True on success / False on failure
+	 */
+    public function deleteEntity(string $cid, string $cst, string $eid): bool {
+        
+        // execute command
+        $rs = $this->RemoteCommonService->deleteEntity($this->DataStore, $cid, $cst, $eid);
+        // evaluate response
+        if ($rs) {
             return true;
         } else {
             return false;
         }
+
     }
 
 	/**
-     * retrieve collection item attachment from local storage
+     * retrieve collection entity attachment from remote storage
      * 
      * @since Release 1.0.0
      * 
-     * @param string $aid - Attachment ID
+     * @param array $batch		Batch of Attachment ID's
 	 * 
-	 * @return TaskAttachmentObject
+	 * @return array
 	 */
-	public function fetchCollectionItemAttachment(array $batch): array {
+	public function fetchAttachment(array $batch): array {
 
 		// check to for entries in batch collection
         if (count($batch) == 0) {
@@ -836,7 +372,7 @@ class RemoteTasksService {
 					$type = $entry->ContentType;
 				}
 				// insert attachment object in response collection
-				$rc[] = new TaskAttachmentObject(
+				$rc[] = new EventAttachmentObject(
 					'D',
 					$entry->AttachmentId->Id, 
 					$entry->Name,
@@ -862,7 +398,7 @@ class RemoteTasksService {
 	 * 
 	 * @return string
 	 */
-	public function createCollectionItemAttachment(string $aid, array $batch): array {
+	public function createAttachment(string $aid, array $batch): array {
 
 		// check to for entries in batch collection
         if (count($batch) == 0) {
@@ -922,7 +458,7 @@ class RemoteTasksService {
 	 * 
 	 * @return bool true - successfully delete / False - failed to delete
 	 */
-	public function deleteCollectionItemAttachment(array $batch): array {
+	public function deleteAttachment(array $batch): array {
 
 		// check to for entries in batch collection
         if (count($batch) == 0) {
@@ -936,273 +472,178 @@ class RemoteTasksService {
     }
 
 	/**
-     * construct collection item time zone property
+     * convert remote EasObject to local ContactObject
      * 
      * @since Release 1.0.0
      * 
-     * @param string $tag - time zone name
+	 * @param EasObject $so     entity as EasObject
 	 * 
-	 * @return object collection item time zone property
+	 * @return TaskObject		entity as TaskObject
 	 */
-    public function constructTimeZone(string $name): object {
-		// retrive time zone properties
-		$zone = \OCA\EAS\Utile\TimeZoneEWS::find($name);
-        // construct time zone object
-        $o = new \OCA\EAS\Utile\Eas\Type\TimeZoneDefinitionType;
-		$o->Id = $zone->id;
-
-		if (!empty($zone->StandardBias) && !empty($zone->DaylightBias)) {
-			$o->Periods = new \OCA\EAS\Utile\Eas\ArrayType\NonEmptyArrayOfPeriodsType();
-			$o->Periods->Period[] = new \OCA\EAS\Utile\Eas\Type\PeriodType(
-				$zone->StandardName,
-				$zone->StandardBias,
-				'ST'
-			);
-			$o->Periods->Period[] = new \OCA\EAS\Utile\Eas\Type\PeriodType(
-				$zone->DaylightName,
-				$zone->DaylightBias,
-				'DL'
-			);
-			$o->TransitionsGroups = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfTransitionsGroupsType();
-			$group = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfTransitionsType();
-			$group->Id = 0;
-
-			$transition = new \OCA\EAS\Utile\Eas\Type\RecurringDayTransitionType();
-			$transition->To = new \OCA\EAS\Utile\Eas\Type\TransitionTargetType();
-			$transition->To->_ = 'ST';
-			$transition->To->Kind = 'Period';
-			$transition->Month = $zone->DaylightEndMonth;
-			$transition->Occurrence = $zone->DaylightEndWeek;
-			$transition->DayOfWeek = $zone->DaylightEndDay;
-			$transition->TimeOffset = $zone->DaylightEndTime;
-			$group->RecurringDayTransition[] = $transition;
-
-			$transition = new \OCA\EAS\Utile\Eas\Type\RecurringDayTransitionType();
-			$transition->To = new \OCA\EAS\Utile\Eas\Type\TransitionTargetType();
-			$transition->To->_ = 'DL';
-			$transition->To->Kind = 'Period';
-			$transition->Month = $zone->DaylightStartMonth;
-			$transition->Occurrence = $zone->DaylightStartWeeK;
-			$transition->DayOfWeek = $zone->DaylightStartDay;
-			$transition->TimeOffset = $zone->DaylightStartTime;
-			$group->RecurringDayTransition[] = $transition;
-
-			$o->TransitionsGroups->TransitionsGroup[] = $group;
-
-			$o->Transitions = new \OCA\EAS\Utile\Eas\ArrayType\ArrayOfTransitionsType();
-			$o->Transitions->Transition = new \OCA\EAS\Utile\Eas\Type\TransitionType();
-			$o->Transitions->Transition->To = new \OCA\EAS\Utile\Eas\Type\TransitionTargetType();
-			$o->Transitions->Transition->To->_ = 0;
-			$o->Transitions->Transition->To->Kind = 'Group';
-		}
-
-		/*
-		$o->Transitions->AbsoluteDateTransition = new \OCA\EAS\Utile\Eas\Type\AbsoluteDateTransitionType();
-		$o->Transitions->AbsoluteDateTransition->To = new \OCA\EAS\Utile\Eas\Type\TransitionTargetType();
-		$o->Transitions->AbsoluteDateTransition->To->_ = 1;
-		$o->Transitions->AbsoluteDateTransition->To->Kind = 'Group';
-		$o->Transitions->AbsoluteDateTransition->DateTime = '2007-01-01T00:00:00';
-		*/
-        // return object
-        return $o;
-    }
-
-	/**
-     * convert remote TaskType object to TaskObject
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param TaskType $data - item as TaskType object
-	 * 
-	 * @return TaskObject item as TaskObject
-	 */
-	public function toTaskObject(TaskType $data): TaskObject {
+	public function toTaskObject(EasObject $so): TaskObject {
 		// create object
-		$o = new TaskObject();
+		$to = new TaskObject();
 		// Origin
-		$o->Origin = 'R';
-        // ID / State
-        if (isset($data->ItemId)) {
-            $o->ID = $data->ItemId->Id;
-            $o->State = $data->ItemId->ChangeKey;
-        }
-        // Collection ID
-        if (isset($data->ParentFolderId)) {
-            $o->CID = $data->ParentFolderId->Id;
-        }
+		$to->Origin = 'R';
         // Creation Date
-        if (!empty($data->DateTimeCreated)) {
-            $o->CreatedOn = new DateTime($data->DateTimeCreated);
+        if (!empty($so->DateTimeCreated)) {
+            $to->CreatedOn = new DateTime($so->DateTimeCreated);
         }
         // Modification Date
-        if (!empty($data->DateTimeSent)) {
-            $o->ModifiedOn = new DateTime($data->DateTimeSent);
+        if (!empty($so->DateTimeSent)) {
+            $to->ModifiedOn = new DateTime($so->DateTimeSent);
         }
-        if (!empty($data->LastModifiedTime)) {
-            $o->ModifiedOn = new DateTime($data->LastModifiedTime);
+        if (!empty($so->LastModifiedTime)) {
+            $to->ModifiedOn = new DateTime($so->LastModifiedTime);
         }
 		// Start Date/Time
-		if (!empty($data->StartDate)) {
-			$o->StartsOn = new DateTime($data->StartDate);
+		if (!empty($so->StartDate)) {
+			$to->StartsOn = new DateTime($so->StartDate);
 		}
 		// Due Date/Time
-        if (!empty($data->DueDate)) {
-            $o->DueOn = new DateTime($data->DueDate);
+        if (!empty($so->DueDate)) {
+            $to->DueOn = new DateTime($so->DueDate);
         }
 		// Completed Date/Time
-        if (!empty($data->CompleteDate)) {
-            $o->CompletedOn = new DateTime($data->CompleteDate);
+        if (!empty($so->CompleteDate)) {
+            $to->CompletedOn = new DateTime($so->CompleteDate);
         }
 		// Label
-        if (!empty($data->Subject)) {
-            $o->Label = $data->Subject;
+        if (!empty($so->Subject)) {
+            $eo->Label = $so->Subject->getContents();
         }
 		// Notes
-		if (!empty($data->Body)) {
-			$o->Notes = $data->Body->_;
+		if (!empty($so->Body->Data)) {
+			$eo->Notes = $so->Body->Data->getContents();
 		}
 		// Progress
-        if (!empty($data->PercentComplete)) {
-            $o->Progress = $data->PercentComplete;
+        if (!empty($so->PercentComplete)) {
+            $to->Progress = $so->PercentComplete;
         }
 		// Status
-        if (!empty($data->Status)) {
-            $o->Status = $this->fromStatus($data->Status);
+        if (!empty($so->Status)) {
+            $to->Status = $this->fromStatus($so->Status);
         }
 		// Priority
-		if (!empty($data->Importance)) {
-			$o->Priority = $this->fromImportance($data->Importance);
+		if (!empty($so->Importance)) {
+			$v = (int) $so->Importance->getContents();
+			$eo->Priority = ($v > -1 && $v < 3) ? $v : 1;
 		}
 		// Sensitivity
-		if (!empty($data->Sensitivity)) {
-			$o->Sensitivity = $this->fromSensitivity($data->Sensitivity);
+		if (!empty($so->Sensitivity)) {
+			$v = (int) $so->Sensitivity->getContents();
+			$eo->Sensitivity = ($v > -1 && $v < 4) ? $v : 0;
 		}
 		// Tag(s)
-		if (isset($data->Categories)) {
-			foreach($data->Categories->String as $entry) {
-				$o->addTag($entry);
+        if (isset($so->Categories)) {
+            if (!is_array($so->Categories->Category)) {
+                $so->Categories->Category = [$so->Categories->Category];
+            }
+			foreach($so->Categories->Category as $entry) {
+				$eo->addTag($entry->getContents());
 			}
-		}
-		
+        }
 		// Notification(s)
-		if (isset($data->ReminderIsSet) && isset($data->ReminderMinutesBeforeStart)) { 
-			$w = new DateInterval('PT' . $data->ReminderMinutesBeforeStart . 'M');
+		if (isset($so->Reminder)) { 
+			$w = new DateInterval('PT' . $so->Reminder->getContents() . 'M');
 			$w->invert = 1;
-			$o->addNotification(
+			$eo->addNotification(
 				'D',
 				'R',
 				$w
 			);
 		}
 		// Occurrence
-        if (isset($data->Recurrence)) {
+        if (isset($so->Recurrence)) {
+			// Interval
+			if (isset($so->Recurrence->Interval)) {
+				$to->Occurrence->Interval = $so->Recurrence->Interval->getContents();
+			}
 			// Iterations
-			if (isset($data->Recurrence->NumberedRecurrence->NumberOfOccurrences)) {
-				$o->Occurrence->Iterations = $data->Recurrence->NumberedRecurrence->NumberOfOccurrences;
+			if (isset($so->Recurrence->Occurrences)) {
+				$to->Occurrence->Iterations = $so->Recurrence->Occurrences->getContents();
 			}
 			// Conclusion
-			if (isset($data->Recurrence->EndDateRecurrence->EndDate)) {
-				$o->Occurrence->Concludes = new DateTime($data->Recurrence->EndDateRecurrence->EndDate);
+			if (isset($so->Recurrence->Until)) {
+				$to->Occurrence->Concludes = new DateTime($so->Recurrence->Until->getContents());
 			}
 			// Daily
-			if (isset($data->Recurrence->DailyRecurrence)) {
-				
-				$o->Occurrence->Pattern = 'A';
-				$o->Occurrence->Precision = 'D';
+			if ($so->Recurrence->Type->getContents() == '0') {
 
-				if (isset($data->Recurrence->DailyRecurrence->Interval)) {
-					$o->Occurrence->Interval = $data->Recurrence->DailyRecurrence->Interval;
-				}
-				if (isset($data->Recurrence->DailyRecurrence->NumberOfOccurrences)) {
-					$o->Occurrence->Iterations = $data->Recurrence->DailyRecurrence->NumberOfOccurrences;
-				}
+				$to->Occurrence->Pattern = 'A';
+				$to->Occurrence->Precision = 'D';
+
             }
 			// Weekly
-			if (isset($data->Recurrence->WeeklyRecurrence)) {
+			if ($so->Recurrence->Type->getContents() == '1') {
 				
-				$o->Occurrence->Pattern = 'A';
-				$o->Occurrence->Precision = 'W';
+				$to->Occurrence->Pattern = 'A';
+				$to->Occurrence->Precision = 'W';
 				
-				if (isset($data->Recurrence->WeeklyRecurrence->Interval)) {
-					$o->Occurrence->Interval = $data->Recurrence->WeeklyRecurrence->Interval;	
+				if (isset($so->Recurrence->DayOfWeek)) {
+					$to->Occurrence->OnDayOfWeek = $this->fromDaysOfWeek($so->Recurrence->DayOfWeek->getContents());
 				}
-				if (isset($data->Recurrence->WeeklyRecurrence->NumberOfOccurrences)) {
-					$o->Occurrence->Iterations = $data->Recurrence->WeeklyRecurrence->NumberOfOccurrences;
-				}
-				if (isset($data->Recurrence->WeeklyRecurrence->DaysOfWeek)) {
-					$o->Occurrence->OnDayOfWeek = $this->fromDaysOfWeek($data->Recurrence->WeeklyRecurrence->DaysOfWeek);
-				}
+
             }
 			// Monthly Absolute
-			if (isset($data->Recurrence->AbsoluteMonthlyRecurrence)) {
+			if ($so->Recurrence->Type->getContents() == '2') {
 				
-				$o->Occurrence->Pattern = 'A';
-				$o->Occurrence->Precision = 'M';
+				$to->Occurrence->Pattern = 'A';
+				$to->Occurrence->Precision = 'M';
 				
-				if (isset($data->Recurrence->AbsoluteMonthlyRecurrence->Interval)) {
-					$o->Occurrence->Interval = $data->Recurrence->AbsoluteMonthlyRecurrence->Interval;	
+				if (isset($so->Recurrence->DayOfMonth)) {
+					$to->Occurrence->OnDayOfMonth = $this->fromDaysOfMonth($so->Recurrence->DayOfMonth->getContents());
 				}
-				if (isset($data->Recurrence->AbsoluteMonthlyRecurrence->NumberOfOccurrences)) {
-					$o->Occurrence->Iterations = $data->Recurrence->AbsoluteMonthlyRecurrence->NumberOfOccurrences;
-				}
-				if (isset($data->Recurrence->AbsoluteMonthlyRecurrence->DayOfMonth)) {
-					$o->Occurrence->OnDayOfMonth = $this->fromDaysOfMonth($data->Recurrence->AbsoluteMonthlyRecurrence->DayOfMonth);
-				}
+
             }
 			// Monthly Relative
-			if (isset($data->Recurrence->RelativeMonthlyRecurrence)) {
+			if ($so->Recurrence->Type->getContents() == '3') {
 				
-				$o->Occurrence->Pattern = 'R';
-				$o->Occurrence->Precision = 'M';
+				$to->Occurrence->Pattern = 'R';
+				$to->Occurrence->Precision = 'M';
 				
-				if (isset($data->Recurrence->RelativeMonthlyRecurrence->Interval)) {
-					$o->Occurrence->Interval = $data->Recurrence->RelativeMonthlyRecurrence->Interval;	
+				if (isset($so->Recurrence->DaysOfWeek)) {
+					$to->Occurrence->OnDayOfWeek = $this->fromDaysOfWeek($so->Recurrence->DaysOfWeek, true);
 				}
-				if (isset($data->Recurrence->RelativeMonthlyRecurrence->DaysOfWeek)) {
-					$o->Occurrence->OnDayOfWeek = $this->fromDaysOfWeek($data->Recurrence->RelativeMonthlyRecurrence->DaysOfWeek, true);
+				if (isset($so->Recurrence->DayOfWeekIndex)) {
+					$to->Occurrence->OnWeekOfMonth = $this->fromWeekOfMonth($so->Recurrence->WeekOfMonth->getContents());
 				}
-				if (isset($data->Recurrence->RelativeMonthlyRecurrence->DayOfWeekIndex)) {
-					$o->Occurrence->OnWeekOfMonth = $this->fromWeekOfMonth($data->Recurrence->RelativeMonthlyRecurrence->DayOfWeekIndex);
-				}
+
             }
 			// Yearly Absolute
-			if (isset($data->Recurrence->AbsoluteYearlyRecurrence)) {
+			if ($so->Recurrence->Type->getContents() == '5') {
 				
-				$o->Occurrence->Pattern = 'A';
-				$o->Occurrence->Precision = 'Y';
+				$to->Occurrence->Pattern = 'A';
+				$to->Occurrence->Precision = 'Y';
 				
-				if (isset($data->Recurrence->AbsoluteYearlyRecurrence->Interval)) {
-					$o->Occurrence->Interval = $data->Recurrence->AbsoluteYearlyRecurrence->Interval;	
+				if (isset($so->Recurrence->Month)) {
+					$to->Occurrence->OnMonthOfYear = $this->fromMonthOfYear($so->Recurrence->MonthOfYear->getContents());
 				}
-				if (isset($data->Recurrence->AbsoluteYearlyRecurrence->NumberOfOccurrences)) {
-					$o->Occurrence->ExpiresCount = $data->Recurrence->AbsoluteYearlyRecurrence->NumberOfOccurrences;
+				if (isset($so->Recurrence->DayOfMonth)) {
+					$to->Occurrence->OnDayOfMonth = $this->fromDaysOfMonth($so->Recurrence->DayOfMonth->getContents());
 				}
-				if (isset($data->Recurrence->AbsoluteYearlyRecurrence->Month)) {
-					$o->Occurrence->OnMonthOfYear = $this->fromMonthOfYear($data->Recurrence->AbsoluteYearlyRecurrence->Month);
-				}
-				if (isset($data->Recurrence->AbsoluteYearlyRecurrence->DayOfMonth)) {
-					$o->Occurrence->OnDayOfMonth = $this->fromDaysOfMonth($data->Recurrence->AbsoluteYearlyRecurrence->DayOfMonth);
-				}
+
             }
 			// Yearly Relative
-			if (isset($data->Recurrence->RelativeYearlyRecurrence)) {
+			if ($so->Recurrence->Type->getContents() == '6') {
 				
-				$o->Occurrence->Pattern = 'R';
-				$o->Occurrence->Precision = 'Y';
+				$to->Occurrence->Pattern = 'R';
+				$to->Occurrence->Precision = 'Y';
 				
-				if (isset($data->Recurrence->RelativeYearlyRecurrence->DaysOfWeek)) {
-					$o->Occurrence->OnDayOfWeek = $this->fromDaysOfWeek($data->Recurrence->RelativeYearlyRecurrence->DaysOfWeek, true);
+				if (isset($so->Recurrence->DaysOfWeek)) {
+					$to->Occurrence->OnDayOfWeek = $this->fromDaysOfWeek($so->Recurrence->DayOfWeek->getContents(), true);
 				}
-				if (isset($data->Recurrence->RelativeYearlyRecurrence->DayOfWeekIndex)) {
-					$o->Occurrence->OnWeekOfMonth = $this->fromWeekOfMonth($data->Recurrence->RelativeYearlyRecurrence->DayOfWeekIndex);
+				if (isset($so->Recurrence->DayOfWeekIndex)) {
+					$to->Occurrence->OnWeekOfMonth = $this->fromWeekOfMonth($so->Recurrence->WeekOfMonth->getContents());
 				}
-				if (isset($data->Recurrence->RelativeYearlyRecurrence->Month)) {
-					$o->Occurrence->OnMonthOfYear = $this->fromMonthOfYear($data->Recurrence->RelativeYearlyRecurrence->Month);
+				if (isset($so->Recurrence->Month)) {
+					$to->Occurrence->OnMonthOfYear = $this->fromMonthOfYear($so->Recurrence->MonthOfYear->getContents());
 				}
+
             }
 			// Excludes
-			if (isset($data->DeletedOccurrences)) {
-				foreach($data->DeletedOccurrences->DeletedOccurrence as $entry) {
+			if (isset($so->DeletedOccurrences)) {
+				foreach($so->DeletedOccurrences->DeletedOccurrence as $entry) {
 					if (isset($entry->Start)) {
 						$o->Occurrence->Excludes[] = new DateTime($entry->Start);
 					}
@@ -1210,43 +651,25 @@ class RemoteTasksService {
 			}
         }
         // Attachment(s)
-		if (isset($data->Attachments)) {
-			foreach($data->Attachments->FileAttachment as $entry) {
-				if ($entry->ContentType == 'application/octet-stream') {
-					$type = \OCA\EAS\Utile\MIME::fromFileName($entry->Name);
-				} else {
-					$type = $entry->ContentType;
-				}
-				$o->addAttachment(
+		if (isset($so->Attachments)) {
+			if (!is_array($so->Attachments->Attachment)) {
+				$so->Attachments->Attachment = [$so->Attachments->Attachment];
+			}
+			foreach($so->Attachments->Attachment as $entry) {
+				$type = \OCA\EAS\Utile\MIME::fromFileName($entry->DisplayName->getContents());
+				$to->addAttachment(
 					'D',
-					$entry->AttachmentId->Id, 
-					$entry->Name,
+					$entry->FileReference->getContents(), 
+					$entry->DisplayName->getContents(),
 					$type,
 					'B',
-					$entry->Size
+					$entry->EstimatedDataSize->getContents()
 				);
 			}
 		}
-        // Extended Properties
-		if (isset($data->ExtendedProperty)) {
-			foreach ($data->ExtendedProperty as $entry) {
-				switch ($entry->ExtendedFieldURI->PropertyName) {
-					case 'DAV:uid':
-						$o->UUID = $entry->Value;
-						break;
-				}
-				switch ($entry->ExtendedFieldURI->PropertyTag) {
-					case '0x3007':
-						$o->CreatedOn = new DateTime($entry->Value);
-						break;
-					case '0x3008':
-						$o->ModifiedOn = new DateTime($entry->Value);
-						break;
-				}
-			}
-		}
+        
 
-		return $o;
+		return $to;
 
     }
 
@@ -1311,163 +734,166 @@ class RemoteTasksService {
 	}
 
 	/**
-     * convert remote days of the week to task object days of the week
+     * convert remote days of the week to event object days of the week
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param sting $days - remote days of the week values(s)
+	 * @param int $days - remote days of the week values(s)
 	 * @param bool $group - flag to check if days are grouped
 	 * 
-	 * @return array task object days of the week values(s)
+	 * @return array event object days of the week values(s)
 	 */
-	private function fromDaysOfWeek(string $days, bool $group = false ): array {
+	private function fromDaysOfWeek(int $days, bool $group = false): array {
 
-		// days conversion reference
-		$_tm = array(
-			'Monday' => 1,
-			'Tuesday' => 2,
-			'Wednesday' => 3,
-			'Thursday' => 4,
-			'Friday' => 5,
-			'Saturday' => 6,
-			'Sunday' => 7,
-			'Day' => 0,
-			'Weekday' => 8,
-			'WeekendDay' => 9
-		);
-		// convert days to array
-		$days = explode(' ', $days);
 		// evaluate if days match any group patterns
-		if ($group && count($days) == 1) {
-			$groups = array(
-				'Day' => array(1,2,3,4,5,6,7),
-				'Weekday' => array(1,2,3,4,5),
-				'WeekendDay' => array(6,7)
-			);
-			if (isset($groups[$days[0]])) {
-				return $groups[$days[0]];
+		if ($group) {
+			if ($days == 65) {
+				return [6,7];		// Weekend Days
+			}
+			elseif ($days == 62) {
+				return [1,2,3,4,5];	// Week Days
 			}
 		}
 		// convert day values
-		foreach ($days as $key => $entry) {
-			if (isset($_tm[$entry])) {
-				$days[$key] = $_tm[$entry];
-			}
+		$dow = [];
+		if ($days >= 64) {
+			$dow[] = 6;		// Saturday
+			$days -= 64;
+		}
+		if ($days >= 32) {
+			$dow[] = 5;		// Friday
+			$days -= 32;
+		}
+		if ($days >= 16) {
+			$dow[] = 4;		// Thursday
+			$days -= 16;
+		}
+		if ($days >= 8) {
+			$dow[] = 3;		// Wednesday
+			$days -= 8;
+		}
+		if ($days >= 4) {
+			$dow[] = 2;		// Tuesday
+			$days -= 4;
+		}
+		if ($days >= 2) {
+			$dow[] = 1;		// Monday
+			$days -= 2;
+		}
+		if ($days >= 1) {
+			$dow[] = 7;		// Sunday
+			$days -= 1;
 		}
 		// return converted days
-		return $days;
+		return asort($dow);
 
 	}
 
 	/**
-     * convert task object days of the week to remote days of the week
+     * convert event object days of the week to remote days of the week
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param array $days - task object days of the week values(s)
+	 * @param array $days - event object days of the week values(s)
 	 * @param bool $group - flag to check if days can be grouped 
 	 * 
 	 * @return string remote days of the week values(s)
 	 */
-	private function toDaysOfWeek(array $days, bool $group = false): string {
+	private function toDaysOfWeek(array $days, bool $group = false): int {
 		
-		// days conversion reference
-		$_tm = array(
-			1 => 'Monday',
-			2 => 'Tuesday',
-			3 => 'Wednesday',
-			4 => 'Thursday',
-			5 => 'Friday',
-			6 => 'Saturday',
-			7 => 'Sunday',
-			0 => 'Day',
-			8 => 'Weekday',
-			9 => 'WeekendDay'
-		);
 		// evaluate if days match any group patterns
 		if ($group) {
-			$groups = array(
-				'Day' => array(1,2,3,4,5,6,7),
-				'Weekday' => array(1,2,3,4,5),
-				'WeekendDay' => array(6,7)
-			);
 			sort($days);
-			foreach ($groups as $key => $entry) {
-				if ($days == $entry) {
-					return $key;
-				}
+			if ($days == [1,2,3,4,5]) {
+				return 62;		// Week	Days
+			}
+			elseif ($days == [6,7]) {
+				return 65;		// Weekend Days
 			}
 		}
         // convert day values
+		$dow = 0;
         foreach ($days as $key => $entry) {
-            if (isset($_tm[$entry])) {
-                $days[$key] = $_tm[$entry];
-            }
+			switch ($entry) {
+				case 1:
+					$dow += 2;	// Monday
+					break;
+				case 2:
+					$dow += 4;	// Tuesday
+					break;
+				case 3:
+					$dow += 8;	// Wednesday
+					break;
+				case 4:
+					$dow += 16;	// Thursday
+					break;
+				case 5:
+					$dow += 32;	// Friday
+					break;
+				case 6:
+					$dow += 64;	// Saturday
+					break;
+				case 7:
+					$dow += 1;	// Sunday
+					break;
+			}
         }
-        // convert days to string
-        $days = implode(' ', $days);
         // return converted days
-        return $days;
+        return $dow;
 
 	}
 
 	/**
-     * convert remote days of the month to task object days of the month
+     * convert remote days of the month to event object days of the month
 	 * 
      * @since Release 1.0.0
      * 
 	 * @param sting $days - remote days of the month values(s)
 	 * 
-	 * @return array task object days of the month values(s)
+	 * @return array event object days of the month values(s)
 	 */
 	private function fromDaysOfMonth(string $days): array {
 
-		// convert days to array
-		$days = explode(' ', $days);
 		// return converted days
-		return $days;
+		return [$days];
 
 	}
 
 	/**
-     * convert task object days of the month to remote days of the month
+     * convert event object days of the month to remote days of the month
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param array $days - task object days of the month values(s)
+	 * @param array $days - event object days of the month values(s)
 	 * 
 	 * @return string remote days of the month values(s)
 	 */
 	private function toDaysOfMonth(array $days): string {
 
-        // convert days to string
-        $days = implode(' ', $days);
         // return converted days
-        return $days;
+        return $days[0];
 
 	}
 
 	/**
-     * convert remote week of the month to task object week of the month
+     * convert remote week of the month to event object week of the month
 	 * 
      * @since Release 1.0.0
      * 
 	 * @param sting $weeks - remote week of the month values(s)
 	 * 
-	 * @return array task object week of the month values(s)
+	 * @return array event object week of the month values(s)
 	 */
 	private function fromWeekOfMonth(string $weeks): array {
 
 		// weeks conversion reference
 		$_tm = array(
-			'First' => 1,
-			'Second' => 2,
-			'Third' => 3,
-			'Fourth' => 4,
-			'Last' => -1
+			'1' => 1,
+			'2' => 2,
+			'3' => 3,
+			'4' => 4,
+			'5' => -1
 		);
-		// convert weeks to array
-		$weeks = explode(' ', $weeks);
 		// convert week values
 		foreach ($weeks as $key => $entry) {
 			if (isset($_tm[$entry])) {
@@ -1480,11 +906,11 @@ class RemoteTasksService {
 	}
 
 	/**
-     * convert task object week of the month to remote week of the month
+     * convert event object week of the month to remote week of the month
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param array $weeks - task object week of the month values(s)
+	 * @param array $weeks - event object week of the month values(s)
 	 * 
 	 * @return string remote week of the month values(s)
 	 */
@@ -1492,12 +918,12 @@ class RemoteTasksService {
 
 		// weeks conversion reference
 		$_tm = array(
-			1 => 'First',
-			2 => 'Second',
-			3 => 'Third',
-			4 => 'Fourth',
-			-1 => 'Last',
-			-2 => 'Fourth'
+			1 => '1',
+			2 => '2',
+			3 => '3',
+			4 => '4',
+			-1 => '5',
+			-2 => '4'
 		);
 		// convert week values
         foreach ($weeks as $key => $entry) {
@@ -1513,194 +939,34 @@ class RemoteTasksService {
 	}
 
 	/**
-     * convert remote month of the year to task object month of the year
+     * convert remote month of the year to event object month of the year
 	 * 
      * @since Release 1.0.0
      * 
 	 * @param sting $months - remote month of the year values(s)
 	 * 
-	 * @return array task object month of the year values(s)
+	 * @return array event object month of the year values(s)
 	 */
 	private function fromMonthOfYear(string $months): array {
 
-		// months conversion reference
-		$_tm = array(
-			'January' => 1,
-			'February' => 2,
-			'March' => 3,
-			'April' => 4,
-			'May' => 5,
-			'June' => 6,
-			'July' => 7,
-			'August' => 8,
-			'September' => 9,
-			'October' => 10,
-			'November' => 11,
-			'December' => 12
-		);
-		// convert months to array
-		$months = explode(' ', $months);
-		// convert month values
-		foreach ($months as $key => $entry) {
-			if (isset($_tm[$entry])) {
-				$months[$key] = $_tm[$entry];
-			}
-		}
 		// return converted months
-		return $months;
+		return [$months];
 
 	}
 
 	/**
-     * convert task object month of the year to remote month of the year
+     * convert event object month of the year to remote month of the year
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param array $weeks - task object month of the year values(s)
+	 * @param array $weeks - event object month of the year values(s)
 	 * 
 	 * @return string remote month of the year values(s)
 	 */
 	private function toMonthOfYear(array $months): string {
 
-		// months conversion reference
-		$_tm = array(
-			1 => 'January',
-			2 => 'February',
-			3 => 'March',
-			4 => 'April',
-			5 => 'May',
-			6 => 'June',
-			7 => 'July',
-			8 => 'August',
-			9 => 'September',
-			10 => 'October',
-			11 => 'November',
-			12 => 'December'
-		);
-		// convert month values
-        foreach ($months as $key => $entry) {
-            if (isset($_tm[$entry])) {
-                $months[$key] = $_tm[$entry];
-            }
-        }
-        // convert months to string
-        $months = implode(',', $months);
         // return converted months
-        return $months;
-
-	}
-
-	/**
-     * convert remote sensitivity to task object sensitivity
-	 * 
-     * @since Release 1.0.0
-     * 
-	 * @param sting $level - remote sensitivity value
-	 * 
-	 * @return int task object sensitivity value
-	 */
-	private function fromSensitivity(?string $level): int {
-		
-		// sensitivity conversion reference
-		$levels = array(
-			'Normal' => 0,
-			'Personal' => 1,
-			'Private' => 2,
-			'Confidential' => 3
-		);
-		// evaluate if sensitivity value exists
-		if (isset($levels[$level])) {
-			// return converted sensitivity value
-			return $levels[$level];
-		} else {
-			// return default sensitivity value
-			return 0;
-		}
-		
-	}
-
-	/**
-     * convert task object sensitivity to remote sensitivity
-	 * 
-     * @since Release 1.0.0
-     * 
-	 * @param int $level - task object sensitivity value
-	 * 
-	 * @return string remote sensitivity value
-	 */
-	private function toSensitivity(?int $level): string {
-		
-		// sensitivity conversion reference
-		$levels = array(
-			0 => 'Normal',
-			1 => 'Personal',
-			2 => 'Private',
-			3 => 'Confidential'
-		);
-		// evaluate if sensitivity value exists
-		if (isset($levels[$level])) {
-			// return converted sensitivity value
-			return $levels[$level];
-		} else {
-			// return default sensitivity value
-			return 'Normal';
-		}
-
-	}
-
-	/**
-     * convert remote importance to task object priority
-	 * 
-     * @since Release 1.0.0
-     * 
-	 * @param sting $level - remote importance value
-	 * 
-	 * @return int task object priority value
-	 */
-	private function fromImportance(?string $level): int {
-		
-		// importance conversion reference
-		$levels = array(
-			'Low' => 0,
-			'Normal' => 1,
-			'High' => 2
-		);
-		// evaluate if importance value exists
-		if (isset($levels[$level])) {
-			// return converted priority value
-			return $levels[$level];
-		} else {
-			// return default priority value
-			return 1;
-		}
-		
-	}
-
-	/**
-     * convert task object priority to remote importance
-	 * 
-     * @since Release 1.0.0
-     * 
-	 * @param int $level - task object priority value
-	 * 
-	 * @return string remote importance value
-	 */
-	private function toImportance(?int $level): string {
-
-		// priority conversion reference
-		$levels = array(
-			0 => 'Low',
-			1 => 'Normal',
-			2 => 'High'
-		);
-		// evaluate if priority value exists
-		if (isset($levels[$level])) {
-			// return converted importance value
-			return $levels[$level];
-		} else {
-			// return default importance value
-			return 'Normal';
-		}
+        return $months[0];
 
 	}
 

@@ -354,7 +354,7 @@ class RemoteCommonService {
 	 * 
 	 * @return EasObject|null 			EasObject on success / Null on failure
 	 */
-	public function syncEntities(EasClient $DataStore, string $cst, string $cid, array $options): ?EasObject {
+	public function syncEntities(EasClient $DataStore, string $cst, string $cid, array $options = []): ?EasObject {
 		
 		// construct Sync request
 		$o = new \stdClass();
@@ -423,7 +423,7 @@ class RemoteCommonService {
 	 * 
 	 * @return array|null 				Array on success / Null on failure
 	 */
-	public function syncEntitiesVarious(EasClient $DataStore, array $collections, array $options): ?array {
+	public function syncEntitiesVarious(EasClient $DataStore, array $collections, array $options = []): ?array {
 		
 		// construct Sync request
 		$o = new \stdClass();
@@ -864,14 +864,53 @@ class RemoteCommonService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param EasClient $DataStore - Storage Interface
-	 * @param string $ids - Attachement ID's (array)
+	 * @param EasClient $DataStore		Storage Interface
+	 * @param string $batch				Attachement ID's (array)
 	 * 
-	 * @return object Attachement Collection Object on success / Null on failure
+	 * @return array 					Collection of EasObjects on success / Null on failure
 	 */
 	public function fetchAttachment(EasClient $DataStore, array $batch): ?array {
 		
-		return null;
+		// construct Entityoperation request
+		$o = new \stdClass();
+		$o->EntityOperations = new EasObject('EntityOperations');
+		$o->EntityOperations->Fetch = new EasCollection('EntityOperations');
+
+		foreach ($batch as $aid) {
+			// construct object
+			$a = new EasObject('EntityOperations');
+			// assign properties
+			$a->Store = new EasProperty('EntityOperations', 'Mailbox');
+			$a->FileReference = new EasProperty('AirSyncBase', $aid);
+			// add to collection
+			$o->EntityOperations->Fetch[] = $a;
+		}
+
+		// serialize request message
+		$rq = $this->_encoder->stringFromObject($o);
+		// execute request
+		$rs = $DataStore->performEntityOperation($rq);
+		// evaluate, if data was returned
+		if (!empty($rs)) {
+			// deserialize response message
+			$o = $this->_decoder->stringToObject($rs);
+			// evaluate response status
+			if (isset($o->EntityOperations->Status) && $o->EntityOperations->Status->getContents() != '1') {
+				throw new EasException($o->EntityOperations->Status->getContents(), 'EF');
+			}
+			// evaluate response
+			if (!is_array($o->EntityOperations->Response->Fetch)) {
+				// return response message
+				return [$o->EntityOperations->Response->Fetch];	
+			} else {
+				// return response message
+				return $o->EntityOperations->Response->Fetch;
+			}
+		}
+		else {
+			// return blank response
+			return null;
+		}
 
 	}
 

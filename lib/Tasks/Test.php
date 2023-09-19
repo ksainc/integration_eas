@@ -79,7 +79,7 @@ try {
 	$CoreService = \OC::$server->get(\OCA\EAS\Service\CoreService::class);
 	//$HarmonizationService = \OC::$server->get(\OCA\EAS\Service\HarmonizationService::class);
 	$RemoteCommonService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteCommonService::class);
-	$RemoteContactsService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteContactsService::class);
+	$RemoteEventsService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteEventsService::class);
 
 	// construct decoder
 	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
@@ -88,131 +88,52 @@ try {
 	// construct remote data store client
 	$EasClient = $CoreService->createClient($uid);
 	// assign remote data store to module
-	$RemoteContactsService->DataStore = $EasClient;
+	$RemoteEventsService->DataStore = $EasClient;
 
 	// perform initial connect
 	$EasClient->performConnect();
 
 	// Load From File
-	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync', 'r');
+	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync-Response', 'r');
 	//$msg_ref_raw = stream_get_contents($stream);
 	//$msg_ref_obj = $EasXmlDecoder->streamToObject($stream);
 	//fclose($stream);
 	//$msg_ref_hex = unpack('H*', $msg_ref_raw);
 	//exit;
 
+
 	$token = 0;
 
 	// Fetch collections
 	$rs = $RemoteCommonService->syncCollections($EasClient);
-
-	// ====== Working ============
-	// retrieve sync token
-	//$token = $rs->SyncKey->getContents();
-	// create collection
-	//$rs = $RemoteCommonService->createCollection($EasClient, $token, '0', 'Test Contacts', \OCA\EAS\Utile\Eas\EasTypes::COLLECTION_TYPE_USER_CONTACTS);
-	// retrieve collection id and sync token
-	//$cid = $rs->Id->getContents();
-	//$token = $rs->CollectionCreate->SyncKey->getContents();
-	// update collection
-	//$rs = $RemoteCommonService->updateCollection($EasClient, $token, '0', $cid, 'Test Contacts 2');
-	// retrieve sync token
-	//$token = $rs->SyncKey->getContents();
-	// delete collection
-	//$rs = $RemoteCommonService->deleteCollection($EasClient, $token, $cid);
 	
 	// find contacts collection
 	foreach ($rs->Changes->Add as $entry) {
-		if ($entry->Name->getContents() == 'Contacts') {
+		if ($entry->Name->getContents() == 'Calendar') {
 			$cid = $entry->Id->getContents();
 			break;
 		}
 	}
 
-	// find name
-	$rs = $RemoteCommonService->searchEntities($EasClient, 'Contact', 'adele', ['STORE' => 'GAL', 'CATEGORY' => 'CLS', 'BODY' => \OCA\EAS\Utile\Eas\EasTypes::BODY_TYPE_TEXT]); // 
-
-	//<Settings> <UserInformation> <Get/> </UserInformation> </Settings>
-	//$rs = $RemoteCommonService->retrieveSettings($EasClient, 'Device');
-
-	exit;
-
-
 	// sync collection
-	$rs = $RemoteContactsService->syncEntities($cid, $token);
+	$rs = $RemoteEventsService->syncEntities($cid, $token);
 	
 	$token = $rs->SyncKey->getContents();
 
 	if (isset($rs->Commands)) {
 
+		if (!is_array($rs->Commands->Add)) {
+			$rs->Commands->Add = [$rs->Commands->Add];
+		}
+
 		foreach ($rs->Commands->Add as $entry) {
-
-			if ($entry->Data->FileAs->getContents() == 'NC Homer J. Simpson') {
-				$rs = $RemoteContactsService->deleteEntity($cid, $token, $entry->EntityId->getContents());
-			}
-
-			if ($entry->Data->FileAs->getContents() == 'SimpsonMarge (123 Inc)') {
-				$testid = $entry->EntityId->getContents();
-			}
-
+			$testid = $entry->EntityId->getContents();
 		}
 	
 	}
 
 	// retrieve entity
-	$rs = $RemoteContactsService->fetchEntity($cid, $testid);
-
-	$co = new \OCA\EAS\Objects\ContactObject();
-	$co->Label = 'NC Homer J. Simpson';
-	$co->Name->Last = "Simpson";
-	$co->Name->First = 'Homer';
-	$co->Name->Other = 'J';
-	$co->Name->Prefix = 'Mr';
-	$co->Name->Suffix = 'Dooh';
-	$co->Aliases = 'Pieman';
-	$co->BirthDay = new \Datetime('May 12, 1956');
-	$co->AnniversaryDay = new \Datetime('April 19, 1987');
-	$co->addAddress(
-		'HOME',
-		'742 Evergreen Terrace',
-		'Springfield',
-		'Oregon',
-		'97477',
-		'United States'
-	);
-	$co->addAddress(
-		'WORK',
-		'1 Atomic Lane',
-		'Springfield',
-		'Oregon',
-		'97408',
-		'United States'
-	);
-	$co->addPhone(
-		'HOME',
-		'VOICE',
-		'(939) 555-0113'
-	);
-	$co->addPhone(
-		'WORK',
-		'VOICE',
-		'(939) 555-7334'
-	);
-	$co->addEmail(
-		'HOME',
-		'homer@simpsons.fake'
-	);
-	$co->addEmail(
-		'WORK',
-		'hsimpson@springfieldpower.fake'
-	);
-	$co->Occupation->Organization = 'Springfield Power Company';
-	$co->Occupation->Title = 'Chief Safety Officer';
-	$co->Occupation->Role = 'Safety Inspector';
-	$co->addTag('Simpson Family');
-
-	// create Item
-	$rs = $RemoteContactsService->createEntity($cid, $token, $co);
+	$rs = $RemoteEventsService->fetchEntity($cid, $testid);
 
 	exit;
 

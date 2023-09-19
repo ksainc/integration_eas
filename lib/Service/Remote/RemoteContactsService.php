@@ -147,7 +147,7 @@ class RemoteContactsService {
 	public function updateCollection(string $cht, string $chl, string $cid, string $name): ?ContactCollectionObject {
         
 		// execute command
-		$rs = $RemoteCommonService->createCollection($this->DataStore, $cht, $chl, $cid, $name);
+		$rs = $RemoteCommonService->updateCollection($this->DataStore, $cht, $chl, $cid, $name);
         // process response
 		if (isset($rs->Status) && $rs->Status->getContents() == '1') {
 		    return new ContactCollectionObject(
@@ -237,7 +237,20 @@ class RemoteContactsService {
             $co->CID = $ro->CollectionId->getContents();
             // retrieve attachment(s) from remote data store
 			if (count($co->Attachments) > 0) {
-				$co->Attachments = $this->fetchCollectionItemAttachment(array_column($co->Attachments, 'Id'));
+				// retrieve all attachments
+				$ro = $this->RemoteCommonService->fetchAttachment($this->DataStore, array_column($co->Attachments, 'Id'));
+				// evaluate returned object
+				if (count($ro) > 0) {
+					foreach ($ro as $entry) {
+						// evaluate status
+						if (isset($entry->Status) && $entry->Status->getContents() == '1') {
+							$key = array_search($entry->FileReference->getContents(), array_column($co->Attachments, 'Id'));
+							if ($key !== false) {
+								$co->Attachments[$key]->Data = base64_decode($entry->Properties->Data->getContents());
+							}
+						}
+					}
+				}
 			}
             // return object
 		    return $co;
@@ -345,15 +358,15 @@ class RemoteContactsService {
     }
 
     /**
-     * retrieve collection item attachment from remote storage
+     * retrieve collection entity attachment from remote storage
      * 
      * @since Release 1.0.0
      * 
-     * @param string $aid - Attachment ID
+     * @param array $batch		Batch of Attachment ID's
 	 * 
 	 * @return array
 	 */
-	public function fetchEntityAttachment(array $batch): array {
+	public function fetchAttachment(array $batch): array {
 
 		// check to for entries in batch collection
         if (count($batch) == 0) {
@@ -372,19 +385,13 @@ class RemoteContactsService {
 				} else {
 					$type = $entry->ContentType;
 				}
-                if ($entry->IsContactPhoto || str_contains($entry->Name, 'ContactPicture')) {
-                    $flag = 'CP';
-                }
-                else {
-                    $flag = null;
-                }
 				// insert attachment object in response collection
-				$rc[] = new ContactAttachmentObject(
+				$rc[] = new EventAttachmentObject(
+					'D',
 					$entry->AttachmentId->Id, 
 					$entry->Name,
 					$type,
 					'B',
-                    $flag,
 					$entry->Size,
 					$entry->Content
 				);
@@ -497,6 +504,8 @@ class RemoteContactsService {
 
 		// create object
 		$co = new ContactObject();
+        // Origin
+		$o->Origin = 'R';
         // Label
         if (!empty($so->FileAs)) {
             $co->Label = $so->FileAs->getContents();
@@ -725,23 +734,38 @@ class RemoteContactsService {
         }
         // Tag(s)
         if (isset($so->Categories)) {
-            if (is_array($so->Categories->Category)) {
-                foreach($so->Categories->Category as $entry) {
-                    $co->addTag($entry->getContents());
-                }
+            if (!is_array($so->Categories->Category)) {
+                $so->Categories->Category = [$so->Categories->Category];
             }
-            else {
-                $co->addTag($so->Categories->Category->getContents());
-            }
+			foreach($so->Categories->Category as $entry) {
+				$co->addTag($entry->getContents());
+			}
         }
         // Notes
-        if (!empty($so->Body)) {
+        if (!empty($so->Body->Data)) {
             $co->Notes = $so->Body->Data->getContents();
         }
         // URL / Website
         if (isset($so->WebPage)) {
-            $this->URI = $so->WebPage->getContents();
+            $co->URL = $so->WebPage->getContents();
         }
+        // Attachment(s)
+		if (isset($so->Attachments)) {
+			if (!is_array($so->Attachments->Attachment)) {
+				$so->Attachments->Attachment = [$so->Attachments->Attachment];
+			}
+			foreach($so->Attachments->Attachment as $entry) {
+				$type = \OCA\EAS\Utile\MIME::fromFileName($entry->DisplayName->getContents());
+				$co->addAttachment(
+					'D',
+					$entry->FileReference->getContents(), 
+					$entry->DisplayName->getContents(),
+					$type,
+					'B',
+					$entry->EstimatedDataSize->getContents()
+				);
+			}
+		}
 
 		return $co;
 
