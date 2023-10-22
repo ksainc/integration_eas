@@ -48,8 +48,7 @@
 			<plugin>OCA\EAS\Providers\Contacts\Provider</plugin>
 		</address-book-plugins>
 		<calendar-plugins>
-			<plugin>OCA\EAS\Providers\Events\Provider</plugin>
-			<plugin>OCA\EAS\Providers\Tasks\Provider</plugin>
+			<plugin>OCA\EAS\Providers\Calendar\Provider</plugin>
 		</calendar-plugins>
 	</sabre>
 </info>

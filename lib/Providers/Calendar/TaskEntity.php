@@ -1,8 +1,8 @@
 <?php
 
-namespace OCA\EAS\Providers\Events;
+namespace OCA\EAS\Providers\Calendar;
 
-class Entity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
+class TaskEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 
 	private Collection $_collection;
 	private string $_id;

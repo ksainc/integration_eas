@@ -1,6 +1,6 @@
 <?php
 
-namespace OCA\EAS\Providers\Tasks;
+namespace OCA\EAS\Providers\Calendar;
 
 use OCA\DAV\CalDAV\Integration\ExternalCalendar;
 use OCA\DAV\CalDAV\Plugin;
@@ -8,12 +8,12 @@ use Sabre\CalDAV\Xml\Property\SupportedCalendarComponentSet;
 use Sabre\DAV\PropPatch;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Db\TaskStore;
+use OCA\EAS\Db\EventStore;
 
-class Collection extends ExternalCalendar {
+class EventCollection extends ExternalCalendar {
 
-	/** @var TaskStore */
-	private TaskStore $_store;
+	/** @var EventStore */
+	private EventStore $_store;
 	/** @var string */
 	private int $_id;
 	/** @var string */
@@ -34,7 +34,7 @@ class Collection extends ExternalCalendar {
 	 * @param string $label
 	 * @param string $color
 	 */
-	public function __construct(TaskStore $store, string $id, string $uid, string $uri, string $label, string $color) {
+	public function __construct(EventStore $store, string $id, string $uid, string $uri, string $label, string $color) {
 		parent::__construct(Application::APP_ID, $uri);
 
 		$this->_store = $store;
@@ -194,7 +194,7 @@ class Collection extends ExternalCalendar {
 		// initilize correlation service
 		$CorrelationsService = \OC::$server->get(\OCA\EAS\Service\CorrelationsService::class);
 		// retrieve correlation entry
-		$cr = $CorrelationsService->findByLocalId($this->_uid, $CorrelationsService::ContactCollection, $this->_id);
+		$cr = $CorrelationsService->findByLocalId($this->_uid, $CorrelationsService::EventCollection, $this->_id);
 		// evaluate if correlation was found
 		if (isset($cr)) {
 			// delete correlations
@@ -288,7 +288,7 @@ class Collection extends ExternalCalendar {
 		return [
 			'{DAV:}displayname' => $this->_label,
 			'{http://apple.com/ns/ical/}calendar-color'  => $this->_color,
-			'{' . Plugin::NS_CALDAV . '}supported-calendar-component-set' => new SupportedCalendarComponentSet(['VTODO']),
+			'{' . Plugin::NS_CALDAV . '}supported-calendar-component-set' => new SupportedCalendarComponentSet(['VEVENT']),
 		];
 	}
 
