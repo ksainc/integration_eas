@@ -28,12 +28,10 @@ namespace OCA\EAS\Service\Local;
 use Datetime;
 use DateTimeZone;
 use DateInterval;
-use Psr\Log\LoggerInterface;
 use OC\Files\Node\LazyUserFolder;
 use OCA\DAV\CalDAV\CalDavBackend;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Db\TasksUtile;
 use OCA\EAS\Objects\TaskCollectionObject;
 use OCA\EAS\Objects\TaskObject;
 use OCA\EAS\Objects\TaskAttachmentObject;
@@ -42,10 +40,7 @@ use Sabre\VObject\Reader;
 use Sabre\VObject\Component\VTodo;
 
 class LocalTasksService {
-	/**
-	 * @var LoggerInterface
-	 */
-	private $logger;
+	
     /**
 	 * @var DateTimeZone
 	 */
@@ -67,9 +62,7 @@ class LocalTasksService {
 	 */
 	public ?LazyUserFolder $FileStore = null;
 
-	public function __construct (string $appName, LoggerInterface $logger, TasksUtile $TasksUtile) {
-		$this->logger = $logger;
-        $this->TasksUtile = $TasksUtile;
+	public function __construct () {
 	}
 
 	/**

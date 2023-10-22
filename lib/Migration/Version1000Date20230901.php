@@ -43,8 +43,8 @@ class Version1000Date20230901 extends SimpleMigrationStep {
 		/** @var ISchemaWrapper $schema */
 		$schema = $schemaClosure();
 
-		if (!$schema->hasTable('eas_integration_crls')) {
-			$table = $schema->createTable('eas_integration_crls');
+		if (!$schema->hasTable('eas_correlations')) {
+			$table = $schema->createTable('eas_correlations');
 			// id
 			$table->addColumn('id', Types::INTEGER, [
 				'autoincrement' => true,

@@ -34,7 +34,7 @@ use OCP\IDBConnection;
 class CorrelationMapper extends QBMapper {
 
 	private IDBConnection $DataStore;
-	private string $DataStoreTable = 'eas_integration_crls';
+	private string $DataStoreTable = 'eas_correlations';
 
 	public function __construct(IDBConnection $db) {
 		parent::__construct($db, $this->DataStoreTable, Correlation::class);
@@ -260,4 +260,5 @@ class CorrelationMapper extends QBMapper {
 		return $qb->execute();
 
 	}
+	
 }

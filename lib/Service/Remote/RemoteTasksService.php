@@ -222,7 +222,7 @@ class RemoteTasksService {
 	 * @param string $cid			Collection Id
 	 * @param string $eid			Entity Id
 	 * 
-	 * @return TaskObject        TaskObject on success / Null on failure
+	 * @return TaskObject        	TaskObject on success / Null on failure
 	 */
 	public function fetchEntity(string $cid, string $eid): ?TaskObject {
 
@@ -231,15 +231,15 @@ class RemoteTasksService {
         // validate response
 		if (isset($ro->Status) && $ro->Status->getContents() == '1') {
             // convert to contact object
-            $co = $this->toTaskObject($ro->Properties);
-            $co->ID = $ro->EntityId->getContents();
-            $co->CID = $ro->CollectionId->getContents();
+            $to = $this->toTaskObject($ro->Properties);
+            $to->ID = $ro->EntityId->getContents();
+            $to->CID = $ro->CollectionId->getContents();
             // retrieve attachment(s) from remote data store
-			if (count($co->Attachments) > 0) {
-				$co->Attachments = $this->fetchCollectionItemAttachment(array_column($co->Attachments, 'Id'));
+			if (count($to->Attachments) > 0) {
+				$to->Attachments = $this->fetchCollectionItemAttachment(array_column($to->Attachments, 'Id'));
 			}
             // return object
-		    return $co;
+		    return $to;
         } else {
             // return null
             return null;
@@ -266,16 +266,16 @@ class RemoteTasksService {
 	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_TASK, $eo);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
-			$co = clone $so;
-			$co->ID = $ro->Responses->Add->EntityId->getContents();
-            $co->CID = $ro->CollectionId->getContents();
+			$to = clone $so;
+			$to->ID = $ro->Responses->Add->EntityId->getContents();
+            $to->CID = $ro->CollectionId->getContents();
 			// deposit attachment(s)
-			if (count($co->Attachments) > 0) {
+			if (count($to->Attachments) > 0) {
 				// create attachments in remote data store
-				$co->Attachments = $this->createCollectionItemAttachment($co->ID, $co->Attachments);
-				$co->State = $co->Attachments[0]->AffiliateState;
+				$to->Attachments = $this->createCollectionItemAttachment($to->ID, $to->Attachments);
+				$to->State = $to->Attachments[0]->AffiliateState;
 			}
-            return $co;
+            return $to;
         } else {
             return null;
         }
@@ -296,23 +296,23 @@ class RemoteTasksService {
 	public function updateEntity(string $cid, string $cst, TaskObject $so): ?TaskObject {
 
         // extract source object id
-        $eid = $co->ID;
+        $eid = $to->ID;
         // convert source TaskObject to EasObject
         $eo = $this->fromTaskObject($so);
 	    // execute command
 	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $eo);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
-			$co = clone $so;
-			$co->ID = $ro->Responses->Modify->EntityId;
-            $co->CID = $cid;
+			$to = clone $so;
+			$to->ID = $ro->Responses->Modify->EntityId;
+            $to->CID = $cid;
 			// deposit attachment(s)
 			if (count($so->Attachments) > 0) {
 				// create attachments in remote data store
-				$co->Attachments = $this->createCollectionItemAttachment($co->ID, $co->Attachments);
-				$co->State = $co->Attachments[0]->AffiliateState;
+				$to->Attachments = $this->createCollectionItemAttachment($to->ID, $to->Attachments);
+				$to->State = $to->Attachments[0]->AffiliateState;
 			}
-            return $co;
+            return $to;
         } else {
             return null;
         }
@@ -409,24 +409,24 @@ class RemoteTasksService {
 		// process batch
 		foreach ($batch as $key => $entry) {
 			// construct command object
-			$co = new \OCA\EAS\Utile\Eas\Type\FileAttachmentType();
-			$co->IsInline = false;
-			$co->IsContactPhoto = false;
-			$co->Name = $entry->Name;
-			$co->ContentId = $entry->Name;
-			$co->ContentType = $entry->Type;
-			$co->Size = $entry->Size;
+			$to = new \OCA\EAS\Utile\Eas\Type\FileAttachmentType();
+			$to->IsInline = false;
+			$to->IsContactPhoto = false;
+			$to->Name = $entry->Name;
+			$to->ContentId = $entry->Name;
+			$to->ContentType = $entry->Type;
+			$to->Size = $entry->Size;
 			
 			switch ($entry->Encoding) {
 				case 'B':
-					$co->Content = $entry->Data;
+					$to->Content = $entry->Data;
 					break;
 				case 'B64':
-					$co->Content = base64_decode($entry->Data);
+					$to->Content = base64_decode($entry->Data);
 					break;
 			}
 			// insert command object in to collection
-			$cc[] = $co;
+			$cc[] = $to;
 		}
 		// execute command(s)
 		$rs = $this->RemoteCommonService->createAttachment($this->DataStore, $aid, $cc);
@@ -485,54 +485,38 @@ class RemoteTasksService {
 		$to = new TaskObject();
 		// Origin
 		$to->Origin = 'R';
-        // Creation Date
-        if (!empty($so->DateTimeCreated)) {
-            $to->CreatedOn = new DateTime($so->DateTimeCreated);
-        }
-        // Modification Date
-        if (!empty($so->DateTimeSent)) {
-            $to->ModifiedOn = new DateTime($so->DateTimeSent);
-        }
-        if (!empty($so->LastModifiedTime)) {
-            $to->ModifiedOn = new DateTime($so->LastModifiedTime);
-        }
 		// Start Date/Time
-		if (!empty($so->StartDate)) {
-			$to->StartsOn = new DateTime($so->StartDate);
+		if (!empty($so->UtcStartDate)) {
+			$to->StartsOn = new DateTime($so->UtcStartDate->getContents());
 		}
 		// Due Date/Time
-        if (!empty($so->DueDate)) {
-            $to->DueOn = new DateTime($so->DueDate);
+        if (!empty($so->UtcDueDate)) {
+            $to->DueOn = new DateTime($so->UtcDueDate->getContents());
         }
 		// Completed Date/Time
-        if (!empty($so->CompleteDate)) {
-            $to->CompletedOn = new DateTime($so->CompleteDate);
+        if (!empty($so->DateCompleted)) {
+            $to->CompletedOn = new DateTime($so->DateCompleted->getContents());
         }
 		// Label
         if (!empty($so->Subject)) {
-            $eo->Label = $so->Subject->getContents();
+            $to->Label = $so->Subject->getContents();
         }
 		// Notes
 		if (!empty($so->Body->Data)) {
-			$eo->Notes = $so->Body->Data->getContents();
+			$to->Notes = $so->Body->Data->getContents();
 		}
 		// Progress
-        if (!empty($so->PercentComplete)) {
-            $to->Progress = $so->PercentComplete;
-        }
-		// Status
-        if (!empty($so->Status)) {
-            $to->Status = $this->fromStatus($so->Status);
+        if (!empty($so->Complete)) {
+            $to->Progress = $so->Complete->getContents();
         }
 		// Priority
 		if (!empty($so->Importance)) {
-			$v = (int) $so->Importance->getContents();
-			$eo->Priority = ($v > -1 && $v < 3) ? $v : 1;
+			$to->Priority = $this->fromImportance((int) $so->Importance->getContents());
 		}
 		// Sensitivity
 		if (!empty($so->Sensitivity)) {
 			$v = (int) $so->Sensitivity->getContents();
-			$eo->Sensitivity = ($v > -1 && $v < 4) ? $v : 0;
+			$to->Sensitivity = ($v > -1 && $v < 4) ? $v : 0;
 		}
 		// Tag(s)
         if (isset($so->Categories)) {
@@ -540,14 +524,14 @@ class RemoteTasksService {
                 $so->Categories->Category = [$so->Categories->Category];
             }
 			foreach($so->Categories->Category as $entry) {
-				$eo->addTag($entry->getContents());
+				$to->addTag($entry->getContents());
 			}
         }
 		// Notification(s)
 		if (isset($so->Reminder)) { 
 			$w = new DateInterval('PT' . $so->Reminder->getContents() . 'M');
 			$w->invert = 1;
-			$eo->addNotification(
+			$to->addNotification(
 				'D',
 				'R',
 				$w
@@ -674,66 +658,6 @@ class RemoteTasksService {
     }
 
 	/**
-     * convert remote status to task object status
-	 * 
-     * @since Release 1.0.0
-     * 
-	 * @param sting $status - remote status value
-	 * 
-	 * @return string task object status value
-	 */
-	private function fromStatus(?string $status): string {
-		
-		// status conversion reference
-		$statuses = array(
-			'NotStarted' => 'N',
-			'InProgress' => 'P',
-			'Completed' => 'C',
-			'WaitingOnOthers' => 'W',
-			'Deferred' => 'D',
-		);
-		// evaluate if status value exists
-		if (isset($statuses[$status])) {
-			// return converted status value
-			return $statuses[$status];
-		} else {
-			// return default status value
-			return 'N';
-		}
-		
-	}
-
-	/**
-     * convert task object status to remote status
-	 * 
-     * @since Release 1.0.0
-     * 
-	 * @param int $status - task object status value
-	 * 
-	 * @return string remote status value
-	 */
-	private function toStatus(?string $status): string {
-		
-		// sensitivity conversion reference
-		$statuses = array(
-			'N' => 'NotStarted',
-			'P' => 'InProgress',
-			'C' => 'Completed',
-			'W' => 'WaitingOnOthers',
-			'D' => 'Deferred'
-		);
-		// evaluate if sensitivity value exists
-		if (isset($statuses[$status])) {
-			// return converted sensitivity value
-			return $statuses[$status];
-		} else {
-			// return default sensitivity value
-			return 'NotStarted';
-		}
-
-	}
-
-	/**
      * convert remote days of the week to event object days of the week
 	 * 
      * @since Release 1.0.0
@@ -784,8 +708,10 @@ class RemoteTasksService {
 			$dow[] = 7;		// Sunday
 			$days -= 1;
 		}
+		// sort days
+		asort($dow);
 		// return converted days
-		return asort($dow);
+		return $dow;
 
 	}
 
@@ -971,63 +897,55 @@ class RemoteTasksService {
 	}
 
 	/**
-     * convert remote attendee response to task object response
+     * convert remote importance value to task object priority value
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param sting $response - remote attendee response value
+	 * @param int $value		remote importance value
 	 * 
-	 * @return string task object attendee response value
+	 * @return int 				task object priority value
 	 */
-	private function fromAttendeeResponse(?string $response): string {
+	private function fromImportance(?int $value): int {
 		
-		// response conversion reference
-		$responses = array(
-			'Accept' => 'A',
-			'Decline' => 'D',
-			'Tentative' => 'T',
-			'Organizer' => 'O',
-			'Unknown' => 'U',
-			'NoResponseReceived' => 'N'
-		);
-		// evaluate if response value exists
-		if (isset($responses[$response])) {
-			// return converted response value
-			return $responses[$response];
-		} else {
-			// return default response value
-			return 'N';
+		// EAS: 0 = low, 1 = normal (default), 2 = high
+		// VTODO: 0 = undefined, 1-3 = high, 4-6 = normal, 7-9 = low
+
+		// evaluate remote level and return local equvialent
+		if ($value == 2) {
+			return 2;		// high priority
+		}
+		elseif ($value == 0) {
+			return 8;		// low priority
+		}
+		else {
+			return 5;		// normal priority
 		}
 		
 	}
 
 	/**
-     * convert task object attendee response to remote attendee response
+     * convert task object priority value to remote importance value
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param string $response - task object attendee response value
+	 * @param int $value		task object priority value
 	 * 
-	 * @return string remote attendee response value
+	 * @return int				remote importance value
 	 */
-	private function toAttendeeResponse(?string $response): string {
-		
-		// response conversion reference
-		$responses = array(
-			'A' => 'Accept',
-			'D' => 'Decline',
-			'T' => 'Tentative',
-			'O' => 'Organizer',
-			'U' => 'Unknown',
-			'N' => 'NoResponseReceived'
-		);
-		// evaluate if response value exists
-		if (isset($responses[$response])) {
-			// return converted response value
-			return $responses[$response];
-		} else {
-			// return default response value
-			return 'NoResponseReceived';
+	private function toImportance(?int $value): int {
+
+		// EAS: 0 = low, 1 = normal (default), 2 = high
+		// VTODO: 0 = undefined, 1-3 = high, 4-6 = normal, 7-9 = low
+
+		// evaluate local level and return remote equvialent
+		if ($value > 0 && $value < 4) {
+			return 2;		// high priority
+		}
+		elseif ($value > 6 && $value < 10) {
+			return 0;		// low priority
+		}
+		else {
+			return 1;		// normal priority
 		}
 
 	}

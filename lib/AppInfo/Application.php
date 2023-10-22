@@ -59,6 +59,8 @@ use OCA\EAS\Events\CalendarObjectRestoredListener;
 use OCA\EAS\Events\UserDeletedListener;
 use OCA\EAS\Notification\Notifier;
 
+use OCA\EAS\Calendar\Provider;
+
 /**
  * Class Application
  *
@@ -108,6 +110,7 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
+        //$context->registerCalendarProvider(Provider::class);
     }
 
     public function boot(IBootContext $context): void {

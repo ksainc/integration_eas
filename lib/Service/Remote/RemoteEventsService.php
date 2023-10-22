@@ -231,28 +231,28 @@ class RemoteEventsService {
         // validate response
 		if (isset($ro->Status) && $ro->Status->getContents() == '1') {
             // convert to contact object
-            $co = $this->toEventObject($ro->Properties);
-            $co->ID = $ro->EntityId->getContents();
-            $co->CID = $ro->CollectionId->getContents();
+            $eo = $this->toEventObject($ro->Properties);
+            $eo->ID = $ro->EntityId->getContents();
+            $eo->CID = $ro->CollectionId->getContents();
             // retrieve attachment(s) from remote data store
-			if (count($co->Attachments) > 0) {
+			if (count($eo->Attachments) > 0) {
 				// retrieve all attachments
-				$ro = $this->RemoteCommonService->fetchAttachment($this->DataStore, array_column($co->Attachments, 'Id'));
+				$ro = $this->RemoteCommonService->fetchAttachment($this->DataStore, array_column($eo->Attachments, 'Id'));
 				// evaluate returned object
 				if (count($ro) > 0) {
 					foreach ($ro as $entry) {
 						// evaluate status
 						if (isset($entry->Status) && $entry->Status->getContents() == '1') {
-							$key = array_search($entry->FileReference->getContents(), array_column($co->Attachments, 'Id'));
+							$key = array_search($entry->FileReference->getContents(), array_column($eo->Attachments, 'Id'));
 							if ($key !== false) {
-								$co->Attachments[$key]->Data = base64_decode($entry->Properties->Data->getContents());
+								$eo->Attachments[$key]->Data = base64_decode($entry->Properties->Data->getContents());
 							}
 						}
 					}
 				}
 			}
             // return object
-		    return $co;
+		    return $eo;
         } else {
             // return null
             return null;
@@ -279,16 +279,16 @@ class RemoteEventsService {
 	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_EVENT, $eo);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
-			$co = clone $so;
-			$co->ID = $ro->Responses->Add->EntityId->getContents();
-            $co->CID = $ro->CollectionId->getContents();
+			$eo = clone $so;
+			$eo->ID = $ro->Responses->Add->EntityId->getContents();
+            $eo->CID = $ro->CollectionId->getContents();
 			// deposit attachment(s)
-			if (count($co->Attachments) > 0) {
+			if (count($eo->Attachments) > 0) {
 				// create attachments in remote data store
-				$co->Attachments = $this->createCollectionItemAttachment($co->ID, $co->Attachments);
-				$co->State = $co->Attachments[0]->AffiliateState;
+				$eo->Attachments = $this->createCollectionItemAttachment($eo->ID, $eo->Attachments);
+				$eo->State = $eo->Attachments[0]->AffiliateState;
 			}
-            return $co;
+            return $eo;
         } else {
             return null;
         }
@@ -309,23 +309,23 @@ class RemoteEventsService {
 	public function updateEntity(string $cid, string $cst, EventObject $so): ?EventObject {
 
         // extract source object id
-        $eid = $co->ID;
+        $eid = $eo->ID;
         // convert source EventObject to EasObject
         $eo = $this->fromEventObject($so);
 	    // execute command
 	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $eo);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
-			$co = clone $so;
-			$co->ID = $ro->Responses->Modify->EntityId;
-            $co->CID = $cid;
+			$eo = clone $so;
+			$eo->ID = $ro->Responses->Modify->EntityId;
+            $eo->CID = $cid;
 			// deposit attachment(s)
 			if (count($so->Attachments) > 0) {
 				// create attachments in remote data store
-				$co->Attachments = $this->createCollectionItemAttachment($co->ID, $co->Attachments);
-				$co->State = $co->Attachments[0]->AffiliateState;
+				$eo->Attachments = $this->createCollectionItemAttachment($eo->ID, $eo->Attachments);
+				$eo->State = $eo->Attachments[0]->AffiliateState;
 			}
-            return $co;
+            return $eo;
         } else {
             return null;
         }
@@ -422,24 +422,24 @@ class RemoteEventsService {
 		// process batch
 		foreach ($batch as $key => $entry) {
 			// construct command object
-			$co = new \OCA\EAS\Utile\Eas\Type\FileAttachmentType();
-			$co->IsInline = false;
-			$co->IsContactPhoto = false;
-			$co->Name = $entry->Name;
-			$co->ContentId = $entry->Name;
-			$co->ContentType = $entry->Type;
-			$co->Size = $entry->Size;
+			$eo = new \OCA\EAS\Utile\Eas\Type\FileAttachmentType();
+			$eo->IsInline = false;
+			$eo->IsContactPhoto = false;
+			$eo->Name = $entry->Name;
+			$eo->ContentId = $entry->Name;
+			$eo->ContentType = $entry->Type;
+			$eo->Size = $entry->Size;
 			
 			switch ($entry->Encoding) {
 				case 'B':
-					$co->Content = $entry->Data;
+					$eo->Content = $entry->Data;
 					break;
 				case 'B64':
-					$co->Content = base64_decode($entry->Data);
+					$eo->Content = base64_decode($entry->Data);
 					break;
 			}
 			// insert command object in to collection
-			$cc[] = $co;
+			$cc[] = $eo;
 		}
 		// execute command(s)
 		$rs = $this->RemoteCommonService->createAttachment($this->DataStore, $aid, $cc);
@@ -955,26 +955,6 @@ class RemoteEventsService {
         if (!empty($so->Occupation->Location)) {
             $eo->OfficeLocation = new EasProperty('Contacts', $so->Occupation->Location);
         }
-        // Tag(s)
-        /*
-        if (isset($so->Categories)) {
-            if (is_array($so->Categories->Category)) {
-                foreach($so->Categories->Category as $entry) {
-                    $co->addTag($entry->getContents());
-                }
-            }
-            else {
-                $co->addTag($so->Categories->Category->getContents());
-            }
-        }
-        */
-
-        // Notes
-        /*
-        if (!empty($so->Body)) {
-            $co->Notes = $so->Body->Data->getContents();
-        }
-        */
         // URL / Website
         if (!empty($so->URI)) {
             $eo->WebPage = new EasProperty('Contacts', $so->URI);

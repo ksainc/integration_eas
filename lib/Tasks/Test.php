@@ -79,7 +79,7 @@ try {
 	$CoreService = \OC::$server->get(\OCA\EAS\Service\CoreService::class);
 	//$HarmonizationService = \OC::$server->get(\OCA\EAS\Service\HarmonizationService::class);
 	$RemoteCommonService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteCommonService::class);
-	$RemoteEventsService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteEventsService::class);
+	$RemoteTasksService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteTasksService::class);
 
 	// construct decoder
 	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
@@ -88,19 +88,17 @@ try {
 	// construct remote data store client
 	$EasClient = $CoreService->createClient($uid);
 	// assign remote data store to module
-	$RemoteEventsService->DataStore = $EasClient;
+	$RemoteTasksService->DataStore = $EasClient;
 
 	// perform initial connect
 	$EasClient->performConnect();
 
 	// Load From File
-	//$stream = fopen(__DIR__ . '/Microsoft-Server-ActiveSync-Response', 'r');
+	//$stream = fopen(__DIR__ . '/EAS-Calendar-Create', 'r');
 	//$msg_ref_raw = stream_get_contents($stream);
 	//$msg_ref_obj = $EasXmlDecoder->streamToObject($stream);
 	//fclose($stream);
-	//$msg_ref_hex = unpack('H*', $msg_ref_raw);
 	//exit;
-
 
 	$token = 0;
 
@@ -109,14 +107,14 @@ try {
 	
 	// find contacts collection
 	foreach ($rs->Changes->Add as $entry) {
-		if ($entry->Name->getContents() == 'Calendar') {
+		if ($entry->Name->getContents() == 'Tasks') {
 			$cid = $entry->Id->getContents();
 			break;
 		}
 	}
 
 	// sync collection
-	$rs = $RemoteEventsService->syncEntities($cid, $token);
+	$rs = $RemoteTasksService->syncEntities($cid, $token);
 	
 	$token = $rs->SyncKey->getContents();
 
@@ -133,7 +131,7 @@ try {
 	}
 
 	// retrieve entity
-	$rs = $RemoteEventsService->fetchEntity($cid, $testid);
+	$rs = $RemoteTasksService->fetchEntity($cid, $testid);
 
 	exit;
 

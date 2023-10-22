@@ -33,8 +33,6 @@ use OCP\IL10N;
 use Psr\Log\LoggerInterface;
 use OCP\Notification\IManager as INotificationManager;
 use OCP\BackgroundJob\IJobList;
-use OCA\DAV\CardDAV\CardDavBackend;
-use OCA\DAV\CalDAV\CalDavBackend;
 
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Utile\Eas\EasClient;
@@ -59,6 +57,7 @@ use OCA\EAS\Service\Remote\RemoteCommonService;
 /*
 use OCA\EAS\Tasks\HarmonizationLauncher;
 */
+
 
 class CoreService {
 
@@ -146,9 +145,7 @@ class CoreService {
 								ContactsService $ContactsService,
 								EventsService $EventsService,
 								TasksService $TasksService,
-								*/
-								CardDavBackend $CardDavBackend,
-								CalDavBackend $CalDavBackend) {
+								*/) {
 		$this->logger = $logger;
 		$this->TaskService = $TaskService;
 		$this->notificationManager = $notificationManager;
@@ -169,9 +166,6 @@ class CoreService {
 		$this->EventsService = $EventsService;
 		$this->TasksService = $TasksService;
 		*/
-		$this->LocalContactsStore = $CardDavBackend;
-		$this->LocalEventsStore = $CalDavBackend;
-		$this->LocalTasksStore = $CalDavBackend;
 
 	}
 
@@ -180,7 +174,7 @@ class CoreService {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid				nextcloud user id
+	 * @param string $uid					nextcloud user id
 	 * @param string $account_bauth_id		account username
 	 * @param string $account_bauth_secret	account secret
 	 * 
@@ -362,7 +356,7 @@ class CoreService {
 		$this->ConfigurationService->depositUserValue($uid, 'account_device_id', $account_device_id);
 		$this->ConfigurationService->depositUserValue($uid, 'account_device_key', $account_device_key);
 		$this->ConfigurationService->depositUserValue($uid, 'account_device_version', $account_device_version);
-		$this->ConfigurationService->depositUser($uid, ['account_connected' => '1']);
+		$this->ConfigurationService->depositUserValue($uid, 'account_connected', 1);
 		// register harmonization task
 		$this->TaskService->add(\OCA\EAS\Tasks\HarmonizationLauncher::class, ['uid' => $uid]);
 
@@ -381,6 +375,8 @@ class CoreService {
 	 * @since Release 1.0.0
 	 * 
 	 * @param string $uid				nextcloud user id
+	 * @param string $code				authentication code
+	 * @param array $flags
 	 * 
 	 * @return bool
 	 */
@@ -481,6 +477,7 @@ class CoreService {
 	 * @since Release 1.0.0
 	 * 
 	 * @param string $uid				nextcloud user id
+	 * @param string $code				authentication refresh code
 	 * 
 	 * @return bool
 	 */
@@ -500,10 +497,10 @@ class CoreService {
 			$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderMS365);
 			$this->ConfigurationService->depositUserValue($uid, 'account_id', (string) $data['email']);
 			$this->ConfigurationService->depositUserValue($uid, 'account_name', (string) $data['name']);
-			$this->ConfigurationService->depositUserValue($uid, 'account_server', $data['service_server']);
-			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_access', $data['access']);
-			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_expiry', $data['expiry']);
-			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_refresh', $data['refresh']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_server', (string) $data['service_server']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_access', (string) $data['access']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_expiry', (string) $data['expiry']);
+			$this->ConfigurationService->depositUserValue($uid, 'account_oauth_refresh', (string) $data['refresh']);
 			$this->ConfigurationService->depositUserValue($uid, 'account_connected', '1');
 
 			return true;
@@ -609,6 +606,7 @@ class CoreService {
 		$account = $mam->save($account);
 
 	}
+	
 	/**
 	 * Retrieves local collections for all modules
 	 * 
@@ -717,17 +715,19 @@ class CoreService {
 	 */
 	public function fetchCorrelations(string $uid): array {
 
+		$CoreUtile = \OC::$server->get(\OCA\EAS\Db\CoreUtile::class);
+
 		// construct response object
 		$response = ['ContactCorrelations' => [], 'EventCorrelations' => [], 'TaskCorrelations' => []];
 		// retrieve local collections
 		if ($this->ConfigurationService->isContactsAppAvailable()) {
-			$response['ContactCorrelations'] = $this->CorrelationsService->findByType($uid, 'CC');
+			$response['ContactCorrelations'] = $CoreUtile->listCorrelationsEstablished($uid, 'CC');
 		}
 		if ($this->ConfigurationService->isCalendarAppAvailable()) {
-			$response['EventCorrelations'] = $this->CorrelationsService->findByType($uid, 'EC');
+			$response['EventCorrelations'] = $CoreUtile->listCorrelationsEstablished($uid, 'EC');
 		}
 		if ($this->ConfigurationService->isTasksAppAvailable()) {
-			$response['TaskCorrelations'] = $this->CorrelationsService->findByType($uid, 'TC');
+			$response['TaskCorrelations'] = $CoreUtile->listCorrelationsEstablished($uid, 'TC');
 		}
 		// return response
 		return $response;
@@ -749,35 +749,49 @@ class CoreService {
 	public function depositCorrelations(string $uid, array $cc, array $ec, array $tc): void {
 		
 		// terminate harmonization thread, in case the user changed any correlations
-		$this->HarmonizationThreadService->terminate($uid);
+		//$this->HarmonizationThreadService->terminate($uid);
 		// deposit contacts correlations
 		if ($this->ConfigurationService->isContactsAppAvailable()) {
+			// initilize data store
+			$DataStore = \OC::$server->get(\OCA\EAS\Db\ContactStore::class);
+			// process entries
 			foreach ($cc as $entry) {
-				if (!empty($entry['action'])) {
+				if (isset($entry['enabled'])) {
 					try {
-						switch ($entry['action']) {
-							case 'D':
-								$cc = $this->CorrelationsService->fetch($entry['id']);
-								if ($this->UserId == $entry['uid']) {
-									$this->CorrelationsService->deleteByCollectionId($cc->getuid(), $cc->getloid(), $cc->getroid());
-									$this->CorrelationsService->delete($cc);
+						switch ((bool) $entry['enabled']) {
+							case false:
+								if (!empty($entry['id'])) {
+									// retrieve correlation entry
+									$cr = $this->CorrelationsService->fetch($entry['id']);
+									// evaluate if user id matches
+									if ($uid == $cr->getuid()) {
+										// delete local entities
+										$DataStore->deleteEntitiesByCollection($uid, $cr->getloid());
+										// delete local collection
+										$DataStore->deleteCollection($cr->getloid());
+										// delete correlations
+										$this->CorrelationsService->deleteByCollectionId($cr->getuid(), $cr->getloid(), $cr->getroid());
+										$this->CorrelationsService->delete($cr);
+									}
 								}
 								break;
-							case 'C':
-								$cc = new \OCA\EAS\Db\Correlation();
-								$cc->settype('CC'); // Correlation Type
-								$cc->setuid($uid); // User ID
-								$cc->setloid($entry['loid']); // Local ID
-								$cc->setroid($entry['roid']); // Remote ID
-								$this->CorrelationsService->create($cc);
-								break;
-							case 'U':
-								$cc = $this->CorrelationsService->fetch($entry['id']);
-								if ($this->UserId == $entry['uid']) {
-									$cc->settype('CC'); // Correlation Type
-									$cc->setloid($entry['loid']); // Local ID
-									$cc->setroid($entry['roid']); // Remote ID
-									$this->CorrelationsService->update($cc);
+							case true:
+								if (empty($entry['id'])) {
+									// create local collection
+									$cl = [];
+									$cl['uid'] = $uid; // User ID
+									$cl['uri'] = \OCA\EAS\Utile\UUID::v4(); // Universal Resource ID
+									$cl['label'] = 'EAS: ' . $entry['label']; // Collection Label
+									$cl['color'] = $entry['color']; // Collection Color
+									$cl['token'] = 0; // Collection State Token
+									$cid = $DataStore->createCollection($cl);
+									// create correlation
+									$cr = new \OCA\EAS\Db\Correlation();
+									$cr->settype('CC'); // Correlation Type
+									$cr->setuid($uid); // User ID
+									$cr->setloid($cid); // Local Collection ID
+									$cr->setroid($entry['roid']); // Remote Collection ID
+									$this->CorrelationsService->create($cr);
 								}
 								break;
 						}
@@ -790,32 +804,46 @@ class CoreService {
 		}
 		// deposit events correlations
 		if ($this->ConfigurationService->isCalendarAppAvailable()) {
+			// initilize data store
+			$DataStore = \OC::$server->get(\OCA\EAS\Db\EventStore::class);
+			// process entries
 			foreach ($ec as $entry) {
-				if (!empty($entry['action'])) {
+				if (isset($entry['enabled'])) {
 					try {
-						switch ($entry['action']) {
-							case 'D':
-								$cc = $this->CorrelationsService->fetch($entry['id']);
-								if ($this->UserId == $entry['uid']) {
-									$this->CorrelationsService->deleteByCollectionId($cc->getuid(), $cc->getloid(), $cc->getroid());
-									$this->CorrelationsService->delete($cc);
+						switch ((bool) $entry['enabled']) {
+							case false:
+								if (!empty($entry['id'])) {
+									// retrieve correlation entry
+									$cr = $this->CorrelationsService->fetch($entry['id']);
+									// evaluate if user id matches
+									if ($uid == $cr->getuid()) {
+										// delete local entities
+										$DataStore->deleteEntitiesByCollection($uid, $cr->getloid());
+										// delete local collection
+										$DataStore->deleteCollection($cr->getloid());
+										// delete correlations
+										$this->CorrelationsService->deleteByCollectionId($cr->getuid(), $cr->getloid(), $cr->getroid());
+										$this->CorrelationsService->delete($cr);
+									}
 								}
 								break;
-							case 'C':
-								$cc = new \OCA\EAS\Db\Correlation();
-								$cc->settype('EC'); // Correlation Type
-								$cc->setuid($uid); // User ID
-								$cc->setloid($entry['loid']); // Local ID
-								$cc->setroid($entry['roid']); // Remote ID
-								$this->CorrelationsService->create($cc);
-								break;
-							case 'U':
-								$cc = $this->CorrelationsService->fetch($entry['id']);
-								if ($this->UserId == $entry['uid']) {
-									$cc->settype('EC'); // Correlation Type
-									$cc->setloid($entry['loid']); // Local ID
-									$cc->setroid($entry['roid']); // Remote ID
-									$this->CorrelationsService->update($cc);
+							case true:
+								if (empty($entry['id'])) {
+									// create local collection
+									$cl = [];
+									$cl['uid'] = $uid; // User ID
+									$cl['uri'] = \OCA\EAS\Utile\UUID::v4(); // Universal Resource ID
+									$cl['label'] = 'EAS: ' . $entry['label']; // Collection Label
+									$cl['color'] = $entry['color']; // Collection Color
+									$cl['token'] = 0; // Collection State Token
+									$cid = $DataStore->createCollection($cl);
+									// create correlation
+									$cr = new \OCA\EAS\Db\Correlation();
+									$cr->settype('EC'); // Correlation Type
+									$cr->setuid($uid); // User ID
+									$cr->setloid($cid); // Local Collection ID
+									$cr->setroid($entry['roid']); // Remote Collection ID
+									$this->CorrelationsService->create($cr);
 								}
 								break;
 						}
@@ -828,32 +856,46 @@ class CoreService {
 		}
 		// deposit tasks correlations
 		if ($this->ConfigurationService->isTasksAppAvailable()) {
+			// initilize data store
+			$DataStore = \OC::$server->get(\OCA\EAS\Db\TaskStore::class);
+			// process entries
 			foreach ($tc as $entry) {
-				if (!empty($entry['action'])) {
+				if (isset($entry['enabled'])) {
 					try {
-						switch ($entry['action']) {
-							case 'D':
-								$cc = $this->CorrelationsService->fetch($entry['id']);
-								if ($this->UserId == $entry['uid']) {
-									$this->CorrelationsService->deleteByCollectionId($cc->getuid(), $cc->getloid(), $cc->getroid());
-									$this->CorrelationsService->delete($cc);
+						switch ((bool) $entry['enabled']) {
+							case false:
+								if (!empty($entry['id'])) {
+									// retrieve correlation entry
+									$cr = $this->CorrelationsService->fetch($entry['id']);
+									// evaluate if user id matches
+									if ($uid == $cr->getuid()) {
+										// delete local entities
+										$DataStore->deleteEntitiesByCollection($uid, $cr->getloid());
+										// delete local collection
+										$DataStore->deleteCollection($cr->getloid());
+										// delete correlations
+										$this->CorrelationsService->deleteByCollectionId($cr->getuid(), $cr->getloid(), $cr->getroid());
+										$this->CorrelationsService->delete($cr);
+									}
 								}
 								break;
-							case 'C':
-								$cc = new \OCA\EAS\Db\Correlation();
-								$cc->settype('TC'); // Correlation Type
-								$cc->setuid($uid); // User ID
-								$cc->setloid($entry['loid']); // Local ID
-								$cc->setroid($entry['roid']); // Remote ID
-								$this->CorrelationsService->create($cc);
-								break;
-							case 'U':
-								$cc = $this->CorrelationsService->fetch($entry['id']);
-								if ($this->UserId == $entry['uid']) {
-									$cc->settype('TC'); // Correlation Type
-									$cc->setloid($entry['loid']); // Local ID
-									$cc->setroid($entry['roid']); // Remote ID
-									$this->CorrelationsService->update($cc);
+							case true:
+								if (empty($entry['id'])) {
+									// create local collection
+									$cl = [];
+									$cl['uid'] = $uid; // User ID
+									$cl['uri'] = \OCA\EAS\Utile\UUID::v4(); // Universal Resource ID
+									$cl['label'] = 'EAS: ' . $entry['label']; // Collection Label
+									$cl['color'] = $entry['color']; // Collection Color
+									$cl['token'] = 0; // Collection State Token
+									$cid = $DataStore->createCollection($cl);
+									// create correlation
+									$cr = new \OCA\EAS\Db\Correlation();
+									$cr->settype('TC'); // Correlation Type
+									$cr->setuid($uid); // User ID
+									$cr->setloid($cid); // Local Collection ID
+									$cr->setroid($entry['roid']); // Remote Collection ID
+									$this->CorrelationsService->create($cr);
 								}
 								break;
 						}

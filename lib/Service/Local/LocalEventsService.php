@@ -28,12 +28,10 @@ namespace OCA\EAS\Service\Local;
 use Datetime;
 use DateTimeZone;
 use DateInterval;
-use Psr\Log\LoggerInterface;
 use OC\Files\Node\LazyUserFolder;
 use OCA\DAV\CalDAV\CalDavBackend;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Db\EventsUtile;
 use OCA\EAS\Objects\EventCollectionObject;
 use OCA\EAS\Objects\EventObject;
 use OCA\EAS\Objects\EventAttachmentObject;
@@ -42,10 +40,7 @@ use Sabre\VObject\Reader;
 use Sabre\VObject\Component\VEvent;
 
 class LocalEventsService {
-	/**
-	 * @var LoggerInterface
-	 */
-	private $logger;
+	
     /**
 	 * @var DateTimeZone
 	 */
@@ -67,9 +62,7 @@ class LocalEventsService {
 	 */
 	public ?LazyUserFolder $FileStore = null;
 
-	public function __construct (string $appName, LoggerInterface $logger, EventsUtile $EventsUtile) {
-		$this->logger = $logger;
-        $this->EventsUtile = $EventsUtile;
+	public function __construct () {
 	}
 
 	/**

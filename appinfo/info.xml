@@ -40,4 +40,16 @@
         <personal>OCA\EAS\Settings\UserSettings</personal>
         <personal-section>OCA\EAS\Settings\UserSection</personal-section>
     </settings>
+    <types>
+		<dav/>
+	</types>
+    <sabre>
+        <address-book-plugins>
+			<plugin>OCA\EAS\Providers\Contacts\Provider</plugin>
+		</address-book-plugins>
+		<calendar-plugins>
+			<plugin>OCA\EAS\Providers\Events\Provider</plugin>
+			<plugin>OCA\EAS\Providers\Tasks\Provider</plugin>
+		</calendar-plugins>
+	</sabre>
 </info>

@@ -175,35 +175,13 @@ class UserConfigurationController extends Controller {
 	}
 
 	/**
-	 * handels test click event
-	 * 
-	 * @NoAdminRequired
-	 * 
-	 * @param string $action	test action to perform
-	 *
-	 * @return DataResponse
-	 */
-	public function Test($action): DataResponse {
-
-		// evaluate if user id is present
-		if ($this->userId === null) {
-			return new DataResponse([], Http::STATUS_BAD_REQUEST);
-		}
-		// execute command
-		$this->CoreService->performTest($this->userId, $action);
-		// return response
-		return new DataResponse('success');
-
-	}
-
-	/**
-	 * handles remote collections fetch requests
+	 * handles collections fetch requests
 	 * 
 	 * @NoAdminRequired
 	 *
 	 * @return DataResponse
 	 */
-	public function fetchRemoteCollections(): DataResponse {
+	public function fetchCollections(): DataResponse {
 		
 		// evaluate if user id is present
 		if ($this->userId === null) {
@@ -216,30 +194,6 @@ class UserConfigurationController extends Controller {
 			return new DataResponse($rs);
 		} else {
 			
-			return new DataResponse($rs['error'], 401);
-		}
-
-	}
-
-	/**
-	 * handels local collections fetch requests
-	 * 
-	 * @NoAdminRequired
-	 *
-	 * @return DataResponse
-	 */
-	public function fetchLocalCollections(): DataResponse {
-
-		// evaluate if user id is present
-		if ($this->userId === null) {
-			return new DataResponse([], Http::STATUS_BAD_REQUEST);
-		}
-		// retrieve collections
-		$rs = $this->CoreService->fetchLocalCollections($this->userId);
-		// return response
-		if (isset($rs)) {
-			return new DataResponse($rs);
-		} else {
 			return new DataResponse($rs['error'], 401);
 		}
 

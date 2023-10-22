@@ -27,52 +27,22 @@ namespace OCA\EAS\Service\Local;
 
 use Datetime;
 use DateTimeZone;
-use Psr\Log\LoggerInterface;
-use OCA\DAV\CardDAV\CardDavBackend;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Db\ContactsUtile;
-use \OCA\EAS\Objects\ContactCollectionObject;
-use \OCA\EAS\Objects\ContactObject;
+use OCA\EAS\Db\EventStore;
+use OCA\EAS\Objects\ContactCollectionObject;
+use OCA\EAS\Objects\ContactObject;
 
 use Sabre\VObject\Reader;
 use Sabre\VObject\Component\VCard;
 
 class LocalContactsService {
-	/**
-	 * @var LoggerInterface
-	 */
-	private $logger;
-        /**
-	 * @var CardDavBackend
-	 */
-	public ?CardDavBackend $DataStore = null;
+	
+	private EventStore $DataStore;
 
-	public function __construct (string $appName, LoggerInterface $logger, ContactsUtile $ContactsUtile) {
-		$this->logger = $logger;
-        $this->ContactsUtile = $ContactsUtile;
+	public function __construct (EventStore $EventStore) {
+        $this->DataStore = $EventStore;
 	}
-
-	/**
-     * retrieve list of all collections in local storage
-     * 
-	 * @param string $uid - User ID
-	 * 
-	 * @return array of collections
-	 */
-	public function listCollections(string $uid): array {
-
-        // retrieve all local collections 
-        $collections = $this->DataStore->getAddressBooksForUser('principals/users/' . $uid);
-		// construct collections list
-		$data = array();
-		foreach ($collections as $entry) {
-			$data[] = array('id' => $entry['id'], 'name' => $entry['{DAV:}displayname'], 'uri' => $entry['uri']);
-		}
-        // return collections list
-		return $data;
-
-    }
 
 	 /**
      * retrieve properties for specific collection from local storage
@@ -97,58 +67,6 @@ class LocalContactsService {
             return null;
         }
     }
-    
-    /**
-     * create collection in local storage
-     * 
-     * @param string $uid - User ID
-	 * @param string $cid - Collection URI
-     * @param string $name - Collection Name
-	 * 
-	 * @return ContactCollectionObject
-	 */
-	public function createCollection(string $uid, string $cid, string $name): ?ContactCollectionObject {
-
-        // check for user id and collection - must contain to create
-        if (!empty($uid) && !empty($cid)) {
-            // create item in data store
-            $result = $this->DataStore->createAddressBook(
-                'principals/users/' . $uid, 
-                $cid, 
-                array('{DAV:}displayname' => $name)
-            );
-        }
-        // return collection object or null
-        if (isset($result)) {
-            return $this->fetchCollection($result);
-        } else {
-            return null;
-        }
-
-    }
-
-    /**
-     * delete collection from local storage
-     * 
-	 * @param string $cid - Collection ID
-	 * 
-	 * @return bool true - successfully delete / false - failed to delete
-	 */
-	public function deleteCollection(string $cid): bool {
-
-        // check for id - must contain id to delete
-        if (!empty($cid)) {
-            // delete item in data store
-            $result = $this->DataStore->deleteAddressBook($cid);
-        }
-        // return operation result
-        if ($result) {
-            return true;
-        } else {
-            return false;
-        }
-
-    }
 
 	/**
      * retrieve changes for specific collection from local storage
@@ -168,17 +86,17 @@ class LocalContactsService {
     }
 
     /**
-     * find collection object by uuid in local storage
+     * find entity by uuid in local storage
      * 
 	 * @param string $cid - Collection ID
-     * @param string $uuid - Item UUID
+     * @param string $uuid - Entity UUID
 	 * 
 	 * @return ContactObject ContactObject - successfully retrieved / null - failed to retrieve
 	 */
-	public function findCollectionItemByUUID(string $cid, string $uuid): ?ContactObject {
+	public function findEntityByUUID(string $cid, string $uuid): ?ContactObject {
         
         // search data store for object
-        $lo = $this->ContactsUtile->findByUUID($cid, $uuid);
+        $lo = $this->ContactsUtile->fetchByUUID($cid, $uuid);
         // evaluate result
         if (is_array($lo) && count($lo) > 0) {
             $lo = $lo[0];
@@ -199,14 +117,14 @@ class LocalContactsService {
     }
 
 	/**
-     * retrieve collection item from local storage
+     * retrieve entity from local storage
      * 
 	 * @param string $cid - Collection ID
-     * @param string $iid - Item ID
+     * @param string $iid - Entity ID
 	 * 
 	 * @return ContactObject ContactObject - successfully retrieved / null - failed to retrieve
 	 */
-	public function fetchCollectionItem(string $cid, string $iid): ?ContactObject {
+	public function fetchEntity(string $cid, string $iid): ?ContactObject {
 
         // retrieve collection item
 		//$lo = $this->DataStore->getCard($cid, $iid);
@@ -230,14 +148,14 @@ class LocalContactsService {
     }
 
     /**
-     * create collection item in local storage
+     * create entity in local storage
      * 
-	 * @param string $cid - Collection ID
-     * @param ContactObject $data - Item Data
+	 * @param string $cid           Collection ID
+     * @param ContactObject $data   Entity Data
 	 * 
 	 * @return object Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function createCollectionItem(string $cid, ContactObject $data): ?object {
+	public function createEntity(string $cid, ContactObject $data): ?object {
 
         // convert contact object to vcard object
         $lo = $this->fromContactObject($data);
@@ -255,15 +173,15 @@ class LocalContactsService {
     }
     
     /**
-     * update collection item in local storage
+     * update entity in local storage
      * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Item ID
-     * @param ContactObject $co - Item Data
+	 * @param string $cid           Collection ID
+     * @param string $iid           Entity ID
+     * @param ContactObject $co     Entity Data
 	 * 
-	 * @return object Status Object - item id, item uuid, item state token / Null - failed to create
+	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function updateCollectionItem(string $cid, string $iid, ContactObject $co): ?object {
+	public function updateEntity(string $cid, string $iid, ContactObject $co): ?object {
 
         // check for id - must contain id to update
         if (!empty($iid)) {
@@ -282,12 +200,12 @@ class LocalContactsService {
     }
     
     /**
-     * delete collection item from local storage
+     * delete entity from local storage
      * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Item ID
+	 * @param string $cid           Collection ID
+     * @param string $iid           Item ID
 	 * 
-	 * @return bool true - successfully delete / false - failed to delete
+	 * @return bool                 true - successfully delete / false - failed to delete
 	 */
 	public function deleteCollectionItem(string $cid, string $iid): bool {
 

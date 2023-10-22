@@ -25,48 +25,43 @@
 
 namespace OCA\EAS\Db;
 
-use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OC\DB\QueryBuilder\Literal;
 use OCP\IDBConnection;
 
-class TasksUtile {
+class CoreUtile {
 
 	private IDBConnection $DataStore;
-	private string $DataStoreTable = 'calendarobjects';
 
 	public function __construct(IDBConnection $db) {
 		$this->DataStore = $db;
 	}
 
 	/**
-	 * retrieve task attributes from data store by uuid
+	 * retrieve correlations for specific user from the data store
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $cid	collection id
-	 * @param string $uuid	universal unique id
-	 * 
-	 * @return array of data fields
+	 * @return array
 	 */
-	public function findByUUID(string $cid, string $uuid, string $type): ?array {
-		
-		// construct search command
-		$sc = $this->DataStore->getQueryBuilder();
-		$sc->select('*')
-			->from($this->DataStoreTable)
-			->where($sc->expr()->eq('calendarid', $sc->createNamedParameter($cid)))
-			->andWhere($sc->expr()->eq('uid', $sc->createNamedParameter($uuid)))
-			->andWhere($sc->expr()->eq('componenttype', $sc->createNamedParameter($type)))
-			->andWhere($sc->expr()->isNull('deleted_at'));
+	public function listCorrelationsEstablished(string $uid, string $type) : array {
+
+		// construct data store command
+		$cmd = $this->DataStore->getQueryBuilder();
+		$cmd->select('CRS.id', 'CRS.roid', 'CRS.type',  'CRS.hperformed', 'CLS.color AS color', new Literal('TRUE AS enabled'))
+			->from('eas_correlations', 'CRS')
+			->leftJoin('CRS', 'eas_collections', 'CLS', $cmd->expr()->eq('CRS.loid', 'CLS.id'))
+			->where($cmd->expr()->eq('CRS.uid', $cmd->createNamedParameter($uid)))
+			->andWhere($cmd->expr()->eq('CRS.type', $cmd->createNamedParameter($type)));
 		// execute command
-		$rs = $sc->executeQuery()->fetchAll();
-		$sc->executeQuery()->closeCursor();
+		$rs = $cmd->executeQuery()->fetchAll();
+		$cmd->executeQuery()->closeCursor();
 		// return result or null
 		if (is_array($rs) && count($rs) > 0) {
 			return $rs;
 		}
 		else {
-			return null;
+			return [];
 		}
 		
 	}
