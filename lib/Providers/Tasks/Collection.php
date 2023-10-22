@@ -186,7 +186,24 @@ class Collection extends ExternalCalendar {
 	 * @inheritDoc
 	 */
 	function delete() {
-		return null;
+		
+		// delete local entities
+		$this->_store->deleteEntitiesByCollection($this->_uid, $this->_id);
+		// delete local collection
+		$this->_store->deleteCollection($this->_id);
+		// initilize correlation service
+		$CorrelationsService = \OC::$server->get(\OCA\EAS\Service\CorrelationsService::class);
+		// retrieve correlation entry
+		$cr = $CorrelationsService->findByLocalId($this->_uid, $CorrelationsService::ContactCollection, $this->_id);
+		// evaluate if correlation was found
+		if (isset($cr)) {
+			// delete correlations
+			$CorrelationsService->deleteByCollectionId($cr->getuid(), $cr->getloid(), $cr->getroid());
+			$CorrelationsService->delete($cr);
+		}
+
+		return true;
+
 	}
 
 	/**
