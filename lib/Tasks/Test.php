@@ -79,16 +79,16 @@ try {
 	$CoreService = \OC::$server->get(\OCA\EAS\Service\CoreService::class);
 	//$HarmonizationService = \OC::$server->get(\OCA\EAS\Service\HarmonizationService::class);
 	$RemoteCommonService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteCommonService::class);
-	$RemoteTasksService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteTasksService::class);
+	$RemoteContactsService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteContactsService::class);
 
 	// construct decoder
-	$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
-	$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
+	//$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
+	//$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
 	
 	// construct remote data store client
 	$EasClient = $CoreService->createClient($uid);
 	// assign remote data store to module
-	$RemoteTasksService->DataStore = $EasClient;
+	$RemoteContactsService->DataStore = $EasClient;
 
 	// perform initial connect
 	$EasClient->performConnect();
@@ -107,14 +107,14 @@ try {
 	
 	// find contacts collection
 	foreach ($rs->Changes->Add as $entry) {
-		if ($entry->Name->getContents() == 'Tasks') {
+		if ($entry->Name->getContents() == 'Contacts') {
 			$cid = $entry->Id->getContents();
 			break;
 		}
 	}
 
 	// sync collection
-	$rs = $RemoteTasksService->syncEntities($cid, $token);
+	$rs = $RemoteContactsService->syncEntities($cid, $token);
 	
 	$token = $rs->SyncKey->getContents();
 
@@ -131,7 +131,7 @@ try {
 	}
 
 	// retrieve entity
-	$rs = $RemoteTasksService->fetchEntity($cid, $testid);
+	$rs = $RemoteContactsService->fetchEntity($cid, $testid);
 
 	exit;
 

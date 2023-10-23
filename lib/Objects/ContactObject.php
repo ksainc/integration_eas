@@ -34,7 +34,7 @@ class ContactObject {
     private $Data = null;
 
     private ?string $ID = null;
-	private ?string $UID = null;
+	private ?string $UUID = null;
     private ?string $CID = null;
     private ?string $State = null;
     private ?DateTime $CreatedOn = null;

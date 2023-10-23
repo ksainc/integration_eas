@@ -29,8 +29,6 @@ use DateTime;
 use Exception;
 use Throwable;
 use Psr\Log\LoggerInterface;
-use OCA\DAV\CardDAV\CardDavBackend;
-use OCA\DAV\CalDAV\CalDavBackend;
 
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Utile\Eas\EasClient;
@@ -41,74 +39,26 @@ use OCA\EAS\Service\ContactsService;
 use OCA\EAS\Service\EventsService;
 use OCA\EAS\Service\TasksService;
 use OCA\EAS\Service\HarmonizationThreadService;
-use OCA\EAS\Service\Local\LocalContactsService;
-use OCA\EAS\Service\Local\LocalEventsService;
-use OCA\EAS\Service\Local\LocalTasksService;
-use OCA\EAS\Service\Remote\RemoteContactsService;
-use OCA\EAS\Service\Remote\RemoteEventsService;
-use OCA\EAS\Service\Remote\RemoteTasksService;
 use OCA\EAS\Service\Remote\RemoteCommonService;
 use OCA\EAS\Tasks\HarmonizationLauncher;
 
 class HarmonizationService {
 
-	/**
-	 * @var LoggerInterface
-	 */
-	private $logger;
-	/**
-	 * @var INotificationManager
-	 */
-	private $notificationManager;
-	/**
-	 * @var ConfigurationService
-	 */
-	private $ConfigurationService;
-	/**
-	 * @var CoreService
-	 */
-	private $CoreService;
-	/**
-	 * @var CorrelationsService
-	 */
-	private $CorrelationsService;
-	/**
-	 * @var LocalContactsService
-	 */
-	private $LocalContactsService;
-	/**
-	 * @var LocalEventsService
-	 */
-	private $LocalEventsService;
-	/**
-	 * @var LocalTasksService
-	 */
-	private $LocalTasksService;
-	/**
-	 * @var RemoteContactsService
-	 */
-	private $RemoteContactsService;
-	/**
-	 * @var RemoteEventsService
-	 */
-	private $RemoteEventsService;
-	/**
-	 * @var RemoteTasksService
-	 */
-	private $RemoteTasksService;
-	
+	private LoggerInterface $logger;
+	private ConfigurationService $ConfigurationService;
+	private CoreService $CoreService;
+	private CorrelationsService $CorrelationsService;
+	private RemoteCommonService $RemoteCommonService;
+	private ContactsService $ContactsService;
+	private EventsService $EventsService;
+	private TasksService $TasksService;
+	private HarmonizationThreadService $HarmonizationThreadService;
 
 	public function __construct (string $appName,
 								LoggerInterface $logger,
 								ConfigurationService $ConfigurationService,
 								CoreService $CoreService,
 								CorrelationsService $CorrelationsService,
-								LocalContactsService $LocalContactsService,
-								LocalEventsService $LocalEventsService,
-								LocalTasksService $LocalTasksService,
-								RemoteContactsService $RemoteContactsService,
-								RemoteEventsService $RemoteEventsService,
-								RemoteTasksService $RemoteTasksService,
 								RemoteCommonService $RemoteCommonService,
 								ContactsService $ContactsService,
 								EventsService $EventsService,
@@ -118,12 +68,6 @@ class HarmonizationService {
 		$this->ConfigurationService = $ConfigurationService;
 		$this->CoreService = $CoreService;
 		$this->CorrelationsService = $CorrelationsService;
-		$this->LocalContactsService = $LocalContactsService;
-		$this->LocalEventsService = $LocalEventsService;
-		$this->LocalTasksService = $LocalTasksService;
-		$this->RemoteContactsService = $RemoteContactsService;
-		$this->RemoteEventsService = $RemoteEventsService;
-		$this->RemoteTasksService = $RemoteTasksService;
 		$this->RemoteCommonService = $RemoteCommonService;
 		$this->ContactsService = $ContactsService;
 		$this->EventsService = $EventsService;
@@ -151,7 +95,7 @@ class HarmonizationService {
 		// retrieve Configuration
 		$Configuration = $this->ConfigurationService->retrieveUser($uid);
 		$Configuration = $this->ConfigurationService->toUserConfigurationObject($Configuration);
-		// create remote store client
+		// initialize remote store
 		$RemoteStore = $this->CoreService->createClient($uid);
 
 		// contacts harmonization
@@ -161,8 +105,8 @@ class HarmonizationService {
 				(($mode === 'S' && $Configuration->ContactsHarmonize > 0) ||
 				($mode === 'M' && $Configuration->ContactsHarmonize > -1))) {
 				$this->logger->info('Statred Harmonization of Contacts for ' . $uid);
-				// assign remote data store
-				$this->ContactsService->RemoteStore = $RemoteStore;
+				// assign configuration and data stores
+				$this->ContactsService->initialize($Configuration, $RemoteStore);
 				// retrieve list of collections correlations
 				$correlations = $this->CorrelationsService->findByType($uid, CorrelationsService::ContactCollection);
 				// iterate through correlation items
@@ -173,9 +117,10 @@ class HarmonizationService {
 						continue;
 					}
 					// lock correlation before harmonization
-					$correlation->sethlock(1);
-					$correlation->sethlockhd((int) getmypid());
-					$this->CorrelationsService->update($correlation);
+					// TODO: enable harmonization lock for production
+					//$correlation->sethlock(1);
+					//$correlation->sethlockhd((int) getmypid());
+					//$this->CorrelationsService->update($correlation);
 					// execute contacts harmonization loop
 					do {
 						// update lock heartbeat
@@ -222,9 +167,10 @@ class HarmonizationService {
 						continue;
 					}
 					// lock correlation before harmonization
-					$correlation->sethlock(1);
-					$correlation->sethlockhd((int) getmypid());
-					$this->CorrelationsService->update($correlation);
+					// TODO: enable harmonization lock for production
+					//$correlation->sethlock(1);
+					//$correlation->sethlockhd((int) getmypid());
+					//$this->CorrelationsService->update($correlation);
 					// execute events harmonization loop
 					do {
 						// update lock heartbeat
@@ -271,9 +217,10 @@ class HarmonizationService {
 						continue;
 					}
 					// lock correlation before harmonization
-					$correlation->sethlock(1);
-					$correlation->sethlockhd((int) getmypid());
-					$this->CorrelationsService->update($correlation);
+					// TODO: enable harmonization lock for production
+					//$correlation->sethlock(1);
+					//$correlation->sethlockhd((int) getmypid());
+					//$this->CorrelationsService->update($correlation);
 					// execute tasks harmonization loop
 					do {
 						// update lock heartbeat

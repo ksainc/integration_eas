@@ -28,8 +28,7 @@ namespace OCA\EAS\Service\Local;
 use Datetime;
 use DateTimeZone;
 
-use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Db\EventStore;
+use OCA\EAS\Db\ContactStore;
 use OCA\EAS\Objects\ContactCollectionObject;
 use OCA\EAS\Objects\ContactObject;
 
@@ -38,34 +37,43 @@ use Sabre\VObject\Component\VCard;
 
 class LocalContactsService {
 	
-	private EventStore $DataStore;
+	private ContactStore $_Store;
 
-	public function __construct (EventStore $EventStore) {
-        $this->DataStore = $EventStore;
+	public function __construct () {
+
+	}
+
+    public function initialize(ContactStore $Store) {
+
+		$this->_Store = $Store;
+
 	}
 
 	 /**
-     * retrieve properties for specific collection from local storage
+     * retrieve collection object from local storage
      * 
-	 * @param string $cid - Collection Id
+	 * @param string $id            Collection ID
 	 * 
-	 * @return object of collection properties
+	 * @return ContactCollectionObject  ContactCollectionObject on success / null on fail
 	 */
-	public function fetchCollection(string $cid): ?ContactCollectionObject {
+	public function fetchCollection(string $id): ?ContactCollectionObject {
 
-        // retrieve collection properties
-        $cc = $this->DataStore->getAddressBookById($cid);
-
-        if (isset($cc)) {
+        // retrieve object properties
+        $lo = $this->_Store->fetchCollection($id);
+        // evaluate if object properties where retrieved
+        if (is_array($lo) && count($lo) > 0) {
+            // construct object and return
             return new ContactCollectionObject(
-                $cc['id'],
-                $cc['{DAV:}displayname'],
-                $cc['{http://sabredav.org/ns}sync-token']
+                $lo['id'],
+                $lo['label'],
+                $lo['token']
             );
         }
         else {
+            // return nothing
             return null;
         }
+
     }
 
 	/**
@@ -85,28 +93,29 @@ class LocalContactsService {
         
     }
 
-    /**
-     * find entity by uuid in local storage
+	/**
+     * retrieve entity object from local storage
      * 
-	 * @param string $cid - Collection ID
-     * @param string $uuid - Entity UUID
+     * @param string $id            Entity ID
 	 * 
-	 * @return ContactObject ContactObject - successfully retrieved / null - failed to retrieve
+	 * @return ContactObject        ContactObject on success / null on fail
 	 */
-	public function findEntityByUUID(string $cid, string $uuid): ?ContactObject {
-        
-        // search data store for object
-        $lo = $this->ContactsUtile->fetchByUUID($cid, $uuid);
-        // evaluate result
+	public function fetchEntity(string $id): ?ContactObject {
+
+        // retrieve object properties
+        $lo = $this->_Store->fetchEntity($id);
+		// evaluate if object properties where retrieved
         if (is_array($lo) && count($lo) > 0) {
             $lo = $lo[0];
-            // convert string data to vcard then to contact object
-            $co = $this->toContactObject(Reader::read($lo['carddata']));
-            $co->ID = $lo['uri'];
-            $co->UID = $lo['uid'];
-            $co->CID = $lo['addressbookid'];
-            $co->ModifiedOn = new DateTime(date("Y-m-d H:i:s", $lo['lastmodified']));
-            $co->State = trim($lo['etag'],'"');
+            // convert to contact object
+            $co = $this->toContactObject(Reader::read($lo['data']));
+            $co->ID = $lo['id'];
+            $co->UUID = $lo['uuid'];
+            $co->CID = $lo['cid'];
+            $co->State = trim($lo['state'],'"');
+            $co->RCID = $lo['rcid'];
+            $co->REID = $lo['reid'];
+            $co->RState = $lo['rcid'];
             // return contact object
             return $co;
         } else {
@@ -116,28 +125,31 @@ class LocalContactsService {
 
     }
 
-	/**
-     * retrieve entity from local storage
+    /**
+     * retrieve entity object by remote id from local storage
      * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Entity ID
+     * @param string $uid           User Id
+	 * @param string $rcid          Remote Collection ID
+     * @param string $reid          Remote Entity ID
 	 * 
-	 * @return ContactObject ContactObject - successfully retrieved / null - failed to retrieve
+	 * @return ContactObject        ContactObject on success / null on fail
 	 */
-	public function fetchEntity(string $cid, string $iid): ?ContactObject {
+	public function fetchEntityByRID(string $uid, string $rcid, string $reid): ?ContactObject {
 
-        // retrieve collection item
-		//$lo = $this->DataStore->getCard($cid, $iid);
-        $lo = $this->ContactsUtile->findByURI($cid, $iid);
-		// evaluate result
+        // retrieve object properties
+        $lo = $this->_Store->fetchEntityByRID($uid, $rcid, $reid);
+		// evaluate if object properties where retrieved
         if (is_array($lo) && count($lo) > 0) {
             $lo = $lo[0];
             // convert to contact object
-            $co = $this->toContactObject(Reader::read($lo['carddata']));
-            $co->ID = $lo['uri'];
-            $co->CID = $lo['addressbookid'];
-            $co->ModifiedOn = new DateTime(date("Y-m-d H:i:s", $lo['lastmodified']));
-            $co->State = trim($lo['etag'],'"');
+            $co = $this->toContactObject(Reader::read($lo['data']));
+            $co->ID = $lo['id'];
+            $co->UUID = $lo['uuid'];
+            $co->CID = $lo['cid'];
+            $co->State = trim($lo['state'],'"');
+            $co->RCID = $lo['rcid'];
+            $co->REID = $lo['reid'];
+            $co->RState = $lo['rcid'];
             // return contact object
             return $co;
         } else {
@@ -150,22 +162,32 @@ class LocalContactsService {
     /**
      * create entity in local storage
      * 
-	 * @param string $cid           Collection ID
-     * @param ContactObject $data   Entity Data
+	 * @param string $uid           User Id
+	 * @param string $rcid          Remote Collection ID
+     * @param ContactObject $so     Source Object
 	 * 
 	 * @return object Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function createEntity(string $cid, ContactObject $data): ?object {
+	public function createEntity(string $uid, string $cid, ContactObject $so): ?object {
 
+        // initilize data place holder
+        $lo = [];
         // convert contact object to vcard object
-        $lo = $this->fromContactObject($data);
-        // generate item id
-        $loid = \OCA\EAS\Utile\UUID::v4() . '.vcf';
+        $lo['data'] = $this->fromContactObject($so)->serialize();
+        $lo['uuid'] = (!empty($so->UUID)) ? $so->UUID : \OCA\EAS\Utile\UUID::v4();
+        $lo['uid'] = $uid;
+        $lo['cid'] = $cid;
+        $lo['rcid'] = $so->RCID;
+        $lo['reid'] = $so->REID;
+        $lo['rstate'] = $so->RState;
+        $lo['label'] = $so->Label;
+        $lo['size'] = strlen($lo['data']);
+        $lo['state'] = md5($lo['data']);
         // create item in data store
-        $result = $this->DataStore->createCard($cid, $loid, $lo->serialize());
+        $id = $this->_Store->createEntity($lo);
         // return status object or null
-        if ($result) {
-            return (object) array('ID' => $loid, 'UID' => $lo->UID->getValue(), 'State' => trim($result,'"'));
+        if ($id) {
+            return (object) array('ID' => $id, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
         } else {
             return null;
         }

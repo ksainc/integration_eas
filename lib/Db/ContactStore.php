@@ -401,8 +401,17 @@ class ContactStore {
 		$cmd->select('*')
 			->from($this->_EntityTable)
 			->where($cmd->expr()->eq('id', $cmd->createNamedParameter($id)));
-		// execute command and return result
-		return $this->findEntity($cmd);
+		// execute command
+		$data = $cmd->executeQuery()->fetch();
+		$cmd->executeQuery()->closeCursor();
+		// return result or empty array
+		if (is_array($data) && count($data) > 0) {
+			return $data;
+		}
+		else {
+			return [];
+		}
+
 	}
 
 	/**
@@ -413,7 +422,7 @@ class ContactStore {
 	 * @param string $uid		user id
 	 * @param string $uri		entity uri
 	 *  
-	 * @return Collection
+	 * @return array
 	 */
 	public function fetchEntityByURI(string $uid, string $uri): array {
 
@@ -423,8 +432,16 @@ class ContactStore {
 			->from($this->_EntityTable)
 			->where($cmd->expr()->eq('uid', $cmd->createNamedParameter($uid)))
 			->andWhere($cmd->expr()->eq('uri', $cmd->createNamedParameter($uri)));
-		// execute command and return result
-		return $this->findEntity($cmd);
+		// execute command
+		$data = $cmd->executeQuery()->fetch();
+		$cmd->executeQuery()->closeCursor();
+		// return result or empty array
+		if (is_array($data) && count($data) > 0) {
+			return $data;
+		}
+		else {
+			return [];
+		}
 	}
 
 	/**
@@ -433,20 +450,30 @@ class ContactStore {
 	 * @since Release 1.0.0
 	 * 
 	 * @param string $uid		user id
-	 * @param string $uuid		entity uuid
+	 * @param string $rcid		remote collection id
+	 * @param string $reid		remote entitiy id
 	 *  
-	 * @return EventEntity
+	 * @return array
 	 */
-	public function fetchEntityByUUID(string $uid, string $uuid): EventEntity {
+	public function fetchEntityByRID(string $uid, string $rcid, string $reid): array {
 
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
 		$cmd->select('*')
 			->from($this->_EntityTable)
 			->where($cmd->expr()->eq('uid', $cmd->createNamedParameter($uid)))
-			->andWhere($cmd->expr()->eq('uuid', $cmd->createNamedParameter($uuid)));
-		// execute command and return result
-		return $this->findEntity($cmd);
+			->andWhere($cmd->expr()->eq('rcid', $cmd->createNamedParameter($rcid)))
+			->andWhere($cmd->expr()->eq('reid', $cmd->createNamedParameter($reid)));
+		// execute command
+		$data = $cmd->executeQuery()->fetch();
+		$cmd->executeQuery()->closeCursor();
+		// return result or empty array
+		if (is_array($data) && count($data) > 0) {
+			return $data;
+		}
+		else {
+			return [];
+		}
 
 	}
 
@@ -469,37 +496,6 @@ class ContactStore {
 			->where($cmd->expr()->eq('id', $cmd->createNamedParameter($id)));
 		// execute command and return results
 		$entry = $this->findEntity($cmd);
-		// evaluate, if and entry was retrieved
-		if (count($entry) > 0) {
-			return true;
-		}
-		else {
-			return false;
-		}
-
-	}
-
-	/**
-	 * confirm entity exists in data store
-	 * 
-	 * @since Release 1.0.0
-	 * 
-	 * @param string $uid		user id
-	 * @param string $uri		entity uri
-	 * 
-	 * @return bool
-	 */
-	public function confirmEntityByURI(string $uid, string $uri): bool {
-
-		// retrieve entry
-		// construct data store command
-		$cmd = $this->_Store->getQueryBuilder();
-		$cmd->select('*')
-			->from($this->_EntityTable)
-			->where($cmd->expr()->eq('uid', $cmd->createNamedParameter($uid)))
-			->andWhere($cmd->expr()->eq('uri', $cmd->createNamedParameter($uri)));
-		// execute command and return results
-		$entry = $this->findEntities($cmd);
 		// evaluate, if and entry was retrieved
 		if (count($entry) > 0) {
 			return true;

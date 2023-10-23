@@ -31,7 +31,6 @@ use DateTimeInterface;
 use finfo;
 use Psr\Log\LoggerInterface;
 
-use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
 use OCA\EAS\Objects\ContactCollectionObject;
 use OCA\EAS\Objects\ContactObject;
@@ -43,32 +42,20 @@ use OCA\EAS\Utile\Eas\EasProperty;
 use OCA\EAS\Utile\Eas\EasTypes;
 
 class RemoteContactsService {
-	/**
-	 * @var LoggerInterface
-	 */
-	private $logger;
-	/**
-	 * @var RemoteCommonService
-	 */
-	private $RemoteCommonService;
-	/**
-	 * @var EasClient
-	 */
+	
+	private RemoteCommonService $RemoteCommonService;
 	public ?EasClient $DataStore = null;
-    /**
-	 * @var Object
-	 */
 	private ?object $DefaultCollectionProperties = null;
-	/**
-	 * @var Object
-	 */
 	private ?object $DefaultItemProperties = null;
 
-	public function __construct (string $appName,
-								LoggerInterface $logger,
-								RemoteCommonService $RemoteCommonService) {
-		$this->logger = $logger;
+	public function __construct (RemoteCommonService $RemoteCommonService) {
 		$this->RemoteCommonService = $RemoteCommonService;
+	}
+
+    public function initialize(EasClient $DataStore) {
+
+		$this->DataStore = $DataStore;
+
 	}
 
 	/**
@@ -85,17 +72,17 @@ class RemoteContactsService {
 	public function fetchCollection(string $cht, string $chl, string $cid): ?ContactCollectionObject {
 
         // execute command
-		$cr = $this->RemoteCommonService->fetchFolder($this->DataStore, $cid, false, 'I', $this->constructDefaultCollectionProperties());
+		$rs = $this->RemoteCommonService->fetchFolder($this->DataStore, $cid, false, 'I', $this->constructDefaultCollectionProperties());
         // process response
-		if (isset($cr) && (count($cr->ContactsFolder) > 0)) {
+		if (isset($rs) && (count($rs->ContactsFolder) > 0)) {
 		    $ec = new ContactCollectionObject(
-				$cr->ContactsFolder[0]->FolderId->Id,
-				$cr->ContactsFolder[0]->DisplayName,
-				$cr->ContactsFolder[0]->FolderId->ChangeKey,
-				$cr->ContactsFolder[0]->TotalCount
+				$rs->ContactsFolder[0]->FolderId->Id,
+				$rs->ContactsFolder[0]->DisplayName,
+				$rs->ContactsFolder[0]->FolderId->ChangeKey,
+				$rs->ContactsFolder[0]->TotalCount
 			);
-			if (isset($cr->ContactsFolder[0]->ParentFolderId->Id)) {
-				$ec->AffiliationId = $cr->ContactsFolder[0]->ParentFolderId->Id;
+			if (isset($rs->ContactsFolder[0]->ParentFolderId->Id)) {
+				$ec->AffiliationId = $rs->ContactsFolder[0]->ParentFolderId->Id;
 			}
 			return $ec;
 		} else {
@@ -196,10 +183,10 @@ class RemoteContactsService {
 	 */
 	public function syncEntities(string $cid, string $cst): ?object {
 
-        // evaluate synchronization token, if 0 retrieve initial synchronization token
-        if ($cst == '0') {
+        // evaluate synchronization token, if empty or 0 retrieve initial synchronization token
+        if (empty($cst) || $cst == '0') {
             // execute command
-            $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, []);
+            $rs = $this->RemoteCommonService->syncEntities($this->DataStore, '0', $cid, []);
             // extract synchronization token
             $cst = $rs->SyncKey->getContents();
         }
@@ -505,7 +492,7 @@ class RemoteContactsService {
 		// create object
 		$co = new ContactObject();
         // Origin
-		$o->Origin = 'R';
+		$co->Origin = 'R';
         // Label
         if (!empty($so->FileAs)) {
             $co->Label = $so->FileAs->getContents();
