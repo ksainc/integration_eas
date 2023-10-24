@@ -104,7 +104,7 @@ class Collection extends ExternalAddressBook {
 	 * @inheritDoc
 	 */
 	function setACL(array $acl) {
-		throw new \Sabre\DAV\Exception\Forbidden('Setting ACL is not supported on this node');
+		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
 	}
 
 	/**
@@ -124,7 +124,7 @@ class Collection extends ExternalAddressBook {
 		// list entries
 		$list = [];
 		foreach ($entries as $entry) {
-			$list[] = $entry['id'];
+			$list[] = new Entity($this, $entry->getId(), $entry->getUuid(), $entry->getLabel(), $entry->getData());
 		}
 		// return list
 		return $list;
@@ -135,7 +135,7 @@ class Collection extends ExternalAddressBook {
 	 * @inheritDoc
 	 */
 	function createFile($name, $data = null) {
-		return null;
+		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
 	}
 
 	/**
@@ -143,16 +143,14 @@ class Collection extends ExternalAddressBook {
 	 */
 	function getChild($id) {
 
-		// retrieve entities
-		$entry = $this->_store->listByCollection($this->_uid, $this->_id);
-		// evaluate if entry was returned
-		if (is_array($entry)) {
-			// return entry
-			return new Entity($this, $entry->getId(), $entry->getUuid(), $entry->getLabel(), $entry->getData());
+		// retrieve object properties
+		$entry = $this->_store->fetchEntityByUUID($this->_uid, $id);
+		// evaluate if object properties where retrieved 
+		if (isset($entry['uuid'])) {
+			return new Entity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
 		}
 		else {
-			// return nothing
-			return null;
+			return false;
 		}
 
 	}
@@ -167,7 +165,7 @@ class Collection extends ExternalAddressBook {
 		// list entries
 		$list = [];
 		foreach ($entries as $entry) {
-			$list[] = $entry['id'];
+			$list[] = new Entity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
 		}
 		// return list
 		return $list;
@@ -178,7 +176,9 @@ class Collection extends ExternalAddressBook {
 	 * @inheritDoc
 	 */
 	function childExists($id) {
-		return $this->_store->exists($id);
+
+		return $this->_store->confirmEntityByUUID($this->_uid, $id);
+
 	}
 
 	/**
@@ -222,29 +222,8 @@ class Collection extends ExternalAddressBook {
 	/**
 	 * @inheritDoc
 	 */
-	function getLabel(): string {
-		return $this->_Label;
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	function setLabel(string $label): void {
-		$this->_label = $label;
-	}
-
-	/**
-	 * @inheritDoc
-	 */
 	function getColor(): string {
 		return $this->_color;
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	function setColor(string $color): void {
-		$this->_color = $color;
 	}
 
 	/**
