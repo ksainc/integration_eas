@@ -536,7 +536,7 @@ class RemoteContactsService {
         // Photo
         if (isset($so->Picture)) {
             $co->Photo->Type = '';
-            $co->Photo->Data= $so->Picture[0]->getContents();
+            $co->Photo->Data = (is_array($so->Picture)) ? $so->Picture[0]->getContents() : $so->Picture->getContents();
         }
         // Partner
         if (!empty($so->Spouse)) {

@@ -106,7 +106,6 @@ class LocalContactsService {
         $lo = $this->_Store->fetchEntity($id);
 		// evaluate if object properties where retrieved
         if (is_array($lo) && count($lo) > 0) {
-            $lo = $lo[0];
             // convert to contact object
             $co = $this->toContactObject(Reader::read($lo['data']));
             $co->ID = $lo['id'];
@@ -140,7 +139,6 @@ class LocalContactsService {
         $lo = $this->_Store->fetchEntityByRID($uid, $rcid, $reid);
 		// evaluate if object properties where retrieved
         if (is_array($lo) && count($lo) > 0) {
-            $lo = $lo[0];
             // convert to contact object
             $co = $this->toContactObject(Reader::read($lo['data']));
             $co->ID = $lo['id'];
@@ -163,10 +161,10 @@ class LocalContactsService {
      * create entity in local storage
      * 
 	 * @param string $uid           User Id
-	 * @param string $rcid          Remote Collection ID
+	 * @param string $cid           Collection ID
      * @param ContactObject $so     Source Object
 	 * 
-	 * @return object Status Object - item id, item uuid, item state token / Null - failed to create
+	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
 	public function createEntity(string $uid, string $cid, ContactObject $so): ?object {
 
@@ -183,7 +181,7 @@ class LocalContactsService {
         $lo['label'] = $so->Label;
         $lo['size'] = strlen($lo['data']);
         $lo['state'] = md5($lo['data']);
-        // create item in data store
+        // create entry in data store
         $id = $this->_Store->createEntity($lo);
         // return status object or null
         if ($id) {
@@ -197,24 +195,37 @@ class LocalContactsService {
     /**
      * update entity in local storage
      * 
+	 * @param string $uid           User ID
 	 * @param string $cid           Collection ID
-     * @param string $iid           Entity ID
-     * @param ContactObject $co     Entity Data
+	 * @param string $eid           Entity ID
+     * @param ContactObject $so     Source Object
 	 * 
 	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function updateEntity(string $cid, string $iid, ContactObject $co): ?object {
+	public function updateEntity(string $uid, string $cid, string $eid, ContactObject $so): ?object {
 
-        // check for id - must contain id to update
-        if (!empty($iid)) {
-            // convert contact object to vcard object
-            $lo = $this->fromContactObject($co);
-            // update item in data store
-            $result = $this->DataStore->updateCard($cid, $iid, $lo->serialize());
+        // evaluate if collection or entity id is missing - must contain id to update
+        if (empty($uid) || empty($cid) || empty($eid)) {
+            return null;
         }
+        // initilize data place holder
+        $lo = [];
+        // convert contact object to vcard object
+        $lo['data'] = $this->fromContactObject($so)->serialize();
+        $lo['uuid'] = (!empty($so->UUID)) ? $so->UUID : \OCA\EAS\Utile\UUID::v4();
+        $lo['uid'] = $uid;
+        $lo['cid'] = $cid;
+        $lo['rcid'] = $so->RCID;
+        $lo['reid'] = $so->REID;
+        $lo['rstate'] = $so->RState;
+        $lo['label'] = $so->Label;
+        $lo['size'] = strlen($lo['data']);
+        $lo['state'] = md5($lo['data']);
+        // modify entry in data store
+        $rs = $this->_Store->modifyEntity($eid, $lo);
         // return status object or null
-        if ($result) {
-            return (object) array('ID' => $iid, 'UID' => $co->UID, 'State' => trim($result,'"'));
+        if ($rs) {
+            return (object) array('ID' => $eid, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
         } else {
             return null;
         }
@@ -224,20 +235,22 @@ class LocalContactsService {
     /**
      * delete entity from local storage
      * 
+	 * @param string $uid           User ID
 	 * @param string $cid           Collection ID
-     * @param string $iid           Item ID
+	 * @param string $eid           Entity ID
 	 * 
 	 * @return bool                 true - successfully delete / false - failed to delete
 	 */
-	public function deleteCollectionItem(string $cid, string $iid): bool {
+	public function deleteEntity(string $uid, string $cid, string $eid): bool {
 
-        // check for id - must contain id to delete
-        if (!empty($iid)) {
-            // delete item in data store
-            $result = $this->DataStore->deleteCard($cid, $iid);
+        // evaluate if collection or entity id is missing - must contain id to delete
+        if (empty($uid) || empty($cid) || empty($eid)) {
+            return null;
         }
-        // return operation result
-        if ($result) {
+        // delete entry from data store
+        $rs = $this->_Store->deleteEntity($eid);
+        // return result
+        if ($rs) {
             return true;
         } else {
             return false;

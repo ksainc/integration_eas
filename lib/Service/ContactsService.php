@@ -180,70 +180,87 @@ class ContactsService {
 		$correlation->setlostate($lCollectionChanges['syncToken']);
 		$this->CorrelationsService->update($correlation);
 
-		// process remote created objects
-		foreach ($rCollectionChanges->Commands->Add as $Altered) {
-			// process create
-			$as = $this->harmonizeRemoteAltered(
-				$this->Configuration->UserId, 
-				$rcid, 
-				$Altered->EntityId->getContents(),
-				$Altered->Data, 
-				$lcid, 
-				$caid
-			);
-			// increment statistics
-			switch ($as) {
-				case 'LC':
-					$statistics->LocalCreated += 1;
-					break;
-				case 'LU':
-					$statistics->LocalUpdated += 1;
-					break;
-				case 'RU':
-					$statistics->RemoteUpdated += 1;
-					break;
+		// evaluate if mutations object was returned
+		// according to the EAS spec the change object can be blank if there is no changes 
+		if (isset($rCollectionChanges->SyncKey)) {
+			// evaluate if add property is an array and convert to array if needed
+			if (isset($rCollectionChanges->Commands->Add) && !is_array($rCollectionChanges->Commands->Add)) {
+				$rCollectionChanges->Commands->Add = [$rCollectionChanges->Commands->Add];
 			}
-		}
-		// process remote modified objects
-		foreach ($rCollectionChanges->Update as $changed) {
-			// process update
-			$as = $this->harmonizeRemoteAltered(
-				$this->Configuration->UserId, 
-				$rcid, 
-				$changed->Contact->ItemId->Id, 
-				$lcid, 
-				$caid
-			);
-			// increment statistics
-			switch ($as) {
-				case 'LC':
-					$statistics->LocalCreated += 1;
-					break;
-				case 'LU':
-					$statistics->LocalUpdated += 1;
-					break;
-				case 'RU':
-					$statistics->RemoteUpdated += 1;
-					break;
-			}
-		}
-		// process remote deleted objects
-		foreach ($rCollectionChanges->Delete as $changed) {
-			// process delete
-			$as = $this->harmonizeRemoteDelete(
-				$this->Configuration->UserId, 
-				$rcid, 
-				$changed->ItemId->Id
-			);
-			if ($as == 'LD') {
+			// process remote created objects
+			foreach ($rCollectionChanges->Commands->Add as $Altered) {
+				// process create
+				$as = $this->harmonizeRemoteAltered(
+					$this->Configuration->UserId, 
+					$rcid, 
+					$Altered->EntityId->getContents(),
+					$Altered->Data, 
+					$lcid, 
+					$caid
+				);
 				// increment statistics
-				$statistics->LocalDeleted += 1;
+				switch ($as) {
+					case 'LC':
+						$statistics->LocalCreated += 1;
+						break;
+					case 'LU':
+						$statistics->LocalUpdated += 1;
+						break;
+					case 'RU':
+						$statistics->RemoteUpdated += 1;
+						break;
+				}
 			}
+			// evaluate if modify property is an array and convert to array if needed
+			if (isset($rCollectionChanges->Commands->Modify) && !is_array($rCollectionChanges->Commands->Modify)) {
+				$rCollectionChanges->Commands->Modify = [$rCollectionChanges->Commands->Modify];
+			}
+			// process remote modified objects
+			foreach ($rCollectionChanges->Commands->Modify as $Altered) {
+				// process create
+				$as = $this->harmonizeRemoteAltered(
+					$this->Configuration->UserId, 
+					$rcid, 
+					$Altered->EntityId->getContents(),
+					$Altered->Data, 
+					$lcid, 
+					$caid
+				);
+				// increment statistics
+				switch ($as) {
+					case 'LC':
+						$statistics->LocalCreated += 1;
+						break;
+					case 'LU':
+						$statistics->LocalUpdated += 1;
+						break;
+					case 'RU':
+						$statistics->RemoteUpdated += 1;
+						break;
+				}
+			}
+			// evaluate if delete property is an array and convert to array if needed
+			if (isset($rCollectionChanges->Commands->Delete) && !is_array($rCollectionChanges->Commands->Delete)) {
+				$rCollectionChanges->Commands->Delete = [$rCollectionChanges->Commands->Delete];
+			}
+			// process remote deleted objects
+			foreach ($rCollectionChanges->Commands->Delete as $Deleted) {
+				// process delete
+				$as = $this->harmonizeRemoteDelete(
+					$this->Configuration->UserId, 
+					$rcid, 
+					$Deleted->EntityId->getContents()
+				);
+				if ($as == 'LD') {
+					// increment statistics
+					$statistics->LocalDeleted += 1;
+				}
+			}
+			// update and deposit correlation remote state
+			$correlation->setrostate($rCollectionChanges->SyncKey->getContents());
+			$this->CorrelationsService->update($correlation);
 		}
-		// update and deposit correlation remote state
-		$correlation->setrostate($rCollectionChanges->SyncKey->getContents());
-		$this->CorrelationsService->update($correlation);
-
+		
 		// return statistics
 		return $statistics;
 
@@ -254,13 +271,13 @@ class ContactsService {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid	nextcloud user id
-	 * @param string $lcid	local collection id
-	 * @param string $loid	local object id
-	 * @param string $rcid	remote collection id
-	 * @param string $caid	correlation affiliation id
+	 * @param string $uid		nextcloud user id
+	 * @param string $lcid		local collection id
+	 * @param string $loid		local object id
+	 * @param string $rcid		remote collection id
+	 * @param string $caid		correlation affiliation id
 	 *
-	 * @return string what action was performed
+	 * @return string 			what action was performed
 	 */
 	function harmonizeLocalAltered ($uid, $lcid, $loid, $rcid, $caid): string {
 
@@ -418,11 +435,11 @@ class ContactsService {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid	nextcloud user id
-	 * @param string $lcid	local collection id
-	 * @param string $loid	local object id
+	 * @param string $uid		nextcloud user id
+	 * @param string $lcid		local collection id
+	 * @param string $loid		local object id
 	 *
-	 * @return string what action was performed
+	 * @return string 			what action was performed
 	 */
 	function harmonizeLocalDelete ($uid, $lcid, $loid): string {
 
@@ -449,13 +466,13 @@ class ContactsService {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid	nextcloud user id
-	 * @param string $rcid	remote collection id
-	 * @param string $ro	remote object
-	 * @param string $lcid	local collection id
-	 * @param string $caid	correlation affiliation id
+	 * @param string $uid		nextcloud user id
+	 * @param string $rcid		remote collection id
+	 * @param string $ro		remote object
+	 * @param string $lcid		local collection id
+	 * @param string $caid		correlation affiliation id
 	 *
-	 * @return string what action was performed
+	 * @return string 			what action was performed
 	 */
 	function harmonizeRemoteAltered ($uid, $rcid, $roid, $rdata, $lcid, $caid): string {
 		
@@ -479,65 +496,25 @@ class ContactsService {
 		// update local object if one was found
 		// create local object if none was found
 		if (isset($lo)) {
-			// if correlation DOES NOT EXIST
-			// use selected mode to resolve conflict
-			if (!($ci instanceof \OCA\EAS\Db\Correlation)) {
-				// update local object if
-				// remote wins mode selected
-				// chronology wins mode selected and remote object is newer
-				if ($this->Configuration->ContactsPrevalence == 'R' || 
-				   ($this->Configuration->ContactsPrevalence == 'C' && ($ro->ModifiedOn > $lo->ModifiedOn))) {
-					// update local object
-					$lo = $this->LocalContactsService->updateCollectionItem($lcid, $lo->ID, $ro);
-					// assign status
-					$status = 'LU'; // Local Update
-				}
-				// update remote object if
-				// local wins mode selected
-				// chronology wins mode selected and local object is newer
-				if ($this->Configuration->ContactsPrevalence == 'L' || 
-				   ($this->Configuration->ContactsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
-					// update remote object
-					$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
-					// assign status
-					$status = 'RU'; // Remote Update
-				}
-			}
-			// if correlation EXISTS
-			// compare local object state to correlation state
-			// if states DO NOT MATCH use selected mode to resolve conflict
-			elseif ($ci instanceof \OCA\EAS\Db\Correlation && 
-					$lo->State != $ci->getlostate()) {
-				// update local object if
-				// remote wins mode selected
-				// chronology wins mode selected and remote object is newer
-				if ($this->Configuration->ContactsPrevalence == 'R' || 
-				   ($this->Configuration->ContactsPrevalence == 'C' && ($ro->ModifiedOn > $lo->ModifiedOn))) {
-					// update local object
-					$lo = $this->LocalContactsService->updateCollectionItem($lcid, $lo->ID, $ro);
-					// assign status
-					$status = 'LU'; // Local Update
-				}
-				// update remote object if
-				// local wins mode selected
-				// chronology wins mode selected and local object is newer
-				if ($this->Configuration->ContactsPrevalence == 'L' || 
-				   ($this->Configuration->ContactsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
-					// update remote object
-					$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
-					// assign status
-					$status = 'RU'; // Remote Update
-				}
-			}
-			// if correlation EXISTS
-			// compare local object state to correlation state
-			// if states DO MATCH update local object
-			elseif ($ci instanceof \OCA\EAS\Db\Correlation && 
-					$lo->State == $ci->getlostate()) {
+			// update local object if
+			// remote wins mode selected
+			// chronology wins mode selected and remote object is newer
+			if ($this->Configuration->ContactsPrevalence == 'R' || 
+				($this->Configuration->ContactsPrevalence == 'C' && ($ro->ModifiedOn > $lo->ModifiedOn))) {
 				// update local object
-				$lo = $this->LocalContactsService->updateCollectionItem($lcid, $lo->ID, $ro);
+				$lo = $this->LocalContactsService->updateEntity($uid, $lo->CID, $lo->ID, $ro);
 				// assign status
 				$status = 'LU'; // Local Update
+			}
+			// update remote object if
+			// local wins mode selected
+			// chronology wins mode selected and local object is newer
+			elseif ($this->Configuration->ContactsPrevalence == 'L' || 
+				($this->Configuration->ContactsPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
+				// update remote object
+				$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $lo);
+				// assign status
+				$status = 'RU'; // Remote Update
 			}
 		}
 		else {
@@ -556,22 +533,20 @@ class ContactsService {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid	nextcloud user id
-	 * @param string $rcid	local collection id
-	 * @param string $roid	local object id
+	 * @param string $uid		nextcloud user id
+	 * @param string $rcid		remote collection id
+	 * @param string $roid		remote object id
 	 *
-	 * @return string what action was performed
+	 * @return string 			what action was performed
 	 */
 	function harmonizeRemoteDelete ($uid, $rcid, $roid): string {
 
-		// find correlation
-		$ci = $this->CorrelationsService->findByRemoteId($uid, 'CO', $roid, $rcid);
+		// find local object by remote collection and object id
+		$lo = $this->LocalContactsService->fetchEntityByRID($uid, $rcid, $roid);
 		// evaluate correlation object
-		if ($ci instanceof \OCA\EAS\Db\Correlation) {
+		if (isset($lo)) {
 			// destroy local object
-			$rs = $this->LocalContactsService->deleteCollectionItem($ci->getlcid(), $ci->getloid());
-			// destroy correlation
-			$this->CorrelationsService->delete($ci);
+			$rs = $this->LocalContactsService->deleteEntity($uid, $lo->CID, $lo->ID);
 			// return status of action
 			return 'LD';
 		}
