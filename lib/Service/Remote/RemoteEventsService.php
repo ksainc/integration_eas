@@ -30,7 +30,6 @@ use DateTimeZone;
 use DateInterval;
 use Psr\Log\LoggerInterface;
 
-use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
 use OCA\EAS\Objects\EventCollectionObject;
 use OCA\EAS\Objects\EventObject;
@@ -42,32 +41,21 @@ use OCA\EAS\Utile\Eas\EasProperty;
 use OCA\EAS\Utile\Eas\EasTypes;
 
 class RemoteEventsService {
-	/**
-	 * @var LoggerInterface
-	 */
-	private $logger;
-	/**
-	 * @var RemoteCommonService
-	 */
-	private $RemoteCommonService;
-	/**
-	 * @var DateTimeZone
-	 */
-	public ?DateTimeZone $SystemTimeZone = null;
-    /**
-	 * @var DateTimeZone
-	 */
-	public ?DateTimeZone $UserTimeZone = null;
-	/**
-	 * @var EasClient
-	 */
+	
+	private RemoteCommonService $RemoteCommonService;
 	public ?EasClient $DataStore = null;
 
-	public function __construct (string $appName,
-								LoggerInterface $logger,
-								RemoteCommonService $RemoteCommonService) {
-		$this->logger = $logger;
+	public ?DateTimeZone $SystemTimeZone = null;
+	public ?DateTimeZone $UserTimeZone = null;
+
+	public function __construct (RemoteCommonService $RemoteCommonService) {
 		$this->RemoteCommonService = $RemoteCommonService;
+	}
+
+    public function initialize(EasClient $DataStore) {
+
+		$this->DataStore = $DataStore;
+
 	}
 
 	/**
@@ -195,10 +183,10 @@ class RemoteEventsService {
 	 */
 	public function syncEntities(string $cid, string $cst): ?object {
 
-        // evaluate synchronization token, if 0 retrieve initial synchronization token
-        if ($cst == '0') {
+        // evaluate synchronization token, if empty or 0 retrieve initial synchronization token
+        if (empty($cst) || $cst == '0') {
             // execute command
-            $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, []);
+            $rs = $this->RemoteCommonService->syncEntities($this->DataStore, '0', $cid, []);
             // extract synchronization token
             $cst = $rs->SyncKey->getContents();
         }

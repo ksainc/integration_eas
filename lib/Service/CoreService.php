@@ -780,7 +780,7 @@ class CoreService {
 									// create local collection
 									$cl = [];
 									$cl['uid'] = $uid; // User ID
-									$cl['uri'] = \OCA\EAS\Utile\UUID::v4(); // Universal Resource ID
+									$cl['uuid'] = \OCA\EAS\Utile\UUID::v4(); // Universal Resource ID
 									$cl['label'] = 'EAS: ' . $entry['label']; // Collection Label
 									$cl['color'] = $entry['color']; // Collection Color
 									$cl['token'] = 0; // Collection State Token
@@ -832,7 +832,7 @@ class CoreService {
 									// create local collection
 									$cl = [];
 									$cl['uid'] = $uid; // User ID
-									$cl['uri'] = \OCA\EAS\Utile\UUID::v4(); // Universal Resource ID
+									$cl['uuid'] = \OCA\EAS\Utile\UUID::v4(); // Universal Resource ID
 									$cl['label'] = 'EAS: ' . $entry['label']; // Collection Label
 									$cl['color'] = $entry['color']; // Collection Color
 									$cl['token'] = 0; // Collection State Token
@@ -884,7 +884,7 @@ class CoreService {
 									// create local collection
 									$cl = [];
 									$cl['uid'] = $uid; // User ID
-									$cl['uri'] = \OCA\EAS\Utile\UUID::v4(); // Universal Resource ID
+									$cl['uuid'] = \OCA\EAS\Utile\UUID::v4(); // Universal Resource ID
 									$cl['label'] = 'EAS: ' . $entry['label']; // Collection Label
 									$cl['color'] = $entry['color']; // Collection Color
 									$cl['token'] = 0; // Collection State Token

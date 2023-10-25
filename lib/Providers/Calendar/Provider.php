@@ -37,13 +37,13 @@ class Provider implements ICalendarProvider {
 		$collections = $this->_EventStore->listCollectionsByUser(substr($principalUri, 17), 'EC');
 		// add collections to list
 		foreach ($collections as $entry) {
-			$list[] = new EventCollection($this->_EventStore, $entry['id'], $entry['uid'], $entry['uri'], $entry['label'], $entry['color']);
+			$list[] = new EventCollection($this->_EventStore, $entry['id'], $entry['uid'], $entry['uuid'], $entry['label'], $entry['color']);
 		}
 		// retrieve collection(s)
 		$collections = $this->_TaskStore->listCollectionsByUser(substr($principalUri, 17), 'TC');
 		// add collections to list
 		foreach ($collections as $entry) {
-			$list[] = new TaskCollection($this->_TaskStore, $entry['id'], $entry['uid'], $entry['uri'], $entry['label'], $entry['color']);
+			$list[] = new TaskCollection($this->_TaskStore, $entry['id'], $entry['uid'], $entry['uuid'], $entry['label'], $entry['color']);
 		}
 		// return collection objects list
 		return $list;
@@ -55,7 +55,7 @@ class Provider implements ICalendarProvider {
 	 */
 	public function hasCalendarInCalendarHome(string $principalUri, string $calendarUri): bool {
 
-		return $this->_EventStore->confirmCollectionByURI(substr($principalUri, 17), $calendarUri);
+		return $this->_EventStore->confirmCollectionByUUID(substr($principalUri, 17), $calendarUri);
 
 	}
 
@@ -64,14 +64,14 @@ class Provider implements ICalendarProvider {
 	 */
 	public function getCalendarInCalendarHome(string $principalUri, string $calendarUri): ?ExternalCalendar {
 
-		$entry = $this->_EventStore->fetchCollectionByURI(substr($principalUri, 17), $calendarUri);
+		$entry = $this->_EventStore->fetchCollectionByUUID(substr($principalUri, 17), $calendarUri);
 
 		if (isset($entry)) {
 			if ($entry['type'] == 'EC') {
-				return new EventCollection($this->_EventStore, $entry['id'], $entry['uid'], $entry['uri'], $entry['label'], $entry['color']);
+				return new EventCollection($this->_EventStore, $entry['id'], $entry['uid'], $entry['uuid'], $entry['label'], $entry['color']);
 			}
 			elseif ($entry['type'] == 'TC') {
-				return new TaskCollection($this->_TaskStore, $entry['id'], $entry['uid'], $entry['uri'], $entry['label'], $entry['color']);
+				return new TaskCollection($this->_TaskStore, $entry['id'], $entry['uid'], $entry['uuid'], $entry['label'], $entry['color']);
 			}
 		}
 		else {

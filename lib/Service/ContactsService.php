@@ -81,7 +81,6 @@ class ContactsService {
 	 */
 	public function performHarmonization($correlation, $configuration) : object {
 		
-		
 		// construct statistics object
 		$statistics = new HarmonizationStatisticsObject();
 
@@ -96,9 +95,11 @@ class ContactsService {
 			$this->logger->debug('EWS - Deleted contacts collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote ID or Local ID');
 			return $statistics;
 		}
+
 		// retrieve list of local changed objects
 		$lCollectionChanges = [];
 		//$lCollectionChanges = $this->LocalContactsService->fetchCollectionChanges($correlation->getloid(), (string) $correlation->getlostate());
+		
 		// delete and skip collection correlation if local collection is missing
 		//$lcollection = $this->LocalContactsService->fetchCollection($lcid);
 		//if (!isset($lcollection) || ($lcollection->Id != $lcid)) {
@@ -107,8 +108,10 @@ class ContactsService {
 		//	$this->logger->debug('EWS - Deleted contacts collection correlation for ' . $this->Configuration->UserId . ' due to missing Local Collection');
 		//	return $statistics;
 		//}
+
 		// retrieve list of remote changed object
 		$rCollectionChanges = $this->RemoteContactsService->syncEntities($correlation->getroid(), (string) $correlation->getrostate());
+		
 		// delete and skip collection correlation if remote collection is missing
 		//$rcollection = $this->RemoteContactsService->fetchCollection(0, 0, $rcid);
 		//if (!isset($rcollection) || ($rcollection->Id != $rcid)) {
@@ -117,70 +120,74 @@ class ContactsService {
 		//	$this->logger->debug('EWS - Deleted contacts collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote Collection');
 		//	return $statistics;
 		//}
-		// process local created objects
-		foreach ($lCollectionChanges['added'] as $iid) {
-			// process create
-			$as = $this->harmonizeLocalAltered(
-				$this->Configuration->UserId, 
-				$lcid, 
-				$iid, 
-				$rcid, 
-				$caid
-			);
-			// increment statistics
-			switch ($as) {
-				case 'RC':
-					$statistics->RemoteCreated += 1;
-					break;
-				case 'RU':
-					$statistics->RemoteUpdated += 1;
-					break;
-				case 'LU':
-					$statistics->LocalUpdated += 1;
-					break;
-			}
-		}
-		// process local modified items
-		foreach ($lCollectionChanges['modified'] as $iid) {
-			// process create
-			$as = $this->harmonizeLocalAltered(
-				$this->Configuration->UserId, 
-				$lcid, 
-				$iid, 
-				$rcid, 
-				$caid
-			);
-			// increment statistics
-			switch ($as) {
-				case 'RC':
-					$statistics->RemoteCreated += 1;
-					break;
-				case 'RU':
-					$statistics->RemoteUpdated += 1;
-					break;
-				case 'LU':
-					$statistics->LocalUpdated += 1;
-					break;
-			}
-		}
-		// process local deleted items
-		foreach ($lCollectionChanges['deleted'] as $iid) {
-			// process delete
-			$as = $this->harmonizeLocalDelete(
-				$this->Configuration->UserId, 
-				$lcid, 
-				$iid
-			);
-			if ($as == 'RD') {
-				// assign status
-				$statistics->RemoteDeleted += 1;
-			}
-		}
-		// update and deposit correlation local state
-		$correlation->setlostate($lCollectionChanges['syncToken']);
-		$this->CorrelationsService->update($correlation);
 
-		// evaluate if mutations object was returned
+		// evaluate if local mutations object was returned
+		if (isset($lCollectionChanges['syncToken'])) {
+			// process local created objects
+			foreach ($lCollectionChanges['added'] as $iid) {
+				// process create
+				$as = $this->harmonizeLocalAltered(
+					$this->Configuration->UserId, 
+					$lcid, 
+					$iid, 
+					$rcid, 
+					$caid
+				);
+				// increment statistics
+				switch ($as) {
+					case 'RC':
+						$statistics->RemoteCreated += 1;
+						break;
+					case 'RU':
+						$statistics->RemoteUpdated += 1;
+						break;
+					case 'LU':
+						$statistics->LocalUpdated += 1;
+						break;
+				}
+			}
+			// process local modified items
+			foreach ($lCollectionChanges['modified'] as $iid) {
+				// process create
+				$as = $this->harmonizeLocalAltered(
+					$this->Configuration->UserId, 
+					$lcid, 
+					$iid, 
+					$rcid, 
+					$caid
+				);
+				// increment statistics
+				switch ($as) {
+					case 'RC':
+						$statistics->RemoteCreated += 1;
+						break;
+					case 'RU':
+						$statistics->RemoteUpdated += 1;
+						break;
+					case 'LU':
+						$statistics->LocalUpdated += 1;
+						break;
+				}
+			}
+			// process local deleted items
+			foreach ($lCollectionChanges['deleted'] as $iid) {
+				// process delete
+				$as = $this->harmonizeLocalDelete(
+					$this->Configuration->UserId, 
+					$lcid, 
+					$iid
+				);
+				if ($as == 'RD') {
+					// assign status
+					$statistics->RemoteDeleted += 1;
+				}
+			}
+			// update and deposit correlation local state
+			$correlation->setlostate($lCollectionChanges['syncToken']);
+			$this->CorrelationsService->update($correlation);
+		}
+
+		// evaluate if remote mutations object was returned
 		// according to the EAS spec the change object can be blank if there is no changes 
 		if (isset($rCollectionChanges->SyncKey)) {
 			// evaluate if add property is an array and convert to array if needed
@@ -557,199 +564,4 @@ class ContactsService {
 
 	}
 
-	/**
-	 * Creates and Deletes Test Data
-	 * 
-	 * @since Release 1.0.0
-	 * 
-	 * @param string $action	action to perform (C - create / D - delete)
-	 *
-	 * @return void
-	 */
-	public function performTest($action, $configuration) : void {
-		// assign data stores
-		$this->LocalContactsService->DataStore = $this->LocalStore;
-		$this->RemoteContactsService->DataStore = $this->RemoteStore;
-
-		/*
-		*	Test Basic Collection Functions
-		*/
-		// retrieve local contact collections
-		$lc = $this->LocalContactsService->listCollections($configuration->UserId);
-		foreach ($lc as $entry) {
-			if ($entry['name'] == 'EWS Contacts') {
-				$lcid = $entry['id'];
-				break;
-			}
-		}
-		// retrieve remote contact collections
-		$rc = $this->RemoteContactsService->listCollections();
-		foreach ($rc as $entry) {
-			if ($entry['name'] == 'NC Contacts') {
-				$rcid = $entry['id'];
-				break;
-			}
-		}
-
-		// if action delete, delete the collections stop
-		if ($action == 'D') {
-			if (isset($lcid)) {
-				$this->LocalContactsService->deleteCollection($lcid);
-			}
-			if (isset($rcid)) {
-				$this->RemoteContactsService->deleteCollection($rcid);
-			}
-			return;
-		}
-
-		// create local collection
-		if (!isset($lcid)) {
-			$lco = $this->LocalContactsService->createCollection($configuration->UserId, 'eas-test', 'EWS Contacts', true);
-			$lcid = $lco->Id;
-		}
-		
-		// create remote collection
-		if (!isset($rcid)) {
-			$rco = $this->RemoteContactsService->createCollection('msgfolderroot', 'NC Contacts', true);
-			$rcid = $rco->Id;
-		}
-
-		// retrieve correlation for remote and local collections
-		$ci = $this->CorrelationsService->find($configuration->UserId, $lcid, $rcid);
-		// create correlation if none was found
-		if (!isset($ci)) {
-			$ci = new \OCA\EAS\Db\Correlation();
-			$ci->settype('CC'); // Correlation Type
-			$ci->setuid($configuration->UserId); // User ID
-			$ci->setloid($lcid); // Local ID
-			$ci->setroid($rcid); // Remote ID
-			$this->CorrelationsService->create($ci);
-		}
-
-		// retrieve local collection properties
-		$lco = $this->LocalContactsService->fetchCollection($lcid);
-		// retrieve remote collection properties
-		$rco = $this->RemoteContactsService->fetchCollection($rcid);
-
-		// retrieve local collection changes
-		$lcc = $this->LocalContactsService->fetchCollectionChanges($lcid, '');
-		// retrieve remote collection changes
-		$rcc = $this->RemoteContactsService->fetchCollectionChanges($rcid, '');
-
-		$co = new ContactObject();
-		$co->Name->Last = "Simpson";
-		$co->Name->First = 'Homer';
-        $co->Name->Other = 'J';
-        $co->Name->Prefix = 'Mr';
-        $co->Name->Suffix = 'Dooh';
-		$co->Aliases = 'Pieman';
-		$co->Gender = 'M';
-		$co->BirthDay = new \Datetime('May 12, 1956');
-		$co->AnniversaryDay = new \Datetime('April 19, 1987');
-		$co->addAddress(
-			'HOME',
-			'742 Evergreen Terrace',
-			'Springfield',
-			'Oregon',
-			'97477',
-			'United States'
-		);
-		$co->addAddress(
-			'WORK',
-			'1 Atomic Lane',
-			'Springfield',
-			'Oregon',
-			'97408',
-			'United States'
-		);
-		$co->addPhone(
-			'HOME',
-			null,
-			'(939) 555-0113'
-		);
-		$co->addPhone(
-			'WORK',
-			null,
-			'(939) 555-7334'
-		);
-		$co->addEmail(
-			'HOME',
-			'homer@simpsons.fake'
-		);
-		$co->addEmail(
-			'WORK',
-			'hsimpson@springfieldpower.fake'
-		);
-
-		$co->Occupation->Organization = 'Springfield Power Company';
-		$co->Occupation->Title = 'Chief Safety Officer';
-		$co->Occupation->Role = 'Safety Inspector';
-		$co->addTag('Simpson Family');
-
-		// generate new uuid for local
-		$co->UUID = \OCA\EAS\Utile\UUID::v4();
-		$co->Label = 'NC Homer J. Simpson';
-		
-		// create local contact
-		$lo = $this->LocalContactsService->createCollectionItem($lcid, $co);
-		// retrieve local contact
-		$lo = $this->LocalContactsService->fetchCollectionItem($lcid, $lo->ID);
-		// update local contact
-		$lo = $this->LocalContactsService->updateCollectionItem($lcid, $lo->ID, $co);
-
-		// generate new uuid for local
-		$co->UUID = \OCA\EAS\Utile\UUID::v4();
-		$co->Label = 'EWS Homer J. Simpson';
-		// create remote contact
-		$ro = $this->RemoteContactsService->createCollectionItem($rcid, $co);
-		// retrieve remote contact
-		$ro = $this->RemoteContactsService->fetchCollectionItem($ro->ID);
-		// update remote contact
-		// delete all previous attachment(s) in remote store
-		// work around for missing update command in eas
-		$this->RemoteContactsService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
-		$ro = $this->RemoteContactsService->updateCollectionItem($rcid, $ro->ID, $co);
-
-		$co = new ContactObject();
-		$co->Name->Last = "Simpson";
-		$co->Name->First = 'Marjorie';
-        $co->Name->Other = 'Jacqueline "Marge"';
-        $co->Name->Prefix = 'Mrs';
-        $co->Name->Suffix = 'MD';
-		$co->Aliases = 'Queen';
-		$co->Gender = 'F';
-		$co->BirthDay = new \Datetime('March 19, 1958');
-		$co->AnniversaryDay = new \Datetime('April 19, 1987');
-		$co->addAddress(
-			'HOME',
-			'742 Evergreen Terrace',
-			'Springfield',
-			'Oregon',
-			'97477',
-			'United States'
-		);
-		$co->addPhone(
-			'HOME',
-			null,
-			'(939) 555-0113'
-		);
-		$co->addEmail(
-			'HOME',
-			'marge@simpsons.fake'
-		);
-		$co->addTag('Simpson Family');
-
-		// generate new uuid for local
-		$co->UUID = \OCA\EAS\Utile\UUID::v4();
-		$co->Label = 'NC Marge Simpson';
-		// create local contact
-		$lo = $this->LocalContactsService->createCollectionItem($lcid, $co);
-
-		// generate new uuid for local
-		$co->UUID = \OCA\EAS\Utile\UUID::v4();
-		$co->Label = 'EWS Marge Simpson';
-		// create remote contact
-		$ro = $this->RemoteContactsService->createCollectionItem($rcid, $co);
-
-	}
 }

@@ -49,7 +49,7 @@ class LocalContactsService {
 
 	}
 
-	 /**
+	/**
      * retrieve collection object from local storage
      * 
 	 * @param string $id            Collection ID

@@ -45,8 +45,6 @@ class RemoteContactsService {
 	
 	private RemoteCommonService $RemoteCommonService;
 	public ?EasClient $DataStore = null;
-	private ?object $DefaultCollectionProperties = null;
-	private ?object $DefaultItemProperties = null;
 
 	public function __construct (RemoteCommonService $RemoteCommonService) {
 		$this->RemoteCommonService = $RemoteCommonService;

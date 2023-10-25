@@ -155,8 +155,8 @@ class HarmonizationService {
 				(($mode === 'S' && $Configuration->EventsHarmonize > 0) ||
 				($mode === 'M' && $Configuration->EventsHarmonize > -1))) {
 				$this->logger->info('Statred Harmonization of Events for ' . $uid);
-				// assign remote data store
-				$this->EventsService->RemoteStore = $RemoteStore;
+				// assign configuration and data stores
+				$this->EventsService->initialize($Configuration, $RemoteStore);
 				// retrieve list of correlations
 				$correlations = $this->CorrelationsService->findByType($uid, CorrelationsService::EventCollection);
 				// iterate through correlation items

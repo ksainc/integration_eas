@@ -29,9 +29,8 @@ use Datetime;
 use DateTimeZone;
 use DateInterval;
 use OC\Files\Node\LazyUserFolder;
-use OCA\DAV\CalDAV\CalDavBackend;
 
-use OCA\EAS\AppInfo\Application;
+use OCA\EAS\Db\EventStore;
 use OCA\EAS\Objects\EventCollectionObject;
 use OCA\EAS\Objects\EventObject;
 use OCA\EAS\Objects\EventAttachmentObject;
@@ -41,141 +40,49 @@ use Sabre\VObject\Component\VEvent;
 
 class LocalEventsService {
 	
-    /**
-	 * @var DateTimeZone
-	 */
+    
+	private EventStore $_Store;
 	public ?DateTimeZone $SystemTimeZone = null;
-    /**
-	 * @var DateTimeZone
-	 */
 	public ?DateTimeZone $UserTimeZone = null;
-    /**
-	 * @var String
-	 */
 	public string $UserAttachmentPath = '';
-    /**
-	 * @var CalDavBackend
-	 */
-	public ?CalDavBackend $DataStore = null;
-    /**
-	 * @var LazyUserFolder
-	 */
 	public ?LazyUserFolder $FileStore = null;
 
 	public function __construct () {
 	}
+    
+    public function initialize(EventStore $Store) {
+
+		$this->_Store = $Store;
+
+	}
 
 	/**
-     * retrieve information for specific collection from local storage
+     * retrieve collection object from local storage
      * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $uid - User ID
+	 * @param string $id            Collection ID
 	 * 
-	 * @return array of collections
+	 * @return EventCollectionObject  EventCollectionObject on success / null on fail
 	 */
-	public function listCollections(string $uid): array {
+	public function fetchCollection(string $id): ?EventCollectionObject {
 
-        // retrieve all local collections 
-        $collections = $this->DataStore->getCalendarsForUser('principals/users/' . $uid);
-		// construct collections list
-		$data = array();
-		foreach ($collections as $entry) {
-            if (isset($entry['{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set'])) {
-                if (in_array('VEVENT', $entry['{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set']->getValue())) {
-                    $data[] = array('id' => $entry['id'], 'name' => $entry['{DAV:}displayname'], 'uri' => $entry['uri']);
-                }
-            }
-		}
-        // return collections list
-		return $data;
-
-    }
-	
-    /**
-     * retrieve properties for specific collection from local storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection Id
-	 * 
-	 * @return EventCollectionObject of collection properties
-	 */
-	public function fetchCollection(string $cid): ?EventCollectionObject {
-
-        // retrieve collection properties
-        $ec = $this->DataStore->getCalendarById($cid);
-
-        if (isset($ec)) {
+        // retrieve object properties
+        $lo = $this->_Store->fetchCollection($id);
+        // evaluate if object properties where retrieved
+        if (is_array($lo) && count($lo) > 0) {
+            // construct object and return
             return new EventCollectionObject(
-                $ec['id'],
-                $ec['{DAV:}displayname'],
-                $ec['{http://sabredav.org/ns}sync-token']
+                $lo['id'],
+                $lo['label'],
+                $lo['token']
             );
         }
         else {
+            // return nothing
             return null;
         }
 
     }
-
-	/**
-     * create collection in local storage
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $uid - User ID
-	 * @param string $cid - Collection URI
-     * @param string $name - Collection Name
-	 * 
-	 * @return EventCollectionObject
-	 */
-	public function createCollection(string $uid, string $cid, string $name): ?EventCollectionObject {
-
-        // check for user id and collection - must contain to create
-        if (!empty($uid) && !empty($cid)) {
-            // create item in data store
-            $result = $this->DataStore->createCalendar(
-                'principals/users/' . $uid, 
-                $cid, 
-                array('{DAV:}displayname' => $name)
-            );
-        }
-        // return collection object or null
-        if (isset($result)) {
-            return $this->fetchCollection($result);
-        } else {
-            return null;
-        }
-
-    }
-
-    /**
-     * delete collection from local storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $mode - True for permanently / False - for Recoverable
-	 * 
-	 * @return bool true - successfully delete / false - failed to delete
-	 */
-	public function deleteCollection(string $cid, bool $mode = false): bool {
-
-        // check for id - must contain id to delete
-        if (!empty($cid)) {
-            // delete item in data store
-            $result = $this->DataStore->deleteCalendar($cid, $mode);
-        }
-        // return operation result
-        if ($result) {
-            return true;
-        } else {
-            return false;
-        }
-
-    }
-
+	
     /**
      * retrieve changes for specific collection from local storage
      * 
@@ -194,89 +101,33 @@ class LocalEventsService {
 		return $lcc;
 
     }
-	
-    /**
-     * find collection item by uuid in local storage
+
+	/**
+     * retrieve entity object from local storage
      * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $uuid - Item UUID
+     * @param string $id            Entity ID
 	 * 
-	 * @return EventObject EventObject - successfully retrieved / null - failed to retrieve
+	 * @return EventObject        EventObject on success / null on fail
 	 */
-	public function findCollectionItemByUUID(string $cid, string $uuid): ?EventObject {
-        
-        // search data store for object
-		$lo = $this->EventsUtile->findByUUID($cid, $uuid, 'VEVENT');
-        // validate result
+	public function fetchEntity(string $id): ?EventObject {
+
+        // retrieve object properties
+        $lo = $this->_Store->fetchEntity($id);
+        // evaluate if object properties where retrieved
         if (is_array($lo) && count($lo) > 0) {
-            $lo = $lo[0];
-            // convert string to vevent object
-            $eo = Reader::read($lo['calendardata']);
-            // convert to event object
-            if (isset($eo->VEVENT)) {
-                $eo = $this->toEventObject($eo->VEVENT);
-                $eo->ID = $lo['uri'];
-                $eo->UUID = $lo['uid'];
-                $eo->CID = $lo['calendarid'];
-                $eo->ModifiedOn = new DateTime(date("Y-m-d H:i:s", $lo['lastmodified']));
-                $eo->State = trim($lo['etag'],'"');
-                // attachments
-                if (count($eo->Attachments) > 0) {
-                    // retrieve attachments from local data store
-                    $eo->Attachments = $this->fetchCollectionItemAttachment(array_column($eo->Attachments, 'Id'), 'F');
-                }
-                // return event object
-                return $eo;
-            }
-            else {
-                return null;
-            }
-        } else {
-            // return null
-            return null;
-        }
-
-    }
-	
-    /**
-     * retrieve collection item from local storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Item ID
-	 * 
-	 * @return EventObject EventObject - successfully retrieved / null - failed to retrieve
-	 */
-	public function fetchCollectionItem(string $cid, string $iid): ?EventObject {
-
-        // retrieve collection item
-        $lo = $this->DataStore->getCalendarObject($cid, $iid);
-        // return event object or null
-        if ($lo) {
-            // read item data
-            $eo = Reader::read($lo['calendardata']);
-            // convert to event object
-            if (isset($eo->VEVENT)) {
-                $eo = $this->toEventObject($eo->VEVENT);
-                $eo->ID = $lo['uri'];
-                $eo->CID = $lo['calendarid'];
-                $eo->ModifiedOn = new DateTime(date("Y-m-d H:i:s", $lo['lastmodified']));
-                $eo->State = trim($lo['etag'],'"');
-
-                // attachments
-                if (count($eo->Attachments) > 0) {
-                    // retrieve attachments from local data store
-                    $eo->Attachments = $this->fetchCollectionItemAttachment(array_column($eo->Attachments, 'Id'), 'F');
-                }
-                // return event object
-                return $eo;
-            }
-            else {
-                return null;
-            }
+            // read object data
+            $eo = Reader::read($lo['data']);
+            // convert to contact object
+            $eo = $this->toEventObject($eo->VEVENT);
+            $eo->ID = $lo['id'];
+            $eo->UUID = $lo['uuid'];
+            $eo->CID = $lo['cid'];
+            $eo->State = trim($lo['state'],'"');
+            $eo->RCID = $lo['rcid'];
+            $eo->REID = $lo['reid'];
+            $eo->RState = $lo['rcid'];
+            // return contact object
+            return $eo;
         } else {
             // return null
             return null;
@@ -285,262 +136,147 @@ class LocalEventsService {
     }
 
     /**
-     * create collection item in local storage
+     * retrieve entity object by remote id from local storage
      * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param EventObject $eo - Item Data
+     * @param string $uid           User Id
+	 * @param string $rcid          Remote Collection ID
+     * @param string $reid          Remote Entity ID
 	 * 
-	 * @return EventObject
+	 * @return EventObject        EventObject on success / null on fail
 	 */
-	public function createCollectionItem(string $cid, EventObject $so): ?EventObject {
+	public function fetchEntityByRID(string $uid, string $rcid, string $reid): ?EventObject {
 
-        // clone source object
-        $eo = clone $so;
-        // deposit attachment(s)
-        if (count($eo->Attachments) > 0) {
-            // create or update attachements in local data store
-            $eo->Attachments = $this->createCollectionItemAttachment(
-                $eo->StartsOn->format('Y-m-d H.i.s') . " " . \OCA\EAS\Utile\Sanitizer::folder($eo->Label, true, true), 
-                $eo->Attachments
-            );
-        }
-        //evaluate if task object contains uuid
-        if (empty($eo->UUID)) {
-            // generate uuid if missing
-            $eo->UUID = \OCA\EAS\Utile\UUID::v4();
-        }
-        // convert event object to vevent object
-        $ve = $this->fromEventObject($eo);
-        // generate item id
-        $veid = \OCA\EAS\Utile\UUID::v4() . '.ics';
-        // create item in data store
-        $rs = $this->DataStore->createCalendarObject(
-            $cid, 
-            $veid, 
-            "BEGIN:VCALENDAR\nVERSION:2.0\n" . $ve->serialize() . "\nEND:VCALENDAR"
-        );
-        // return event object or null
-        if (isset($rs)) {
-            $eo->ID = $veid;
-            $eo->CID = $cid;
-            $eo->State = trim($rs,'"');
+        // retrieve object properties
+        $lo = $this->_Store->fetchEntityByRID($uid, $rcid, $reid);
+		// evaluate if object properties where retrieved
+        if (is_array($lo) && count($lo) > 0) {
+            // read object data
+            $eo = Reader::read($lo['data']);
+            // convert to contact object
+            $eo = $this->toEventObject($eo->VEVENT);
+            $eo->ID = $lo['id'];
+            $eo->UUID = $lo['uuid'];
+            $eo->CID = $lo['cid'];
+            $eo->State = trim($lo['state'],'"');
+            $eo->RCID = $lo['rcid'];
+            $eo->REID = $lo['reid'];
+            $eo->RState = $lo['rcid'];
+            // return contact object
             return $eo;
         } else {
-            return null;
-        }
-        
-    }
-
-    /**
-     * update collection item in local storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Item ID
-     * @param EventObject $eo - Source Data
-	 * 
-	 * @return EventObject
-	 */
-	public function updateCollectionItem(string $cid, string $iid, EventObject $so): ?EventObject {
-
-        // check for id - must contain id to update
-        if (!empty($iid)) {
-            // clone source object
-            $eo = clone $so;
-            // deposit attachment(s)
-            if (count($eo->Attachments) > 0) {
-                // create or update attachements in local data store
-                $eo->Attachments = $this->createCollectionItemAttachment(
-                    $eo->StartsOn->format('Y-m-d H.i.s') . " " . \OCA\EAS\Utile\Sanitizer::folder($eo->Label, true, true), 
-                    $eo->Attachments
-                );
-            }
-            // convert event object to vevent object
-            $ve = $this->fromEventObject($eo);
-            // update item in data store
-            $rs = $this->DataStore->updateCalendarObject(
-                $cid, 
-                $iid, 
-                "BEGIN:VCALENDAR\nVERSION:2.0\n" . $ve->serialize() . "\nEND:VCALENDAR"
-            );
-        }
-        // return event object or null
-        if (isset($rs)) {
-            $eo->ID = $iid;
-            $eo->CID = $cid;
-			$eo->State = trim($rs,'"');
-            return $eo;
-        } else {
+            // return null
             return null;
         }
 
     }
 
     /**
-     * delete collection item from local storage
+     * create entity in local storage
      * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Item ID
+	 * @param string $uid           User Id
+	 * @param string $cid           Collection ID
+     * @param EventObject $so     Source Object
 	 * 
-	 * @return bool true - successfully delete / False - failed to delete
+	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function deleteCollectionItem(string $cid, string $iid): bool {
+	public function createEntity(string $uid, string $cid, EventObject $so): ?object {
 
-        // check for id - must contain id to delete
-        if (!empty($iid)) {
-            // delete item in data store
-            $result = $this->DataStore->deleteCalendarObject($cid, $iid);
+        // initilize data place holder
+        $lo = [];
+        // convert contact object to vcard object
+        $lo['data'] = "BEGIN:VCALENDAR\nVERSION:2.0\n" . $this->fromEventObject($so)->serialize() . "\nEND:VCALENDAR";
+        $lo['uuid'] = (!empty($so->UUID)) ? $so->UUID : \OCA\EAS\Utile\UUID::v4();
+        $lo['uid'] = $uid;
+        $lo['cid'] = $cid;
+        $lo['rcid'] = $so->RCID;
+        $lo['reid'] = $so->REID;
+        $lo['rstate'] = $so->RState;
+        $lo['size'] = strlen($lo['data']);
+        $lo['state'] = md5($lo['data']);
+        $lo['label'] = $so->Label;
+        $lo['notes'] = $so->Notes;
+        $lo['startson'] = $so->StartsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
+        $lo['endson'] = $so->EndsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
+        // create entry in data store
+        $id = $this->_Store->createEntity($lo);
+        // return status object or null
+        if ($id) {
+            return (object) array('ID' => $id, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+        } else {
+            return null;
         }
-        // return operation result
-        if ($result) {
+
+    }
+    
+    /**
+     * update entity in local storage
+     * 
+	 * @param string $uid           User ID
+	 * @param string $cid           Collection ID
+	 * @param string $eid           Entity ID
+     * @param EventObject $so     Source Object
+	 * 
+	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
+	 */
+	public function updateEntity(string $uid, string $cid, string $eid, EventObject $so): ?object {
+
+        // evaluate if collection or entity id is missing - must contain id to update
+        if (empty($uid) || empty($cid) || empty($eid)) {
+            return null;
+        }
+        // initilize data place holder
+        $lo = [];
+        // convert contact object to vcard object
+        $lo['data'] = "BEGIN:VCALENDAR\nVERSION:2.0\n" . $this->fromEventObject($so)->serialize() . "\nEND:VCALENDAR";
+        $lo['uuid'] = (!empty($so->UUID)) ? $so->UUID : \OCA\EAS\Utile\UUID::v4();
+        $lo['uid'] = $uid;
+        $lo['cid'] = $cid;
+        $lo['rcid'] = $so->RCID;
+        $lo['reid'] = $so->REID;
+        $lo['rstate'] = $so->RState;
+        $lo['size'] = strlen($lo['data']);
+        $lo['state'] = md5($lo['data']);
+        $lo['label'] = $so->Label;
+        $lo['notes'] = $so->Notes;
+        $lo['startson'] = $so->StartsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
+        $lo['endson'] = $so->EndsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
+        // modify entry in data store
+        $rs = $this->_Store->modifyEntity($eid, $lo);
+        // return status object or null
+        if ($rs) {
+            return (object) array('ID' => $eid, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+        } else {
+            return null;
+        }
+
+    }
+    
+    /**
+     * delete entity from local storage
+     * 
+	 * @param string $uid           User ID
+	 * @param string $cid           Collection ID
+	 * @param string $eid           Entity ID
+	 * 
+	 * @return bool                 true - successfully delete / false - failed to delete
+	 */
+	public function deleteEntity(string $uid, string $cid, string $eid): bool {
+
+        // evaluate if collection or entity id is missing - must contain id to delete
+        if (empty($uid) || empty($cid) || empty($eid)) {
+            return null;
+        }
+        // delete entry from data store
+        $rs = $this->_Store->deleteEntity($eid);
+        // return result
+        if ($rs) {
             return true;
         } else {
             return false;
         }
 
     }
-
-    /**
-     * retrieve collection item attachment from local storage
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $uid - User ID
-     * @param string $batch - Collection of Id's
-     * @param string $flag - I - File Information / F - File Information + Content
-	 * 
-	 * @return EventAttachmentObject
-	 */
-	public function fetchCollectionItemAttachment(array $batch, string $flag = 'I'): array {
-
-        // check to for entries in batch collection
-        if (count($batch) == 0) {
-            return array();
-        }
-        // construct response collection place holder
-        $rc = array();
-        // process collection of objects
-        foreach ($batch as $key => $entry) {
-            try {
-                // 
-                $fo = $this->FileStore->getById($entry);
-                if($fo[0] instanceof \OCP\Files\File) {
-                    $ao = new EventAttachmentObject('D');
-                    $ao->Id = $fo[0]->getFileInfo()->getId();
-                    $ao->Name = $fo[0]->getFileInfo()->getName();
-                    $ao->Type = $fo[0]->getFileInfo()->getMimetype();
-                    $ao->Size = $fo[0]->getFileInfo()->getSize();
-                    if ($flag == 'F') {
-                        $ao->Data = $fo[0]->getContent();
-                        $ao->Encoding = 'B';
-                    }
-                    // insert attachment object in response collection
-                    $rc[] = $ao;
-                }
-            } catch(\OCP\Files\NotFoundException $e) {
-                throw new StorageException('File does not exist');
-            }
-        }
-        // return response collection
-        return $rc;
-
-    }
-
-    /**
-     * create collection item attachment in local storage
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $uid - User ID
-     * @param string $fn - Folder Name to save attachments
-     * @param array $batch - Collection of EventAttachmentObject(s) objects
-	 * 
-	 * @return string
-	 */
-	public function createCollectionItemAttachment(string $fn, array $batch): array {
-
-        // check to for entries in batch collection
-        if (count($batch) == 0) {
-            return array();
-        }
-        // construct response collection place holder
-        $rc = array();
-        // process collection of objects
-        foreach ($batch as $key => $entry) {
-            // check if file exists and write to it if possible
-            try {
-                // construct folder location
-                $fl = $this->UserAttachmentPath . '/' . $fn;
-                // check if folder exists
-                if (!$this->FileStore->nodeExists($fl)) {
-                    // create folder if missing
-                    $this->FileStore->newFolder($fl);
-                    $this->FileStore->unlock($fl);
-                } 
-                // cunstruct file location
-                $fl = $fl . '/' . $entry->Name;
-                // check if file exists
-                if (!$this->FileStore->nodeExists($fl)) {
-                    // create file
-                    $fo = $this->FileStore->newFile($fl, $entry->Data);
-                    $this->FileStore->unlock($fl);
-                } else {
-                    // select file
-                    $fo = $this->FileStore->get($fl);
-                    // update file
-                    $fo->putContent((string)$entry->Data);
-                    $this->FileStore->unlock($fl);
-                }
-
-                $ao = clone $entry;
-                $ao->Id = $fo->getId();
-                $ao->Data = '/' . $fl;
-                $ao->Size = $fo->getSize();
-                $ao->Store = 'D';
-
-                $rc[] = $ao;
-                
-                unset($fl);
-                unset($fo);
-
-            } catch(\OCP\Files\NotPermittedException $e) {
-                // you have to create this exception by yourself ;)
-                throw new StorageException('Cant write to file');
-            } catch (Exception $e) {
-                throw $e;
-            }
-        }
-        // return results collection
-        return $rc;
-
-    }
-
-    /**
-     * delete collection item attachment from local storage
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $aid - Attachment ID
-	 * 
-	 * @return bool true - successfully delete / False - failed to delete
-	 */
-	public function deleteCollectionItemAttachment(array $batch): array {
-
-        // check to for entries in batch collection
-        if (count($batch) == 0) {
-            return array();
-        }
-        
-        // TODO: add delete code
-
-        return array();
-    }
-
+    
     /**
      * convert vevent object to event object
      * 

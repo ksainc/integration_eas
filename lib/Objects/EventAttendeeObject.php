@@ -33,9 +33,9 @@ class EventAttendeeObject {
 
     public function __construct(
         string $Address = null,
-        string $Name = null,
-        string $Type = 'R',
-        string $Attendance = 'T'
+        ?string $Name = null,
+        ?string $Type = 'R',
+        ?string $Attendance = 'T'
     ) {
         $this->Address = $Address;
         $this->Name = $Name;

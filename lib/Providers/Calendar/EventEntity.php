@@ -4,11 +4,11 @@ namespace OCA\EAS\Providers\Calendar;
 
 class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 
-	private Collection $_collection;
+	private EventCollection $_collection;
 	private string $_id;
 	private string $_uuid;
 	private string $_label;
-	private string $_data;
+	private array $_data;
 
 	/**
 	 * Entity Constructor
@@ -16,7 +16,7 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	 * @param Collection $calendar
 	 * @param string $name
 	 */
-	public function __construct(Collection $collection, string $id, string $uuid, string $label, string $data) {
+	public function __construct(EventCollection $collection, string $id, string $uuid, string $label, array $data) {
 		$this->_collection = $collection;
 		$this->_id = $id;
 		$this->_uuid = $uuid;
@@ -42,14 +42,20 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	 * @inheritDoc
 	 */
 	function getACL() {
-		return $this->_collection->getACL();
+		return [
+            [
+                'privilege' => '{DAV:}all',
+                'principal' => $this->getOwner(),
+                'protected' => true,
+            ],
+        ];
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	function setACL(array $acl) {
-		throw new \Sabre\DAV\Exception\Forbidden('Setting ACL is not supported on this node');
+		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
 	}
 
 	/**
@@ -63,14 +69,14 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	 * @inheritDoc
 	 */
 	function put($data) {
-		$this->_data = $data;
+		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	function get() {
-		return $this->_data;
+		return $this->_data['data'];
 	}
 
 	/**
@@ -84,35 +90,35 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	 * @inheritDoc
 	 */
 	function getETag() {
-		return '"' . md5($this->get()) . '"';
+		return $this->_data['state'];
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	function getSize() {
-		return strlen($this->get());
+		return $this->_data['size'];
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	function delete() {
-		throw new \Sabre\DAV\Exception\Forbidden('This calendar-object is read-only');
+		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	function getName() {
-		return $this->_name;
+		return $this->_uuid;
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	function setName($name) {
-		$this->_name = $name;
+		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
 	}
 
 	/**
@@ -121,4 +127,5 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	function getLastModified() {
 		return time();
 	}
+
 }

@@ -102,7 +102,7 @@ class EventObject {
         $this->Tags[] = $tag;
     }
 
-    public function addAttendee(string $address, ?string $name, ?string $type, string $attendance) {
+    public function addAttendee(string $address, ?string $name, ?string $type, ?string $attendance) {
         $this->Attendee[] = new EventAttendeeObject($address, $name, $type, $attendance);
     }
 

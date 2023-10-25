@@ -10,19 +10,13 @@ use Sabre\DAV\PropPatch;
 use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Db\TaskStore;
 
-class TaskCollection extends ExternalCalendar {
+class TaskCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 
-	/** @var TaskStore */
 	private TaskStore $_store;
-	/** @var string */
 	private int $_id;
-	/** @var string */
+	private string $_uuid;
 	private string $_uid;
-	/** @var string */
-	private string $_uri;
-	/** @var string */
 	private string $_label;
-	/** @var string */
 	private string $_color;
 
 	/**
@@ -30,33 +24,63 @@ class TaskCollection extends ExternalCalendar {
 	 *
 	 * @param string $id
 	 * @param string $uid
-	 * @param string $uri
+	 * @param string $uuid
 	 * @param string $label
 	 * @param string $color
 	 */
-	public function __construct(TaskStore $store, string $id, string $uid, string $uri, string $label, string $color) {
-		parent::__construct(Application::APP_ID, $uri);
+	public function __construct(TaskStore $store, string $id, string $uid, string $uuid, string $label, string $color) {
+		
+		parent::__construct(Application::APP_ID, $uuid);
 
 		$this->_store = $store;
 		$this->_id = $id;
 		$this->_uid = $uid;
-		$this->_uri = $uri;
+		$this->_uuid = $uuid;
 		$this->_label = $label;
 		$this->_color = $color;
 
 	}
 
 	/**
-	 * @inheritDoc
-	 */
+     * retrieves the owner principal.
+     *
+     * This must be a url to a principal, or null if there's no owner
+     *
+     * @return string|null
+     */
 	function getOwner() {
+
 		return 'principals/users/' . $this->_uid;
+
 	}
 
 	/**
-	 * @inheritDoc
-	 */
+     * retrieves a group principal.
+     *
+     * This must be a url to a principal, or null if there's no group
+     *
+     * @return string|null
+     */
+	function getGroup() {
+
+		return null;
+
+	}
+
+	/**
+     * retrieves a list of ACE's for this collection.
+     *
+     * Each ACE has the following properties:
+     *   * 'privilege', a string such as {DAV:}read or {DAV:}write. These are
+     *     currently the only supported privileges
+     *   * 'principal', a url to the principal who owns the node
+     *   * 'protected' (optional), indicating that this ACE is not allowed to
+     *      be updated.
+     *
+     * @return array
+     */
 	function getACL() {
+
 		return [
 			
 			[
@@ -99,33 +123,65 @@ class TaskCollection extends ExternalCalendar {
 			]
 			*/
 		];
+
 	}
 
 	/**
-	 * @inheritDoc
-	 */
+     * alters the ACL for this collection
+	 * 
+	 * @param array $acl		list of ACE's
+     */
 	function setACL(array $acl) {
-		throw new \Sabre\DAV\Exception\Forbidden('Setting ACL is not supported on this node');
+
+		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
+
 	}
 
 	/**
-	 * @inheritDoc
-	 */
+     * retrieves a list of supported privileges for this node.
+     *
+     * The returned data structure is a list of nested privileges.
+     * See Sabre\DAVACL\Plugin::getDefaultSupportedPrivilegeSet for a simple
+     * standard structure.
+     *
+     * If null is returned from this method, the default privilege set is used,
+     * which is fine for most common usecases.
+     *
+     * @return array|null
+     */
 	function getSupportedPrivilegeSet() {
+
 		return null;
+
 	}
 
-	/**
+		/**
 	 * @inheritDoc
 	 */
 	function calendarQuery(array $filters) {
 
+		// construct place holder
+		$limit = [];
+		//
+		if (is_array($filters) && is_array($filters['comp-filters'])) {
+			foreach ($filters['comp-filters'] as $filter) {
+				if (is_array($filter['time-range'])) {
+					if (isset($filter['time-range']['start'])) {
+						$limit[] = ['startson', '>=', $filter['time-range']['start']->format('U')];
+					}
+					if (isset($filter['time-range']['end'])) {
+						$limit[] = ['endson', '<=', $filter['time-range']['end']->format('U')];
+					}
+				}
+			}
+		}
+
 		// retrieve entries
-		$entries = $this->_store->listEntitiesByCollection($this->_uid, $this->_id);
+		$entries = $this->_store->findEntities($this->_uid, $this->_id, $limit);
 		// list entries
 		$list = [];
 		foreach ($entries as $entry) {
-			$list[] = $entry['id'];
+			$list[] = new EventEntity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
 		}
 		// return list
 		return $list;
@@ -133,34 +189,24 @@ class TaskCollection extends ExternalCalendar {
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	function createFile($name, $data = null) {
-		return null;
-	}
+     * Create a new entity in this collection
+     *
+     * @param string          $id		Entity ID
+     * @param resource|string $data		Entity Contents
+     *
+     * @return string|null				Etag on success / Null on fail
+     */
+	function createFile($id, $data = null) {
 
-	/**
-	 * @inheritDoc
-	 */
-	function getChild($id) {
-
-		// retrieve entities
-		$entry = $this->_store->listByCollection($this->_uid, $this->_id);
-		// evaluate if entry was returned
-		if (is_array($entry)) {
-			// return entry
-			return new Entity($this, $entry->getId(), $entry->getUuid(), $entry->getLabel(), $entry->getData());
-		}
-		else {
-			// return nothing
-			return null;
-		}
+		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
 
 	}
 
 	/**
-	 * @inheritDoc
-	 */
+     * retrieves all entities in this collection
+     *
+     * @return TaskEntity[]
+     */
 	function getChildren() {
 		
 		// retrieve entries
@@ -168,7 +214,7 @@ class TaskCollection extends ExternalCalendar {
 		// list entries
 		$list = [];
 		foreach ($entries as $entry) {
-			$list[] = $entry['id'];
+			$list[] = new TaskEntity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
 		}
 		// return list
 		return $list;
@@ -176,17 +222,70 @@ class TaskCollection extends ExternalCalendar {
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	function childExists($id) {
-		return $this->_store->exists($id);
+     * retrieves a specific entity in this collection
+     *
+     * @param string $id		Entity ID
+     *
+     * @return TaskEntity
+     */
+	function getChild($id) {
+
+		// retrieve object properties
+		$entry = $this->_store->fetchEntityByUUID($this->_uid, $id);
+		// evaluate if object properties where retrieved 
+		if (isset($entry['uuid'])) {
+			return new TaskEntity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
+		}
+		else {
+			return false;
+		}
+
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	function delete() {
+	 * retrieves specific entities in this collection
+     *
+     * @param string[] $ids
+     *
+     * @return TaskEntity[]
+     */
+    public function getMultipleChildren(array $ids) {
+
+		// construct place holder
+		$list = [];
+		// retrieve entities
+		foreach ($ids as $id) {
+			// retrieve object properties
+			$entry = $this->_store->fetchEntityByUUID($this->_uid, $id);
+			// evaluate if object properties where retrieved 
+			if (isset($entry['uuid'])) {
+				$list[] = new TaskEntity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
+			}
+		}
 		
+		// return list
+		return $list;
+
+	}
+
+	/**
+     * Checks if a specific entity exists in this collection
+     *
+     * @param string $id
+     *
+     * @return bool
+     */
+	function childExists($id) {
+
+		return $this->_store->confirmEntityByUUID($this->_uid, $id);
+
+	}
+
+	/**
+     * Deletes this collection
+     */
+	function delete() {
+
 		// delete local entities
 		$this->_store->deleteEntitiesByCollection($this->_uid, $this->_id);
 		// delete local collection
@@ -202,55 +301,25 @@ class TaskCollection extends ExternalCalendar {
 			$CorrelationsService->delete($cr);
 		}
 
-		return true;
-
 	}
 
 	/**
-	 * @inheritDoc
-	 */
+     * Returns the last modification time, as a unix timestamp. Return null
+     * if the information is not available.
+     *
+     * @return int|null
+     */
 	function getLastModified() {
+
 		return time();
+
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	function getGroup() {
-		return [];
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	function getLabel(): string {
-		return $this->_Label;
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	function setLabel(string $label): void {
-		$this->_label = $label;
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	function getColor(): string {
-		return $this->_color;
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	function setColor(string $color): void {
-		$this->_color = $color;
-	}
-
-	/**
-	 * @inheritDoc
-	 */
+     * alters properties of this collection
+	 * 
+	 * @param PropPatch $data
+     */
 	function propPatch(PropPatch $propPatch) {
 		
 		// retrieve mutations
@@ -281,15 +350,24 @@ class TaskCollection extends ExternalCalendar {
 	}
 
 	/**
-	 * @inheritDoc
-	 */
+     * retrieves a list of properties for this collection
+     *
+     * The properties list is a list of propertynames the client requested,
+     * encoded in clark-notation {xmlnamespace}tagname
+     *
+     * @param array $properties
+     *
+     * @return array
+     */
 	function getProperties($properties) {
-		// A backend should provide at least minimum properties
+
+		// return collection properties
 		return [
 			'{DAV:}displayname' => $this->_label,
 			'{http://apple.com/ns/ical/}calendar-color'  => $this->_color,
 			'{' . Plugin::NS_CALDAV . '}supported-calendar-component-set' => new SupportedCalendarComponentSet(['VTODO']),
 		];
+
 	}
 
 }
