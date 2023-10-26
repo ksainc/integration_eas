@@ -256,9 +256,6 @@ class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 		// data store entry
 		$lo = [];
         $lo['data'] = $data;
-		$lo['uuid'] = $id;
-		$lo['uid'] = $this->_uid;
-		$lo['cid'] = $this->_id;
 		// calcualted properties
         $lo['size'] = strlen($data);
         $lo['state'] = md5($data);
@@ -466,15 +463,20 @@ class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 		return trim($property->getValue());
 	}
 
-	function extractDateTime($property): \DateTime {
+	function extractDateTime($property): \DateTime|null {
 
-		if (isset($property->parameters['TZID'])) {
-			$tz = new \DateTimeZone($property->parameters['TZID']->getValue());
+		if (isset($property)) {
+			if (isset($property->parameters['TZID'])) {
+				$tz = new \DateTimeZone($property->parameters['TZID']->getValue());
+			}
+			else {
+				$tz = new \DateTimeZone('UTC');
+			}
+			return new \DateTime($property->getValue(), $tz);
 		}
 		else {
-			$tz = new \DateTimeZone('UTC');
+			return null;
 		}
-		return new \DateTime($property->getValue(), $tz);
 
 	}
 
