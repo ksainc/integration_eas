@@ -28,7 +28,7 @@ class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 	 * @param string $label
 	 * @param string $color
 	 */
-	public function __construct(EventStore $store, string $id, string $uid, string $uuid, string $label, string $color) {
+	public function __construct(EventStore &$store, string $id, string $uid, string $uuid, string $label, string $color) {
 		
 		parent::__construct(Application::APP_ID, $uuid);
 
@@ -181,7 +181,6 @@ class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 		// list entries
 		$list = [];
 		foreach ($entries as $entry) {
-			//$list[] = new EventEntity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
 			$list[] = $entry['uuid'];
 		}
 		// return list
@@ -195,18 +194,104 @@ class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
      * @param string          $id		Entity ID
      * @param resource|string $data		Entity Contents
      *
-     * @return string|null				Etag on success / Null on fail
+     * @return string|null				state on success / Null on fail
      */
 	function createFile($id, $data = null) {
 
-		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
+		// remove extension
+		$id = str_replace('.ics', '', $id);
+		// evaluate if data was sent as a resource
+		if (is_resource($data)) {
+            $data = stream_get_contents($data);
+        }
+		// evauate if data is in UTF8 format and convert if needed
+		if (!mb_check_encoding($data, 'UTF-8')) {
+			$data = iconv(mb_detect_encoding($data), 'UTF-8', $data);
+		}
+		// read the data
+		$vo = \Sabre\VObject\Reader::read($data);
+		$vo = $vo->VEVENT;
+		// data store entry
+		$lo = [];
+        $lo['data'] = $data;
+		$lo['uuid'] = $id;
+		$lo['uid'] = $this->_uid;
+		$lo['cid'] = $this->_id;
+		// calcualted properties
+        $lo['size'] = strlen($data);
+        $lo['state'] = md5($data);
+		// extracted properties from data
+		$lo['label'] = (isset($vo->SUMMARY)) ? $this->extractString($vo->SUMMARY) : null;
+        $lo['notes'] = (isset($vo->DESCRIPTION)) ? $this->extractString($vo->DESCRIPTION) : null;
+		$lo['startson'] = $this->extractDateTime($vo->DTSTART)->setTimezone(new \DateTimeZone('UTC'))->format('U');
+		$lo['endson'] = $this->extractDateTime($vo->DTEND)->setTimezone(new \DateTimeZone('UTC'))->format('U');
+		// deposit entry to data store
+		$this->_store->createEntity($lo);
+		// return state
+		return $lo['state'];
+
+	}
+
+	/**
+     * modify a entity in this collection
+     *
+     * @param string          $id		Entity ID
+     * @param resource|string $data		Entity Contents
+     *
+     * @return string|null				state on success / Null on fail
+     */
+	function modifyFile($id, $data) {
+
+		// evaluate if data was sent as a resource
+		if (is_resource($data)) {
+            $data = stream_get_contents($data);
+        }
+		// evauate if data is in UTF8 format and convert if needed
+		if (!mb_check_encoding($data, 'UTF-8')) {
+			$data = iconv(mb_detect_encoding($data), 'UTF-8', $data);
+		}
+		// read the data
+		$vo = \Sabre\VObject\Reader::read($data);
+		$vo = $vo->VEVENT;
+		// data store entry
+		$lo = [];
+        $lo['data'] = $data;
+		$lo['uuid'] = $id;
+		$lo['uid'] = $this->_uid;
+		$lo['cid'] = $this->_id;
+		// calcualted properties
+        $lo['size'] = strlen($data);
+        $lo['state'] = md5($data);
+		// extracted properties from data
+		$lo['label'] = (isset($vo->SUMMARY)) ? $this->extractString($vo->SUMMARY) : null;
+        $lo['notes'] = (isset($vo->DESCRIPTION)) ? $this->extractString($vo->DESCRIPTION) : null;
+		$lo['startson'] = $this->extractDateTime($vo->DTSTART)->setTimezone(new \DateTimeZone('UTC'))->format('U');
+		$lo['endson'] = $this->extractDateTime($vo->DTEND)->setTimezone(new \DateTimeZone('UTC'))->format('U');
+		// deposit entry to data store
+		$this->_store->modifyEntity($id, $lo);
+		// return state
+		return $lo['state'];
+
+	}
+
+	/**
+     * delete a entity in this collection
+     *
+     * @param string			$id		Entity ID
+     *
+     * @return bool				true on success / false on fail
+     */
+	function deleteFile($id) {
+
+		// delete entry from data store and return result
+		return $this->_store->deleteEntity($id);
 
 	}
 
 	/**
      * retrieves all entities in this collection
      *
-     * @return EventEntity[]
+     * @return Entity[]
      */
 	function getChildren() {
 		
@@ -227,10 +312,12 @@ class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
      *
      * @param string $id		Entity ID
      *
-     * @return EventEntity
+     * @return Entity
      */
 	function getChild($id) {
 
+		// remove extension
+		$id = str_replace('.ics', '', $id);
 		// retrieve object properties
 		$entry = $this->_store->fetchEntityByUUID($this->_uid, $id);
 		// evaluate if object properties where retrieved 
@@ -248,7 +335,7 @@ class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
      *
      * @param string[] $ids
      *
-     * @return EventEntity[]
+     * @return Entity[]
      */
     public function getMultipleChildren(array $ids) {
 
@@ -278,6 +365,9 @@ class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
      */
 	function childExists($id) {
 
+		// remove extension
+		$id = str_replace('.ics', '', $id);
+		// confim object exists
 		return $this->_store->confirmEntityByUUID($this->_uid, $id);
 
 	}
@@ -369,6 +459,23 @@ class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 			'{' . Plugin::NS_CALDAV . '}supported-calendar-component-set' => new SupportedCalendarComponentSet(['VEVENT']),
 		];
 		
+	}
+
+	
+	function extractString($property): string {
+		return trim($property->getValue());
+	}
+
+	function extractDateTime($property): \DateTime {
+
+		if (isset($property->parameters['TZID'])) {
+			$tz = new \DateTimeZone($property->parameters['TZID']->getValue());
+		}
+		else {
+			$tz = new \DateTimeZone('UTC');
+		}
+		return new \DateTime($property->getValue(), $tz);
+
 	}
 
 }

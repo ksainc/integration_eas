@@ -68,15 +68,22 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	/**
 	 * @inheritDoc
 	 */
-	function put($data) {
-		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
+	function get() {
+		return $this->_data['data'];
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	function get() {
-		return $this->_data['data'];
+	function put($data) {
+		return $this->_collection->modifyFile($this->_id, $data);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	function delete() {
+		return $this->_collection->deleteFile($this->_id);
 	}
 
 	/**
@@ -98,13 +105,6 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	 */
 	function getSize() {
 		return $this->_data['size'];
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	function delete() {
-		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
 	}
 
 	/**

@@ -28,7 +28,7 @@ class TaskCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 	 * @param string $label
 	 * @param string $color
 	 */
-	public function __construct(TaskStore $store, string $id, string $uid, string $uuid, string $label, string $color) {
+	public function __construct(TaskStore &$store, string $id, string $uid, string $uuid, string $label, string $color) {
 		
 		parent::__construct(Application::APP_ID, $uuid);
 
@@ -177,11 +177,11 @@ class TaskCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 		}
 
 		// retrieve entries
-		$entries = $this->_store->findEntities($this->_uid, $this->_id, $limit);
+		$entries = $this->_store->findEntities($this->_uid, $this->_id, $limit, ['uuid']);
 		// list entries
 		$list = [];
 		foreach ($entries as $entry) {
-			$list[] = new EventEntity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
+			$list[] = $entry['uuid'];
 		}
 		// return list
 		return $list;

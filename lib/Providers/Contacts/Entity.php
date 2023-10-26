@@ -16,7 +16,7 @@ class Entity implements \Sabre\CardDAV\ICard, \Sabre\DAVACL\IACL {
 	 * @param Collection $calendar
 	 * @param string $name
 	 */
-	public function __construct(Collection $collection, string $id, string $uuid, string $label, array $data) {
+	public function __construct(Collection &$collection, string $id, string $uuid, string $label, array $data) {
 		$this->_collection = $collection;
 		$this->_id = $id;
 		$this->_uuid = $uuid;
@@ -68,15 +68,22 @@ class Entity implements \Sabre\CardDAV\ICard, \Sabre\DAVACL\IACL {
 	/**
 	 * @inheritDoc
 	 */
-	function put($data) {
-		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
+	function get() {
+		return $this->_data['data'];
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	function get() {
-		return $this->_data['data'];
+	function put($data) {
+		return $this->_collection->modifyFile($this->_id, $data);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	function delete() {
+		return $this->_collection->deleteFile($this->_id);
 	}
 
 	/**
@@ -98,13 +105,6 @@ class Entity implements \Sabre\CardDAV\ICard, \Sabre\DAVACL\IACL {
 	 */
 	function getSize() {
 		return $this->_data['size'];
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	function delete() {
-		throw new \Sabre\DAV\Exception\Forbidden('This function is not supported yet');
 	}
 
 	/**
