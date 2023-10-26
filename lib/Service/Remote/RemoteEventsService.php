@@ -49,7 +49,9 @@ class RemoteEventsService {
 	public ?DateTimeZone $UserTimeZone = null;
 
 	public function __construct (RemoteCommonService $RemoteCommonService) {
+		
 		$this->RemoteCommonService = $RemoteCommonService;
+		
 	}
 
     public function initialize(EasClient $DataStore) {

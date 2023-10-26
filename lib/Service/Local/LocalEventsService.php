@@ -39,7 +39,6 @@ use Sabre\VObject\Reader;
 use Sabre\VObject\Component\VEvent;
 
 class LocalEventsService {
-	
     
 	private EventStore $_Store;
 	public ?DateTimeZone $SystemTimeZone = null;

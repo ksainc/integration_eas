@@ -30,7 +30,6 @@ use DateTimeZone;
 use DateInterval;
 use Psr\Log\LoggerInterface;
 
-use OCA\EAS\AppInfo\Application;
 use OCA\EAS\Service\Remote\RemoteCommonService;
 use OCA\EAS\Objects\TaskCollectionObject;
 use OCA\EAS\Objects\TaskObject;
@@ -42,32 +41,24 @@ use OCA\EAS\Utile\Eas\EasProperty;
 use OCA\EAS\Utile\Eas\EasTypes;
 
 class RemoteTasksService {
-	/**
-	 * @var LoggerInterface
-	 */
-	private $logger;
-	/**
-	 * @var RemoteCommonService
-	 */
-	private $RemoteCommonService;
-	/**
-	 * @var DateTimeZone
-	 */
-	public ?DateTimeZone $SystemTimeZone = null;
-    /**
-	 * @var DateTimeZone
-	 */
-	public ?DateTimeZone $UserTimeZone = null;
-	/**
-	 * @var EasClient
-	 */
+	
+	
+	private RemoteCommonService $RemoteCommonService;
 	public ?EasClient $DataStore = null;
 
-	public function __construct (string $appName,
-								LoggerInterface $logger,
-								RemoteCommonService $RemoteCommonService) {
-		$this->logger = $logger;
+	public ?DateTimeZone $SystemTimeZone = null;
+	public ?DateTimeZone $UserTimeZone = null;
+
+	public function __construct (RemoteCommonService $RemoteCommonService) {
+		
 		$this->RemoteCommonService = $RemoteCommonService;
+
+	}
+
+	public function initialize(EasClient $DataStore) {
+
+		$this->DataStore = $DataStore;
+
 	}
 
 	/**
@@ -195,10 +186,10 @@ class RemoteTasksService {
 	 */
 	public function syncEntities(string $cid, string $cst): ?object {
 
-        // evaluate synchronization token, if 0 retrieve initial synchronization token
-        if ($cst == '0') {
+        // evaluate synchronization token, if empty or 0 retrieve initial synchronization token
+        if (empty($cst) || $cst == '0') {
             // execute command
-            $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, []);
+            $rs = $this->RemoteCommonService->syncEntities($this->DataStore, '0', $cid, []);
             // extract synchronization token
             $cst = $rs->SyncKey->getContents();
         }
@@ -222,7 +213,7 @@ class RemoteTasksService {
 	 * @param string $cid			Collection Id
 	 * @param string $eid			Entity Id
 	 * 
-	 * @return TaskObject        	TaskObject on success / Null on failure
+	 * @return TaskObject       	TaskObject on success / Null on failure
 	 */
 	public function fetchEntity(string $cid, string $eid): ?TaskObject {
 
@@ -236,7 +227,20 @@ class RemoteTasksService {
             $to->CID = $ro->CollectionId->getContents();
             // retrieve attachment(s) from remote data store
 			if (count($to->Attachments) > 0) {
-				$to->Attachments = $this->fetchCollectionItemAttachment(array_column($to->Attachments, 'Id'));
+				// retrieve all attachments
+				$ro = $this->RemoteCommonService->fetchAttachment($this->DataStore, array_column($to->Attachments, 'Id'));
+				// evaluate returned object
+				if (count($ro) > 0) {
+					foreach ($ro as $entry) {
+						// evaluate status
+						if (isset($entry->Status) && $entry->Status->getContents() == '1') {
+							$key = array_search($entry->FileReference->getContents(), array_column($to->Attachments, 'Id'));
+							if ($key !== false) {
+								$to->Attachments[$key]->Data = base64_decode($entry->Properties->Data->getContents());
+							}
+						}
+					}
+				}
 			}
             // return object
 		    return $to;
@@ -254,16 +258,16 @@ class RemoteTasksService {
      * 
 	 * @param string $cid			Collection Id
 	 * @param string $cst			Collection Synchronization Token
-     * @param TaskObject $so     Source Object
+     * @param TaskObject $so     	Source Object
 	 * 
-	 * @return TaskObject        TaskObject on success / Null on failure
+	 * @return TaskObject        	TaskObject on success / Null on failure
 	 */
 	public function createEntity(string $cid, string $cst, TaskObject $so): ?TaskObject {
 
         // convert source TaskObject to EasObject
-        $eo = $this->fromTaskObject($so);
+        $to = $this->fromTaskObject($so);
 	    // execute command
-	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_TASK, $eo);
+	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_EVENT, $to);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
 			$to = clone $so;
@@ -289,18 +293,18 @@ class RemoteTasksService {
      * 
      * @param string $cid			Collection Id
 	 * @param string $cst			Collection Synchronization Token
-     * @param TaskObject $so     Source Object
+     * @param TaskObject $so     	Source Object
 	 * 
-	 * @return TaskObject        TaskObject on success / Null on failure
+	 * @return TaskObject        	TaskObject on success / Null on failure
 	 */
 	public function updateEntity(string $cid, string $cst, TaskObject $so): ?TaskObject {
 
         // extract source object id
         $eid = $to->ID;
         // convert source TaskObject to EasObject
-        $eo = $this->fromTaskObject($so);
+        $to = $this->fromTaskObject($so);
 	    // execute command
-	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $eo);
+	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $to);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
 			$to = clone $so;
@@ -372,7 +376,7 @@ class RemoteTasksService {
 					$type = $entry->ContentType;
 				}
 				// insert attachment object in response collection
-				$rc[] = new EventAttachmentObject(
+				$rc[] = new TaskAttachmentObject(
 					'D',
 					$entry->AttachmentId->Id, 
 					$entry->Name,
@@ -652,8 +656,252 @@ class RemoteTasksService {
 			}
 		}
         
-
 		return $to;
+
+    }
+
+	/**
+     * convert remote TaskObject to remote EasObject
+     * 
+     * @since Release 1.0.0
+     * 
+	 * @param TaskObject $so		entity as EventObject
+	 * 
+	 * @return EasObject            entity as EasObject
+	 */
+	public function fromEventObject(TaskObject $so): EasObject {
+
+		// create object
+		$eo = new EasObject('AirSync');
+        // Label
+        if (!empty($so->Label)) {
+            $eo->FileAs = new EasProperty('Tasks', $so->Label);
+        }
+		// Name - Last
+        if (!empty($so->Name->Last)) {
+            $eo->LastName = new EasProperty('Tasks', $so->Name->Last);
+        }
+        // Name - First
+        if (!empty($so->Name->First)) {
+            $eo->FirstName = new EasProperty('Tasks', $so->Name->First);
+        }
+        // Name - Other
+        if (!empty($so->Name->Other)) {
+            $eo->MiddleName = new EasProperty('Tasks', $so->Name->Other);
+        }
+        // Name - Prefix
+        if (!empty($so->Name->Prefix)) {
+            $eo->Title = new EasProperty('Tasks', $so->Name->Prefix);
+        }
+        // Name - Suffix
+        if (!empty($so->Name->Suffix)) {
+            $eo->Suffix = new EasProperty('Tasks', $so->Name->Suffix);
+        }
+        // Name - Phonetic - Last
+        if (!empty($so->Name->PhoneticLast)) {
+            $eo->YomiLastName = new EasProperty('Tasks', $so->Name->PhoneticLast);
+        }
+        // Name - Phonetic - First
+        if (!empty($so->Name->PhoneticFirst)) {
+            $eo->YomiFirstName = new EasProperty('Tasks', $so->Name->PhoneticFirst);
+        }
+        // Name - Aliases
+        if (!empty($so->Name->Aliases)) {
+            $eo->NickName = new EasProperty('Tasks', $so->Name->Aliases);
+        }
+        // Birth Day
+        if (!empty($so->BirthDay)) {
+            $eo->Birthday = new EasProperty('Tasks', $so->BirthDay->format('Y-m-d\\T11:59:00.000\\Z')); //2018-01-01T11:59:00.000Z
+        }
+        // Partner
+        if (!empty($so->Partner)) {
+            $eo->Spouse = new EasProperty('Tasks', $so->Partner);
+        }
+        // Anniversary Day
+        if (!empty($so->AnniversaryDay)) {
+            $eo->Anniversary = new EasProperty('Tasks', $so->AnniversaryDay->format('Y-m-d\\T11:59:00.000\\Z')); //2018-01-01T11:59:00.000Z
+        }
+        // Address(es)
+        if (count($so->Address) > 0) {
+            $types = [
+                'WORK' => true,
+                'HOME' => true,
+                'OTHER' => true
+            ];
+            foreach ($so->Address as $entry) {
+                // Address - Work
+                if ($entry->Type == 'WORK' && $types[$entry->Type]) {
+                    // Street
+                    if (!empty($entry->Street)) {
+                        $eo->BusinessAddressStreet = new EasProperty('Tasks', $entry->Street);
+                    }
+                    // Locality
+                    if (!empty($entry->Locality)) {
+                        $eo->BusinessAddressCity = new EasProperty('Tasks', $entry->Locality);
+                    }
+                    // Region
+                    if (!empty($entry->Region)) {
+                        $eo->BusinessAddressState = new EasProperty('Tasks', $entry->Region);
+                    }
+                    // Code
+                    if (!empty($entry->Code)) {
+                        $eo->BusinessAddressPostalCode = new EasProperty('Tasks', $entry->Code);
+                    }
+                    // Country
+                    if (!empty($entry->Country)) {
+                        $eo->BusinessAddressCountry = new EasProperty('Tasks', $entry->Country);
+                    }
+                    // disable type
+                    $types[$entry->Type] = false;
+                }
+                // Address - Home
+                if ($entry->Type == 'HOME' && $types[$entry->Type]) {
+                    // Street
+                    if (!empty($entry->Street)) {
+                        $eo->HomeAddressStreet = new EasProperty('Tasks', $entry->Street);
+                    }
+                    // Locality
+                    if (!empty($entry->Locality)) {
+                        $eo->HomeAddressCity = new EasProperty('Tasks', $entry->Locality);
+                    }
+                    // Region
+                    if (!empty($entry->Region)) {
+                        $eo->HomeAddressState = new EasProperty('Tasks', $entry->Region);
+                    }
+                    // Code
+                    if (!empty($entry->Code)) {
+                        $eo->HomeAddressPostalCode = new EasProperty('Tasks', $entry->Code);
+                    }
+                    // Country
+                    if (!empty($entry->Country)) {
+                        $eo->HomeAddressCountry = new EasProperty('Tasks', $entry->Country);
+                    }
+                    // disable type
+                    $types[$entry->Type] = false;
+                }
+                // Address - Other
+                if ($entry->Type == 'OTHER' && $types[$entry->Type]) {
+                    // Street
+                    if (!empty($entry->Street)) {
+                        $eo->OtherAddressStreet = new EasProperty('Tasks', $entry->Street);
+                    }
+                    // Locality
+                    if (!empty($entry->Locality)) {
+                        $eo->OtherAddressCity = new EasProperty('Tasks', $entry->Locality);
+                    }
+                    // Region
+                    if (!empty($entry->Region)) {
+                        $eo->OtherAddressState = new EasProperty('Tasks', $entry->Region);
+                    }
+                    // Code
+                    if (!empty($entry->Code)) {
+                        $eo->OtherAddressPostalCode = new EasProperty('Tasks', $entry->Code);
+                    }
+                    // Country
+                    if (!empty($entry->Country)) {
+                        $eo->OtherAddressCountry = new EasProperty('Tasks', $entry->Country);
+                    }
+                    // disable type
+                    $types[$entry->Type] = false;
+                }
+            }
+        }
+        // Phone(s)
+        if (count($so->Phone) > 0) {
+            $types = array(
+                'WorkVoice1' => true,
+                'WorkVoice2' => true,
+                'WorkFax' => true,
+                'HomeVoice1' => true,
+                'HomeVoice2' => true,
+                'HomeFax' => true,
+                'Cell' => true,
+            );
+            foreach ($so->Phone as $entry) {
+                if ($entry->Type == 'WORK' && $entry->SubType == 'VOICE' && $types['WorkVoice1']) {
+                    $eo->BusinessPhoneNumber = new EasProperty('Tasks', $entry->Number);
+                    $types['WorkVoice1'] = false;
+                }
+                elseif ($entry->Type == 'WORK' && $entry->SubType == 'VOICE' && $types['WorkVoice2']) {
+                    $eo->Business2PhoneNumber = new EasProperty('Tasks', $entry->Number);
+                    $types['WorkVoice2'] = false;
+                }
+                elseif ($entry->Type == 'WORK' && $entry->SubType == 'FAX' && $types['WorkFax']) {
+                    $eo->BusinessFaxNumber = new EasProperty('Tasks', $entry->Number);
+                    $types['WorkFax'] = false;
+                }
+                elseif ($entry->Type == 'HOME' && $entry->SubType == 'VOICE' && $types['HomeVoice1']) {
+                    $eo->HomePhoneNumber = new EasProperty('Tasks', $entry->Number);
+                    $types['HomeVoice1'] = false;
+                }
+                elseif ($entry->Type == 'HOME' && $entry->SubType == 'VOICE' && $types['HomeVoice2']) {
+                    $eo->Home2PhoneNumber = new EasProperty('Tasks', $entry->Number);
+                    $types['HomeVoice2'] = false;
+                }
+                elseif ($entry->Type == 'WORK' && $entry->SubType == 'FAX' && $types['HomeFax']) {
+                    $eo->HomeFaxNumber = new EasProperty('Tasks', $entry->Number);
+                    $types['HomeFax'] = false;
+                }
+                elseif ($entry->Type == 'CELL' && $types['Cell'] != true) {
+                    $eo->MobilePhoneNumber = new EasProperty('Tasks', $entry->Number);
+                    $types['Cell'] = false;
+                }
+            }
+        }
+        // Email(s)
+        if (count($so->Email) > 0) {
+            $types = array(
+                'WORK' => true,
+                'HOME' => true,
+                'OTHER' => true
+            );
+            foreach ($so->Email as $entry) {
+                if (isset($types[$entry->Type]) && $types[$entry->Type] == true && !empty($entry->Address)) {
+                    switch ($entry->Type) {
+                        case 'WORK':
+                            $eo->Email1Address = new EasProperty('Tasks', $entry->Address);
+                            break;
+                        case 'HOME':
+                            $eo->Email2Address = new EasProperty('Tasks', $entry->Address);
+                            break;
+                        case 'OTHER':
+                            $eo->Email3Address = new EasProperty('Tasks', $entry->Address);
+                            break;
+                    }
+                    $types[$entry->Type] = false;
+                }
+            }
+        }
+        // Manager Name
+        if (!empty($so->Name->Manager)) {
+            $eo->ManagerName = new EasProperty('Tasks', $so->Name->Manager);
+        }
+        // Assistant Name
+        if (!empty($so->Name->Assistant)) {
+            $eo->AssistantName = new EasProperty('Tasks', $so->Name->Assistant);
+        }
+        // Occupation Organization
+        if (!empty($so->Occupation->Organization)) {
+            $eo->CompanyName = new EasProperty('Tasks', $so->Occupation->Organization);
+        }
+        // Occupation Department
+        if (!empty($so->Occupation->Department)) {
+            $eo->Department = new EasProperty('Tasks', $so->Occupation->Department);
+        }
+        // Occupation Title
+        if (!empty($so->Occupation->Title)) {
+            $eo->JobTitle = new EasProperty('Tasks', $so->Occupation->Title);
+        }
+        // Occupation Location
+        if (!empty($so->Occupation->Location)) {
+            $eo->OfficeLocation = new EasProperty('Tasks', $so->Occupation->Location);
+        }
+        // URL / Website
+        if (!empty($so->URI)) {
+            $eo->WebPage = new EasProperty('Tasks', $so->URI);
+        }
+        
+		return $eo;
 
     }
 

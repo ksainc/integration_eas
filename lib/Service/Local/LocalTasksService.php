@@ -29,9 +29,8 @@ use Datetime;
 use DateTimeZone;
 use DateInterval;
 use OC\Files\Node\LazyUserFolder;
-use OCA\DAV\CalDAV\CalDavBackend;
 
-use OCA\EAS\AppInfo\Application;
+use OCA\EAS\Db\TaskStore;
 use OCA\EAS\Objects\TaskCollectionObject;
 use OCA\EAS\Objects\TaskObject;
 use OCA\EAS\Objects\TaskAttachmentObject;
@@ -41,141 +40,48 @@ use Sabre\VObject\Component\VTodo;
 
 class LocalTasksService {
 	
-    /**
-	 * @var DateTimeZone
-	 */
+	private TaskStore $_Store;
 	public ?DateTimeZone $SystemTimeZone = null;
-    /**
-	 * @var DateTimeZone
-	 */
 	public ?DateTimeZone $UserTimeZone = null;
-    /**
-	 * @var String
-	 */
 	public string $UserAttachmentPath = '';
-    /**
-	 * @var CalDavBackend
-	 */
-	public ?CalDavBackend $DataStore = null;
-    /**
-	 * @var LazyUserFolder
-	 */
 	public ?LazyUserFolder $FileStore = null;
 
 	public function __construct () {
 	}
+    
+    public function initialize(TaskStore $Store) {
+
+		$this->_Store = $Store;
+
+	}
 
 	/**
-     * retrieve information for specific collection from local storage
+     * retrieve collection object from local storage
      * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $uid - User ID
+	 * @param string $id            Collection ID
 	 * 
-	 * @return array of collections
+	 * @return TaskCollectionObject  TaskCollectionObject on success / null on fail
 	 */
-	public function listCollections(string $uid): array {
+	public function fetchCollection(string $id): ?TaskCollectionObject {
 
-        // retrieve all local collections 
-        $collections = $this->DataStore->getCalendarsForUser('principals/users/' . $uid);
-		// construct collections list
-		$data = array();
-		foreach ($collections as $entry) {
-            if (isset($entry['{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set'])) {
-                if (in_array('VTODO', $entry['{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set']->getValue())) {
-                    $data[] = array('id' => $entry['id'], 'name' => $entry['{DAV:}displayname'], 'uri' => $entry['uri']);
-                }
-            }
-		}
-        // return collections list
-		return $data;
-
-    }
-	
-    /**
-     * retrieve properties for specific collection from local storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection Id
-	 * 
-	 * @return TaskCollectionObject of collection properties
-	 */
-	public function fetchCollection(string $cid): ?TaskCollectionObject {
-
-        // retrieve collection properties
-        $ec = $this->DataStore->getCalendarById($cid);
-
-        if (isset($ec)) {
+        // retrieve object properties
+        $lo = $this->_Store->fetchCollection($id);
+        // evaluate if object properties where retrieved
+        if (is_array($lo) && count($lo) > 0) {
+            // construct object and return
             return new TaskCollectionObject(
-                $ec['id'],
-                $ec['{DAV:}displayname'],
-                $ec['{http://sabredav.org/ns}sync-token']
+                $lo['id'],
+                $lo['label'],
+                $lo['token']
             );
         }
         else {
+            // return nothing
             return null;
         }
 
     }
-
-	/**
-     * create collection in local storage
-     * 
-     * @since Release 1.0.0
-     * 
-     * @param string $uid - User ID
-	 * @param string $cid - Collection URI
-     * @param string $name - Collection Name
-	 * 
-	 * @return TaskCollectionObject
-	 */
-	public function createCollection(string $uid, string $cid, string $name): ?TaskCollectionObject {
-
-        // check for user id and collection - must contain to create
-        if (!empty($uid) && !empty($cid)) {
-            // create item in data store
-            $result = $this->DataStore->createCalendar(
-                'principals/users/' . $uid, 
-                $cid, 
-                array('{DAV:}displayname' => $name)
-            );
-        }
-        // return collection object or null
-        if (isset($result)) {
-            return $this->fetchCollection($result);
-        } else {
-            return null;
-        }
-
-    }
-
-    /**
-     * delete collection from local storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $mode - True for permanently / False - for Recoverable
-	 * 
-	 * @return bool true - successfully delete / false - failed to delete
-	 */
-	public function deleteCollection(string $cid, bool $mode = false): bool {
-
-        // check for id - must contain id to delete
-        if (!empty($cid)) {
-            // delete item in data store
-            $result = $this->DataStore->deleteCalendar($cid, $mode);
-        }
-        // return operation result
-        if ($result) {
-            return true;
-        } else {
-            return false;
-        }
-
-    }
-
+	
     /**
      * retrieve changes for specific collection from local storage
      * 
@@ -194,89 +100,33 @@ class LocalTasksService {
 		return $lcc;
 
     }
-	
-    /**
-     * find collection item by uuid in local storage
+
+	/**
+     * retrieve entity object from local storage
      * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $uuid - Item UUID
+     * @param string $id            Entity ID
 	 * 
-	 * @return TaskObject TaskObject - successfully retrieved / null - failed to retrieve
+	 * @return TaskObject        TaskObject on success / null on fail
 	 */
-	public function findCollectionItemByUUID(string $cid, string $uuid): ?TaskObject {
-        
-        // search data store for object
-		$lo = $this->TasksUtile->findByUUID($cid, $uuid, 'VTODO');
-        // validate result
+	public function fetchEntity(string $id): ?TaskObject {
+
+        // retrieve object properties
+        $lo = $this->_Store->fetchEntity($id);
+        // evaluate if object properties where retrieved
         if (is_array($lo) && count($lo) > 0) {
-            $lo = $lo[0];
-            // convert string to vtask object
-            $to = Reader::read($lo['calendardata']);
-            // convert to task object
-            if (isset($to->VTODO)) {
-                $to = $this->toTaskObject($to->VTODO);
-                $to->ID = $lo['uri'];
-                $to->UUID = $lo['uid'];
-                $to->CID = $lo['calendarid'];
-                $to->ModifiedOn = new DateTime(date("Y-m-d H:i:s", $lo['lastmodified']));
-                $to->State = trim($lo['etag'],'"');
-                // attachments
-                if (count($to->Attachments) > 0) {
-                    // retrieve attachments from local data store
-                    $to->Attachments = $this->fetchCollectionItemAttachment(array_column($to->Attachments, 'Id'), 'F');
-                }
-                // return task object
-                return $to;
-            }
-            else {
-                return null;
-            }
-        } else {
-            // return null
-            return null;
-        }
-
-    }
-	
-    /**
-     * retrieve collection item from local storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Item ID
-	 * 
-	 * @return TaskObject TaskObject - successfully retrieved / null - failed to retrieve
-	 */
-	public function fetchCollectionItem(string $cid, string $iid): ?TaskObject {
-
-        // retrieve collection item
-        $lo = $this->DataStore->getCalendarObject($cid, $iid);
-        // return task object or null
-        if ($lo) {
-            // read item data
-            $to = Reader::read($lo['calendardata']);
-            // convert to task object
-            if (isset($to->VTODO)) {
-                $to = $this->toTaskObject($to->VTODO);
-                $to->ID = $lo['uri'];
-                $to->CID = $lo['calendarid'];
-                $to->ModifiedOn = new DateTime(date("Y-m-d H:i:s", $lo['lastmodified']));
-                $to->State = trim($lo['etag'],'"');
-
-                // attachments
-                if (count($to->Attachments) > 0) {
-                    // retrieve attachments from local data store
-                    $to->Attachments = $this->fetchCollectionItemAttachment(array_column($to->Attachments, 'Id'), 'F');
-                }
-                // return task object
-                return $to;
-            }
-            else {
-                return null;
-            }
+            // read object data
+            $eo = Reader::read($lo['data']);
+            // convert to contact object
+            $eo = $this->toTaskObject($eo->VTODO);
+            $eo->ID = $lo['id'];
+            $eo->UUID = $lo['uuid'];
+            $eo->CID = $lo['cid'];
+            $eo->State = trim($lo['state'],'"');
+            $eo->RCID = $lo['rcid'];
+            $eo->REID = $lo['reid'];
+            $eo->RState = $lo['rcid'];
+            // return contact object
+            return $eo;
         } else {
             // return null
             return null;
@@ -285,126 +135,147 @@ class LocalTasksService {
     }
 
     /**
-     * create collection item in local storage
+     * retrieve entity object by remote id from local storage
      * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param TaskObject $so - Item Data
+     * @param string $uid           User Id
+	 * @param string $rcid          Remote Collection ID
+     * @param string $reid          Remote Entity ID
 	 * 
-	 * @return TaskObject
+	 * @return TaskObject        TaskObject on success / null on fail
 	 */
-	public function createCollectionItem(string $cid, TaskObject $so): ?TaskObject {
+	public function fetchEntityByRID(string $uid, string $rcid, string $reid): ?TaskObject {
 
-        // clone source object
-        $to = clone $so;
-        // deposit attachment(s)
-        if (count($to->Attachments) > 0) {
-            // create or update attachements in local data store
-            $to->Attachments = $this->createCollectionItemAttachment(
-                $to->StartsOn->format('Y-m-d H.i.s') . " " . \OCA\EAS\Utile\Sanitizer::folder($to->Label, true, true), 
-                $to->Attachments
-            );
-        }
-        //evaluate if task object contains uuid
-        if (empty($to->UUID)) {
-            // generate uuid if missing
-            $to->UUID = \OCA\EAS\Utile\UUID::v4();
-        }
-        // convert task object to vtodo object
-        $vt = $this->fromTaskObject($to);
-        // generate item id
-        $vtid = \OCA\EAS\Utile\UUID::v4() . '.ics';
-        // create item in data store
-        $rs = $this->DataStore->createCalendarObject(
-            $cid, 
-            $vtid, 
-            "BEGIN:VCALENDAR\nVERSION:2.0\n" . $vt->serialize() . "\nEND:VCALENDAR"
-        );
-        // return task object or null
-        if (isset($rs)) {
-            $to->ID = $vtid;
-            $to->CID = $cid;
-            $to->State = trim($rs,'"');
-            return $to;
+        // retrieve object properties
+        $lo = $this->_Store->fetchEntityByRID($uid, $rcid, $reid);
+		// evaluate if object properties where retrieved
+        if (is_array($lo) && count($lo) > 0) {
+            // read object data
+            $eo = Reader::read($lo['data']);
+            // convert to contact object
+            $eo = $this->toTaskObject($eo->VTODO);
+            $eo->ID = $lo['id'];
+            $eo->UUID = $lo['uuid'];
+            $eo->CID = $lo['cid'];
+            $eo->State = trim($lo['state'],'"');
+            $eo->RCID = $lo['rcid'];
+            $eo->REID = $lo['reid'];
+            $eo->RState = $lo['rcid'];
+            // return contact object
+            return $eo;
         } else {
-            return null;
-        }
-        
-    }
-
-    /**
-     * update collection item in local storage
-     * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Item ID
-     * @param TaskObject $so - Source Data
-	 * 
-	 * @return TaskObject
-	 */
-	public function updateCollectionItem(string $cid, string $iid, TaskObject $so): ?TaskObject {
-
-        // check for id - must contain id to update
-        if (!empty($iid)) {
-            // clone source object
-            $to = clone $so;
-            // deposit attachment(s)
-            if (count($to->Attachments) > 0) {
-                // create or update attachements in local data store
-                $to->Attachments = $this->createCollectionItemAttachment(
-                    $to->StartsOn->format('Y-m-d H.i.s') . " " . \OCA\EAS\Utile\Sanitizer::folder($to->Label, true, true), 
-                    $to->Attachments
-                );
-            }
-            // convert task object to vtodo object
-            $vt = $this->fromTaskObject($to);
-            // update item in data store
-            $rs = $this->DataStore->updateCalendarObject(
-                $cid, 
-                $iid, 
-                "BEGIN:VCALENDAR\nVERSION:2.0\n" . $vt->serialize() . "\nEND:VCALENDAR"
-            );
-        }
-        // return task object or null
-        if (isset($rs)) {
-            $to->ID = $iid;
-            $to->CID = $cid;
-			$to->State = trim($rs,'"');
-            return $to;
-        } else {
+            // return null
             return null;
         }
 
     }
 
     /**
-     * delete collection item from local storage
+     * create entity in local storage
      * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection ID
-     * @param string $iid - Item ID
+	 * @param string $uid           User Id
+	 * @param string $cid           Collection ID
+     * @param TaskObject $so     Source Object
 	 * 
-	 * @return bool true - successfully delete / False - failed to delete
+	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function deleteCollectionItem(string $cid, string $iid): bool {
+	public function createEntity(string $uid, string $cid, TaskObject $so): ?object {
 
-        // check for id - must contain id to delete
-        if (!empty($iid)) {
-            // delete item in data store
-            $result = $this->DataStore->deleteCalendarObject($cid, $iid);
+        // initilize data place holder
+        $lo = [];
+        // convert contact object to vcard object
+        $lo['data'] = "BEGIN:VCALENDAR\nVERSION:2.0\n" . $this->fromTaskObject($so)->serialize() . "\nEND:VCALENDAR";
+        $lo['uuid'] = (!empty($so->UUID)) ? $so->UUID : \OCA\EAS\Utile\UUID::v4();
+        $lo['uid'] = $uid;
+        $lo['cid'] = $cid;
+        $lo['rcid'] = $so->RCID;
+        $lo['reid'] = $so->REID;
+        $lo['rstate'] = $so->RState;
+        $lo['size'] = strlen($lo['data']);
+        $lo['state'] = md5($lo['data']);
+        $lo['label'] = $so->Label;
+        $lo['notes'] = $so->Notes;
+        $lo['startson'] = $so->StartsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
+        $lo['dueon'] = $so->DueOn->setTimezone(new DateTimeZone('UTC'))->format('U');
+        // create entry in data store
+        $id = $this->_Store->createEntity($lo);
+        // return status object or null
+        if ($id) {
+            return (object) array('ID' => $id, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+        } else {
+            return null;
         }
-        // return operation result
-        if ($result) {
+
+    }
+    
+    /**
+     * update entity in local storage
+     * 
+	 * @param string $uid           User ID
+	 * @param string $cid           Collection ID
+	 * @param string $eid           Entity ID
+     * @param TaskObject $so     Source Object
+	 * 
+	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
+	 */
+	public function updateEntity(string $uid, string $cid, string $eid, TaskObject $so): ?object {
+
+        // evaluate if collection or entity id is missing - must contain id to update
+        if (empty($uid) || empty($cid) || empty($eid)) {
+            return null;
+        }
+        // initilize data place holder
+        $lo = [];
+        // convert contact object to vcard object
+        $lo['data'] = "BEGIN:VCALENDAR\nVERSION:2.0\n" . $this->fromTaskObject($so)->serialize() . "\nEND:VCALENDAR";
+        $lo['uuid'] = (!empty($so->UUID)) ? $so->UUID : \OCA\EAS\Utile\UUID::v4();
+        $lo['uid'] = $uid;
+        $lo['cid'] = $cid;
+        $lo['rcid'] = $so->RCID;
+        $lo['reid'] = $so->REID;
+        $lo['rstate'] = $so->RState;
+        $lo['size'] = strlen($lo['data']);
+        $lo['state'] = md5($lo['data']);
+        $lo['label'] = $so->Label;
+        $lo['notes'] = $so->Notes;
+        $lo['startson'] = $so->StartsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
+        $lo['dueon'] = $so->DueOn->setTimezone(new DateTimeZone('UTC'))->format('U');
+        // modify entry in data store
+        $rs = $this->_Store->modifyEntity($eid, $lo);
+        // return status object or null
+        if ($rs) {
+            return (object) array('ID' => $eid, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+        } else {
+            return null;
+        }
+
+    }
+    
+    /**
+     * delete entity from local storage
+     * 
+	 * @param string $uid           User ID
+	 * @param string $cid           Collection ID
+	 * @param string $eid           Entity ID
+	 * 
+	 * @return bool                 true - successfully delete / false - failed to delete
+	 */
+	public function deleteEntity(string $uid, string $cid, string $eid): bool {
+
+        // evaluate if collection or entity id is missing - must contain id to delete
+        if (empty($uid) || empty($cid) || empty($eid)) {
+            return null;
+        }
+        // delete entry from data store
+        $rs = $this->_Store->deleteEntity($eid);
+        // return result
+        if ($rs) {
             return true;
         } else {
             return false;
         }
 
     }
-
+    
     /**
      * retrieve collection item attachment from local storage
      * 

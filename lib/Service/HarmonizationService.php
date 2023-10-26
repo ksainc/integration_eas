@@ -205,8 +205,8 @@ class HarmonizationService {
 				(($mode === 'S' && $Configuration->TasksHarmonize > 0) ||
 				($mode === 'M' && $Configuration->TasksHarmonize > -1))) {
 				$this->logger->info('Statred Harmonization of Tasks for ' . $uid);
-				// assign remote data store
-				$this->TasksService->RemoteStore = $RemoteStore;
+				// assign configuration and data stores
+				$this->TasksService->initialize($Configuration, $RemoteStore);
 				// retrieve list of correlations
 				$correlations = $this->CorrelationsService->findByType($uid, CorrelationsService::TaskCollection);
 				// iterate through correlation items
