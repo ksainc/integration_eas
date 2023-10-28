@@ -60,7 +60,7 @@ class CalendarDeletedListener implements IEventListener {
 				// retrieve collection correlation
 				$cc = $this->CorrelationsService->findByLocalId($uid, 'EC', $cid);
 				// evaluate correlation, if correlation exists for the local collection
-				if ($cc instanceof \OCA\EAS\Db\Correlation) {
+				if ($cc instanceof \OCA\EAS\Store\Correlation) {
 					// delete all affiliated correlation and collection correlation
 					$this->CorrelationsService->deleteByAffiliationId($cc->getuid(), (string) $cc->getid());
 					$this->CorrelationsService->delete($cc);

@@ -6,7 +6,7 @@ use OCA\DAV\CardDAV\Integration\ExternalAddressBook;
 use OCA\DAV\CardDAV\Integration\IAddressBookProvider;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Db\ContactStore;
+use OCA\EAS\Store\ContactStore;
 
 class Provider implements IAddressBookProvider {
 

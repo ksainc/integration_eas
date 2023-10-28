@@ -30,8 +30,8 @@ use Exception;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 
-use OCA\EAS\Db\Correlation;
-use OCA\EAS\Db\CorrelationMapper;
+use OCA\EAS\Store\Correlation;
+use OCA\EAS\Store\CorrelationMapper;
 
 class CorrelationsService {
 

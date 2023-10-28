@@ -32,7 +32,7 @@ use Throwable;
 use Psr\Log\LoggerInterface;
 use OCP\Files\IRootFolder;
 
-use OCA\EAS\Db\EventStore;
+use OCA\EAS\Store\EventStore;
 use OCA\EAS\Service\CorrelationsService;
 use OCA\EAS\Service\Local\LocalEventsService;
 use OCA\EAS\Service\Remote\RemoteEventsService;
@@ -103,7 +103,7 @@ class EventsService {
 		if (empty($lcid) || empty($rcid)){
 			$this->CorrelationsService->deleteByAffiliationId($this->Configuration->UserId, $caid);
 			$this->CorrelationsService->delete($correlation);
-			$this->logger->debug('EWS - Deleted Events collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote ID or Local ID');
+			$this->logger->debug('EAS - Deleted Events collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote ID or Local ID');
 			return $statistics;
 		}
 
@@ -116,7 +116,7 @@ class EventsService {
 		//if (!isset($lcollection) || ($lcollection->Id != $lcid)) {
 		//	$this->CorrelationsService->deleteByAffiliationId($this->Configuration->UserId, $caid);
 		//	$this->CorrelationsService->delete($correlation);
-		//	$this->logger->debug('EWS - Deleted Events collection correlation for ' . $this->Configuration->UserId . ' due to missing Local Collection');
+		//	$this->logger->debug('EAS - Deleted Events collection correlation for ' . $this->Configuration->UserId . ' due to missing Local Collection');
 		//	return $statistics;
 		//}
 
@@ -128,7 +128,7 @@ class EventsService {
 		//if (!isset($rcollection) || ($rcollection->Id != $rcid)) {
 		//	$this->CorrelationsService->deleteByAffiliationId($this->Configuration->UserId, $caid);
 		//	$this->CorrelationsService->delete($correlation);
-		//	$this->logger->debug('EWS - Deleted Events collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote Collection');
+		//	$this->logger->debug('EAS - Deleted Events collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote Collection');
 		//	return $statistics;
 		//}
 		
@@ -316,13 +316,13 @@ class EventsService {
 		$ci = $this->CorrelationsService->findByLocalId($uid, 'EO', $loid, $lcid);
 		// if correlation exists
 		// compare local state to correlation state and stop processing if they match to prevent sync loop
-		if ($ci instanceof \OCA\EAS\Db\Correlation && 
+		if ($ci instanceof \OCA\EAS\Store\Correlation && 
 			$ci->getlostate() == $lo->State) {
 			// return status of action
 			return $status;
 		}
 		// if correlation exists, try to retrieve remote object
-		if ($ci instanceof \OCA\EAS\Db\Correlation && 
+		if ($ci instanceof \OCA\EAS\Store\Correlation && 
 			!empty($ci->getroid())) {
 			// retrieve remote event object
 			$ro = $this->RemoteEventsService->fetchCollectionItem($ci->getroid());
@@ -345,7 +345,7 @@ class EventsService {
 		if (isset($ro)) {
 			// if correlation DOES NOT EXIST
 			// use selected mode to resolve conflict
-			if (!($ci instanceof \OCA\EAS\Db\Correlation)) {
+			if (!($ci instanceof \OCA\EAS\Store\Correlation)) {
 				// update remote object if
 				// local wins mode selected
 				// chronology wins mode selected and local object is newer
@@ -373,7 +373,7 @@ class EventsService {
 			// if correlation EXISTS
 			// compare remote object state to correlation state
 			// if states DO NOT MATCH use selected mode to resolve conflict
-			elseif ($ci instanceof \OCA\EAS\Db\Correlation && 
+			elseif ($ci instanceof \OCA\EAS\Store\Correlation && 
 				$ro->State != $ci->getrostate()) {
 				// update remote object if
 				// local wins mode selected
@@ -402,7 +402,7 @@ class EventsService {
 			// if correlation EXISTS
 			// compare remote object state to correlation state
 			// if states DO MATCH update remote object
-			elseif ($ci instanceof \OCA\EAS\Db\Correlation && 
+			elseif ($ci instanceof \OCA\EAS\Store\Correlation && 
 					$ro->State == $ci->getrostate()) {
 				// delete all previous attachment(s) in remote store
 				// work around for missing update command in eas
@@ -421,7 +421,7 @@ class EventsService {
 		}
 		// update object correlation if one was found
 		// create object correlation if none was found
-		if ($ci instanceof \OCA\EAS\Db\Correlation) {
+		if ($ci instanceof \OCA\EAS\Store\Correlation) {
 			$ci->setloid($lo->ID); // Local ID
 			$ci->setlostate($lo->State); // Local State
 			$ci->setlcid($lcid); // Local Parent ID
@@ -431,7 +431,7 @@ class EventsService {
 			$this->CorrelationsService->update($ci);
 		}
 		elseif (isset($lo) && isset($ro)) {
-			$ci = new \OCA\EAS\Db\Correlation();
+			$ci = new \OCA\EAS\Store\Correlation();
 			$ci->settype('EO'); // Correlation Type
 			$ci->setuid($uid); // User ID
 			$ci->setaid($caid); //Affiliation ID
@@ -464,7 +464,7 @@ class EventsService {
 		// retrieve correlation
 		$ci = $this->CorrelationsService->findByLocalId($uid, 'EO', $loid, $lcid);
 		// evaluate correlation object
-		if ($ci instanceof \OCA\EAS\Db\Correlation) {
+		if ($ci instanceof \OCA\EAS\Store\Correlation) {
 			// destroy remote object
 			$rs = $this->RemoteEventsService->deleteCollectionItem($ci->getroid());
 			// destroy correlation

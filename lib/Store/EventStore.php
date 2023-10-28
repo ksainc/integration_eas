@@ -23,7 +23,7 @@ declare(strict_types=1);
 *
 */
 
-namespace OCA\EAS\Db;
+namespace OCA\EAS\Store;
 
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -37,6 +37,7 @@ class EventStore extends BaseStore {
 		$this->_CollectionIdentifier = 'EC';
 		$this->_EntityTable = 'eas_entities_event';
 		$this->_EntityIdentifier = 'EE';
+		$this->_ChronicleTable = 'eas_chronicle';
 
 	}
 

@@ -30,7 +30,7 @@ use DateTimeZone;
 use DateInterval;
 use OC\Files\Node\LazyUserFolder;
 
-use OCA\EAS\Db\EventStore;
+use OCA\EAS\Store\EventStore;
 use OCA\EAS\Objects\EventCollectionObject;
 use OCA\EAS\Objects\EventObject;
 use OCA\EAS\Objects\EventAttachmentObject;
@@ -81,24 +81,23 @@ class LocalEventsService {
         }
 
     }
-	
-    /**
-     * retrieve changes for specific collection from local storage
+    
+	/**
+     * retrieve the differences for specific collection from a specific point from local storage
      * 
-     * @since Release 1.0.0
-     * 
-	 * @param string $cid - Collection Id
-     * @param string $state - Collection Id
+     * @param string $uid           User ID
+	 * @param string $cid           Collection ID
+     * @param string $state         
 	 * 
-	 * @return array of collection changes
+	 * @return array                Collection of differences
 	 */
-	public function fetchCollectionChanges(string $cid, string $state): array {
+	public function reconcileCollection(string $uid, string $cid, string $stamp): array {
 
-        // retrieve collection chamges
-        $lcc = $this->DataStore->getChangesForCalendar($cid, $state, null, null);
-        // return collection chamges
+        // retrieve collection differences
+        $lcc = $this->_Store->reminisce($uid, $cid, $stamp);
+        // return collection differences
 		return $lcc;
-
+        
     }
 
 	/**

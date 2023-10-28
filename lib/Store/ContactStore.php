@@ -23,7 +23,7 @@ declare(strict_types=1);
 *
 */
 
-namespace OCA\EAS\Db;
+namespace OCA\EAS\Store;
 
 use OCP\IDBConnection;
 
@@ -36,6 +36,7 @@ class ContactStore extends BaseStore {
 		$this->_CollectionIdentifier = 'CC';
 		$this->_EntityTable = 'eas_entities_contact';
 		$this->_EntityIdentifier = 'CE';
+		$this->_ChronicleTable = 'eas_chronicle';
 
 	}
 

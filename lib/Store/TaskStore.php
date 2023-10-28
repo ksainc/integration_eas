@@ -23,7 +23,7 @@ declare(strict_types=1);
 *
 */
 
-namespace OCA\EAS\Db;
+namespace OCA\EAS\Store;
 
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -37,6 +37,7 @@ class TaskStore extends BaseStore {
 		$this->_CollectionIdentifier = 'TC';
 		$this->_EntityTable = 'eas_entities_task';
 		$this->_EntityIdentifier = 'TE';
+		$this->_ChronicleTable = 'eas_chronicle';
 
 	}
 

@@ -23,9 +23,10 @@ declare(strict_types=1);
 *
 */
 
-namespace OCA\EAS\Db;
+namespace OCA\EAS\Store;
 
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OC\DB\QueryBuilder\Literal;
 use OCP\IDBConnection;
 
 class BaseStore {
@@ -35,6 +36,7 @@ class BaseStore {
 	protected string $_CollectionIdentifier = '';
 	protected string $_EntityTable = '';
 	protected string $_EntityIdentifier = '';
+	protected string $_ChronicleTable = '';
 
 	/**
 	 * retrieve collections from data store
@@ -98,11 +100,11 @@ class BaseStore {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $id		collection id
+	 * @param int $id			collection id
 	 * 
-	 * @return bool
+	 * @return int|bool			collection id on success / false on failure
 	 */
-	public function confirmCollection(string $id): bool {
+	public function confirmCollection(string $id): int|bool {
 		
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
@@ -114,7 +116,7 @@ class BaseStore {
 		$cmd->executeQuery()->closeCursor();
 		// evaluate if anything was found
 		if (is_array($data) && count($data) > 0) {
-			return true;
+			return (int) $data['id'];
 		}
 		else {
 			return false;
@@ -130,9 +132,9 @@ class BaseStore {
 	 * @param string $uid		user id
 	 * @param string $uuid		collection uuid
 	 * 
-	 * @return bool
+	 * @return int|bool			collection id on success / false on failure
 	 */
-	public function confirmCollectionByUUID(string $uid, string $uuid): bool {
+	public function confirmCollectionByUUID(string $uid, string $uuid): int|bool {
 		
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
@@ -145,7 +147,7 @@ class BaseStore {
 		$cmd->executeQuery()->closeCursor();
 		// evaluate if anything was found
 		if (is_array($data) && count($data) > 0) {
-			return true;
+			return (int) $data['id'];
 		}
 		else {
 			return false;
@@ -158,11 +160,11 @@ class BaseStore {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $id		collection id
+	 * @param int $id			collection id
 	 * 
-	 * @return array 			of fields
+	 * @return array 			of properties
 	 */
-	public function fetchCollection(string $id): array {
+	public function fetchCollection(int $id): array {
 		
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
@@ -220,7 +222,7 @@ class BaseStore {
 	 * 
 	 * @param array $data		collection data
 	 * 
-	 * @return bool
+	 * @return int				collection id
 	 */
 	public function createCollection(array $data) : int {
 
@@ -244,12 +246,12 @@ class BaseStore {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $id		collection id
+	 * @param int $id		collection id
 	 * @param array $data		collection data
 	 * 
 	 * @return bool
 	 */
-	public function modifyCollection(string $id, array $data) : bool {
+	public function modifyCollection(int $id, array $data) : bool {
 
 		// force type
 		$data['type'] = $this->_CollectionIdentifier;
@@ -272,11 +274,11 @@ class BaseStore {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $id		collection id
+	 * @param int $id		collection id
 	 * 
 	 * @return bool
 	 */
-	public function deleteCollection(string $id) : bool {
+	public function deleteCollection(int $id) : bool {
 
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
@@ -301,7 +303,7 @@ class BaseStore {
 	public function listEntities(string $uid): array {
 		
 		// construct data store command
-		$cmd = $this->db->getQueryBuilder();
+		$cmd = $this->_Store->getQueryBuilder();
 		$cmd->select('*')
 			->from($this->_EntityTable)
 			->where($cmd->expr()->eq('uid', $cmd->createNamedParameter($uid)));
@@ -449,11 +451,11 @@ class BaseStore {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $id		entity id
+	 * @param int $id		entity id
 	 * 
 	 * @return array
 	 */
-	public function fetchEntity(string $id): array {
+	public function fetchEntity(int $id): array {
 
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
@@ -543,14 +545,13 @@ class BaseStore {
 	 * 
 	 * @param string $id		entity id
 	 * 
-	 * @return bool
+	 * @return int|bool			entry id on success / false on failure
 	 */
-	public function confirmEntity(string $id): bool {
+	public function confirmEntity(string $id): int|bool {
 
-		// retrieve entry
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
-		$cmd->select('*')
+		$cmd->select('id')
 			->from($this->_EntityTable)
 			->where($cmd->expr()->eq('id', $cmd->createNamedParameter($id)));
 		// execute command
@@ -558,7 +559,7 @@ class BaseStore {
 		$cmd->executeQuery()->closeCursor();
 		// evaluate if anything was found
 		if (is_array($data) && count($data) > 0) {
-			return true;
+			return (int) $data['id'];
 		}
 		else {
 			return false;
@@ -574,14 +575,13 @@ class BaseStore {
 	 * @param string $uid		user id
 	 * @param string $uuid		entity uuid
 	 * 
-	 * @return bool
+	 * @return int|bool			entry id on success / false on failure
 	 */
-	public function confirmEntityByUUID(string $uid, string $uuid): bool {
+	public function confirmEntityByUUID(string $uid, string $uuid): int|bool {
 
-		// retrieve entry
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
-		$cmd->select('*')
+		$cmd->select('id')
 			->from($this->_EntityTable)
 			->where($cmd->expr()->eq('uid', $cmd->createNamedParameter($uid)))
 			->andWhere($cmd->expr()->eq('uuid', $cmd->createNamedParameter($uuid)));
@@ -590,7 +590,7 @@ class BaseStore {
 		$cmd->executeQuery()->closeCursor();
 		// evaluate if anything was found
 		if (is_array($data) && count($data) > 0) {
-			return true;
+			return (int) $data['id'];
 		}
 		else {
 			return false;
@@ -605,7 +605,7 @@ class BaseStore {
 	 * 
 	 * @param array $data		entity data
 	 * 
-	 * @return bool
+	 * @return int				entity id
 	 */
 	public function createEntity(array $data) : int {
 
@@ -617,8 +617,12 @@ class BaseStore {
 		}
 		// execute command
 		$cmd->executeStatement();
+		// retreive id
+		$id = $cmd->getLastInsertId();
+		// chronicle operation
+		$this->chronicle($data['uid'], $data['cid'], $id, $data['uuid'], 1);
 		// return result
-		return $cmd->getLastInsertId();
+		return (int) $id;
 		
 	}
 	
@@ -627,12 +631,12 @@ class BaseStore {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $id		entity id
+	 * @param int $id			entity id
 	 * @param array $data		entity data
 	 * 
 	 * @return bool
 	 */
-	public function modifyEntity(string $id, array $data) : bool {
+	public function modifyEntity(int $id, array $data) : bool {
 
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
@@ -643,6 +647,8 @@ class BaseStore {
 		}
 		// execute command
 		$cmd->executeStatement();
+		// chronicle operation
+		$this->chronicle($data['uid'], $data['cid'], $id, $data['uuid'], 2);
 		// return result
 		return true;
 		
@@ -653,20 +659,134 @@ class BaseStore {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $id		entity id
+	 * @param int $id		entity id
 	 * 
 	 * @return bool
 	 */
-	public function deleteEntity(string $id) : bool {
+	public function deleteEntity(int $id) : bool {
 
+		// retrieve original entity so we can chonicle it later
+		$data = $this->fetchEntity($id);
 		// construct data store command
 		$cmd = $this->_Store->getQueryBuilder();
 		$cmd->delete($this->_EntityTable)
 			->where($cmd->expr()->eq('id', $cmd->createNamedParameter($id)));
 		// execute command
 		$cmd->executeStatement();
+		// chronicle operation
+		$this->chronicle($data['uid'], $data['cid'], $id, $data['uuid'], 3);
 		// return result
 		return true;
+		
+	}
+
+	/**
+	 * chronicle a change to an entity to the data store
+	 * 
+	 * @since Release 1.0.0
+	 * 
+	 * @param string $uid		user id
+	 * @param string $cid		collection id
+	 * @param string $eid		entity id
+	 * @param string $euuid		entity uuid
+	 * @param string $operation		operation type (1 - Created, 2 - Modified, 3 - Deleted)
+	 * 
+	 * @return bool
+	 */
+	public function chronicle(string $uid, int $cid, int $eid, string $euuid, int $operation) : string {
+
+		// capture current microtime
+		$stamp = microtime(true);
+		// construct data store command
+		$cmd = $this->_Store->getQueryBuilder();
+		$cmd->insert($this->_ChronicleTable);
+		$cmd->setValue('uid', $cmd->createNamedParameter($uid));
+		$cmd->setValue('tag', $cmd->createNamedParameter($this->_EntityIdentifier));
+		$cmd->setValue('cid', $cmd->createNamedParameter($cid));
+		$cmd->setValue('eid', $cmd->createNamedParameter($eid));
+		$cmd->setValue('euuid', $cmd->createNamedParameter($euuid));
+		$cmd->setValue('operation', $cmd->createNamedParameter($operation));
+		$cmd->setValue('stamp', $cmd->createNamedParameter($stamp));
+		// execute command
+		$cmd->executeStatement();
+		// return stamp
+		return base64_encode((string) $stamp);
+		
+	}
+
+
+	/**
+	 * reminisce changes to entities in data store
+	 * 
+	 * @since Release 1.0.0
+	 * 
+	 * @param string $uid		user id
+	 * @param int $cid			collection id
+	 * @param string $stamp		time stamp
+	 * @param int $limit		results limit
+	 * @param int $offset		results offset
+	 * 
+	 * @return bool
+	 */
+	public function reminisce(string $uid, int $cid, string $stamp, ?int $limit = null, ?int $offset = null) : array {
+
+		// retrieve apex stamp
+		$cmd = $this->_Store->getQueryBuilder();
+		$cmd->select($cmd->func()->max('stamp'))
+			->from($this->_ChronicleTable)
+			->where($cmd->expr()->eq('uid', $cmd->createNamedParameter($uid)))
+			->andWhere($cmd->expr()->eq('tag', $cmd->createNamedParameter($this->_EntityIdentifier)))
+			->andWhere($cmd->expr()->eq('cid', $cmd->createNamedParameter($cid)));
+		$stampApex = $cmd->executeQuery()->fetchOne();
+		$cmd->executeQuery()->closeCursor();
+		// decode nadir stamp
+		$stampNadir = base64_decode($stamp);
+
+		// retrieve additions
+		$cmd = $this->_Store->getQueryBuilder();
+		$cmd->select('eid', 'euuid', new Literal('MAX(operation) AS operation'))
+			->from($this->_ChronicleTable)
+			->where($cmd->expr()->eq('uid', $cmd->createNamedParameter($uid)))
+			->andWhere($cmd->expr()->eq('tag', $cmd->createNamedParameter($this->_EntityIdentifier)))
+			->andWhere($cmd->expr()->eq('cid', $cmd->createNamedParameter($cid)))
+			->groupBy('eid');
+		// evaluate if valid nadir stamp exists
+		if (is_numeric($stampNadir)) {
+			$cmd->andWhere($cmd->expr()->gt('stamp', $cmd->createNamedParameter($stampNadir)));
+			$cmd->andWhere($cmd->expr()->lte('stamp', $cmd->createNamedParameter($stampApex)));
+		}
+		// evaluate if limit exists
+		if (is_numeric($limit)) {
+			$cmd->setMaxResults($limit);
+		}
+		// evaluate if offset exists
+		if (is_numeric($offset)) {
+			$cmd->setFirstResult($offset);
+		}
+
+		// define place holder
+		$chronicle = ['additions' => [], 'modifications' => [], 'deletions' => [], 'stamp' => base64_encode((string) $stampApex)];
+		
+		// execute command
+		$rs = $cmd->executeQuery();
+		// process result
+		while (($entry = $rs->fetch()) !== false) {
+			switch ($entry['operation']) {
+				case 1:
+					$chronicle['additions'][] = ['id' => $entry['eid'], 'uuid' => $entry['euuid']];
+					break;
+				case 2:
+					$chronicle['modifications'][] = ['id' => $entry['eid'], 'uuid' => $entry['euuid']];
+					break;
+				case 3:
+					$chronicle['deletions'][] = ['id' => $entry['eid'], 'uuid' => $entry['euuid']];
+					break;
+			}
+		}
+		$rs->closeCursor();
+
+		// return stamp
+		return $chronicle;
 		
 	}
 

@@ -7,7 +7,7 @@ use OCA\DAV\CardDAV\Plugin;
 use Sabre\DAV\PropPatch;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Db\ContactStore;
+use OCA\EAS\Store\ContactStore;
 
 class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
 
@@ -157,15 +157,15 @@ class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
 	/**
      * Create a new entity in this collection
      *
-     * @param string          $id		Entity ID
+     * @param string          $uuid		Entity UUID
      * @param resource|string $data		Entity Contents
      *
      * @return string|null				state on success / Null on fail
      */
-	function createFile($id, $data = null) {
+	function createFile($uuid, $data = null) {
 
 		// remove extension
-		$id = str_replace('.vcf', '', $id);
+		$uuid = str_replace('.vcf', '', $uuid);
 		// evaluate if data was sent as a resource
 		if (is_resource($data)) {
             $data = stream_get_contents($data);
@@ -178,7 +178,7 @@ class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
 		$vo = \Sabre\VObject\Reader::read($data);
 		// data store entry
 		$lo = [];
-		$lo['uuid'] = $id;
+		$lo['uuid'] = $uuid;
 		$lo['uid'] = $this->_uid;
 		$lo['cid'] = $this->_id;
         $lo['label'] = trim($vo->FN->getValue());
@@ -200,7 +200,7 @@ class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
      *
      * @return string|null				state on success / Null on fail
      */
-	function modifyFile($id, $data) {
+	function modifyFile($id, $uuid, $data) {
 
 		// evaluate if data was sent as a resource
 		if (is_resource($data)) {
@@ -214,6 +214,9 @@ class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
 		$vo = \Sabre\VObject\Reader::read($data);
 		// data store entry
 		$lo = [];
+		$lo['uuid'] = $uuid;
+		$lo['uid'] = $this->_uid;
+		$lo['cid'] = $this->_id;
         $lo['label'] = trim($vo->FN->getValue());
         $lo['size'] = strlen($data);
         $lo['state'] = md5($data);

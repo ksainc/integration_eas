@@ -8,7 +8,7 @@ use Sabre\CalDAV\Xml\Property\SupportedCalendarComponentSet;
 use Sabre\DAV\PropPatch;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Db\EventStore;
+use OCA\EAS\Store\EventStore;
 
 class EventCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 

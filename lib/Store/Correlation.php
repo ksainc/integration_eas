@@ -23,7 +23,7 @@
 *
 */
 
-namespace OCA\EAS\Db;
+namespace OCA\EAS\Store;
 
 use JsonSerializable;
 

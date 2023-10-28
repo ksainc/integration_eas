@@ -715,7 +715,7 @@ class CoreService {
 	 */
 	public function fetchCorrelations(string $uid): array {
 
-		$CoreUtile = \OC::$server->get(\OCA\EAS\Db\CoreUtile::class);
+		$CoreUtile = \OC::$server->get(\OCA\EAS\Store\CoreUtile::class);
 
 		// construct response object
 		$response = ['ContactCorrelations' => [], 'EventCorrelations' => [], 'TaskCorrelations' => []];
@@ -753,7 +753,7 @@ class CoreService {
 		// deposit contacts correlations
 		if ($this->ConfigurationService->isContactsAppAvailable()) {
 			// initilize data store
-			$DataStore = \OC::$server->get(\OCA\EAS\Db\ContactStore::class);
+			$DataStore = \OC::$server->get(\OCA\EAS\Store\ContactStore::class);
 			// process entries
 			foreach ($cc as $entry) {
 				if (isset($entry['enabled'])) {
@@ -786,7 +786,7 @@ class CoreService {
 									$cl['token'] = 0; // Collection State Token
 									$cid = $DataStore->createCollection($cl);
 									// create correlation
-									$cr = new \OCA\EAS\Db\Correlation();
+									$cr = new \OCA\EAS\Store\Correlation();
 									$cr->settype('CC'); // Correlation Type
 									$cr->setuid($uid); // User ID
 									$cr->setloid($cid); // Local Collection ID
@@ -805,7 +805,7 @@ class CoreService {
 		// deposit events correlations
 		if ($this->ConfigurationService->isCalendarAppAvailable()) {
 			// initilize data store
-			$DataStore = \OC::$server->get(\OCA\EAS\Db\EventStore::class);
+			$DataStore = \OC::$server->get(\OCA\EAS\Store\EventStore::class);
 			// process entries
 			foreach ($ec as $entry) {
 				if (isset($entry['enabled'])) {
@@ -838,7 +838,7 @@ class CoreService {
 									$cl['token'] = 0; // Collection State Token
 									$cid = $DataStore->createCollection($cl);
 									// create correlation
-									$cr = new \OCA\EAS\Db\Correlation();
+									$cr = new \OCA\EAS\Store\Correlation();
 									$cr->settype('EC'); // Correlation Type
 									$cr->setuid($uid); // User ID
 									$cr->setloid($cid); // Local Collection ID
@@ -857,7 +857,7 @@ class CoreService {
 		// deposit tasks correlations
 		if ($this->ConfigurationService->isTasksAppAvailable()) {
 			// initilize data store
-			$DataStore = \OC::$server->get(\OCA\EAS\Db\TaskStore::class);
+			$DataStore = \OC::$server->get(\OCA\EAS\Store\TaskStore::class);
 			// process entries
 			foreach ($tc as $entry) {
 				if (isset($entry['enabled'])) {
@@ -890,7 +890,7 @@ class CoreService {
 									$cl['token'] = 0; // Collection State Token
 									$cid = $DataStore->createCollection($cl);
 									// create correlation
-									$cr = new \OCA\EAS\Db\Correlation();
+									$cr = new \OCA\EAS\Store\Correlation();
 									$cr->settype('TC'); // Correlation Type
 									$cr->setuid($uid); // User ID
 									$cr->setloid($cid); // Local Collection ID

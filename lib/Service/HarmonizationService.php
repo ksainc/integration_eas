@@ -498,7 +498,7 @@ class HarmonizationService {
 					// retrieve collection correlation
 					$cc = $this->CorrelationsService->findByRemoteId($uid, $ctype, $cid);
 					// evaluate correlation, if exists, change altered time stamp
-					if ($cc instanceof \OCA\EAS\Db\Correlation) {
+					if ($cc instanceof \OCA\EAS\Store\Correlation) {
 						$cc->sethaltered(time());
 						$this->CorrelationsService->update($cc);
 						$state = true;

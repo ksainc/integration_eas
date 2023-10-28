@@ -6,8 +6,8 @@ use OCA\DAV\CalDAV\Integration\ExternalCalendar;
 use OCA\DAV\CalDAV\Integration\ICalendarProvider;
 
 use OCA\EAS\AppInfo\Application;
-use OCA\EAS\Db\EventStore;
-use OCA\EAS\Db\TaskStore;
+use OCA\EAS\Store\EventStore;
+use OCA\EAS\Store\TaskStore;
 
 class Provider implements ICalendarProvider {
 

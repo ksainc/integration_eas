@@ -76,14 +76,14 @@ class Entity implements \Sabre\CardDAV\ICard, \Sabre\DAVACL\IACL {
 	 * @inheritDoc
 	 */
 	function put($data) {
-		return $this->_collection->modifyFile($this->_id, $data);
+		return $this->_collection->modifyFile($this->_id, $this->_uuid, $data);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	function delete() {
-		return $this->_collection->deleteFile($this->_id);
+		return $this->_collection->deleteFile($this->_id, $this->_uuid);
 	}
 
 	/**

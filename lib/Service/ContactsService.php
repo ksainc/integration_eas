@@ -31,7 +31,7 @@ use Exception;
 use Throwable;
 use Psr\Log\LoggerInterface;
 
-use OCA\EAS\Db\ContactStore;
+use OCA\EAS\Store\ContactStore;
 use OCA\EAS\Service\CorrelationsService;
 use OCA\EAS\Service\Local\LocalContactsService;
 use OCA\EAS\Service\Remote\RemoteContactsService;
@@ -81,9 +81,8 @@ class ContactsService {
 	 */
 	public function performHarmonization($correlation, $configuration) : object {
 		
-		// construct statistics object
+		// define statistics object
 		$statistics = new HarmonizationStatisticsObject();
-
 		// set local and remote collection id's
 		$caid = (string) $correlation->getid();
 		$lcid = $correlation->getloid();
@@ -92,40 +91,35 @@ class ContactsService {
 		if (empty($lcid) || empty($rcid)){
 			$this->CorrelationsService->deleteByAffiliationId($this->Configuration->UserId, $caid);
 			$this->CorrelationsService->delete($correlation);
-			$this->logger->debug('EWS - Deleted contacts collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote ID or Local ID');
+			$this->logger->debug('EAS - Deleted contacts collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote ID or Local ID');
 			return $statistics;
 		}
-
-		// retrieve list of local changed objects
-		$lCollectionChanges = [];
-		//$lCollectionChanges = $this->LocalContactsService->fetchCollectionChanges($correlation->getloid(), (string) $correlation->getlostate());
-		
+		// retrieve a collection of local entity variations
+		$lCollectionVariations = $this->LocalContactsService->reconcileCollection($this->Configuration->UserId, $correlation->getloid(), (string) $correlation->getlostate());
 		// delete and skip collection correlation if local collection is missing
 		//$lcollection = $this->LocalContactsService->fetchCollection($lcid);
 		//if (!isset($lcollection) || ($lcollection->Id != $lcid)) {
 		//	$this->CorrelationsService->deleteByAffiliationId($this->Configuration->UserId, $caid);
 		//	$this->CorrelationsService->delete($correlation);
-		//	$this->logger->debug('EWS - Deleted contacts collection correlation for ' . $this->Configuration->UserId . ' due to missing Local Collection');
+		//	$this->logger->debug('EAS - Deleted contacts collection correlation for ' . $this->Configuration->UserId . ' due to missing Local Collection');
 		//	return $statistics;
 		//}
-
-		// retrieve list of remote changed object
-		$rCollectionChanges = $this->RemoteContactsService->syncEntities($correlation->getroid(), (string) $correlation->getrostate());
-		
+		// retrieve a collection of remote entity variations
+		$rCollectionVariations = $this->RemoteContactsService->syncEntities($correlation->getroid(), (string) $correlation->getrostate());
 		// delete and skip collection correlation if remote collection is missing
 		//$rcollection = $this->RemoteContactsService->fetchCollection(0, 0, $rcid);
 		//if (!isset($rcollection) || ($rcollection->Id != $rcid)) {
 		//	$this->CorrelationsService->deleteByAffiliationId($this->Configuration->UserId, $caid);
 		//	$this->CorrelationsService->delete($correlation);
-		//	$this->logger->debug('EWS - Deleted contacts collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote Collection');
+		//	$this->logger->debug('EAS - Deleted contacts collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote Collection');
 		//	return $statistics;
 		//}
 
-		// evaluate if local mutations object was returned
-		if (isset($lCollectionChanges['syncToken'])) {
-			// process local created objects
-			foreach ($lCollectionChanges['added'] as $iid) {
-				// process create
+		// evaluate if local entity variations exist
+		if (isset($lCollectionVariations['stamp'])) {
+			// process local additions
+			foreach ($lCollectionVariations['additions'] as $iid) {
+				// process addition
 				$as = $this->harmonizeLocalAltered(
 					$this->Configuration->UserId, 
 					$lcid, 
@@ -146,9 +140,9 @@ class ContactsService {
 						break;
 				}
 			}
-			// process local modified items
-			foreach ($lCollectionChanges['modified'] as $iid) {
-				// process create
+			// process local modifications
+			foreach ($lCollectionVariations['modifications'] as $iid) {
+				// process modification
 				$as = $this->harmonizeLocalAltered(
 					$this->Configuration->UserId, 
 					$lcid, 
@@ -169,9 +163,9 @@ class ContactsService {
 						break;
 				}
 			}
-			// process local deleted items
-			foreach ($lCollectionChanges['deleted'] as $iid) {
-				// process delete
+			// process local deletions
+			foreach ($lCollectionVariations['deletions'] as $iid) {
+				// process deletion
 				$as = $this->harmonizeLocalDelete(
 					$this->Configuration->UserId, 
 					$lcid, 
@@ -183,20 +177,20 @@ class ContactsService {
 				}
 			}
 			// update and deposit correlation local state
-			$correlation->setlostate($lCollectionChanges['syncToken']);
+			$correlation->setlostate($lCollectionVariations['syncToken']);
 			$this->CorrelationsService->update($correlation);
 		}
 
-		// evaluate if remote mutations object was returned
+		// evaluate if remote entity variations exist
 		// according to the EAS spec the change object can be blank if there is no changes 
-		if (isset($rCollectionChanges->SyncKey)) {
+		if (isset($rCollectionVariations->SyncKey)) {
 			// evaluate if add property is an array and convert to array if needed
-			if (isset($rCollectionChanges->Commands->Add) && !is_array($rCollectionChanges->Commands->Add)) {
-				$rCollectionChanges->Commands->Add = [$rCollectionChanges->Commands->Add];
+			if (isset($rCollectionVariations->Commands->Add) && !is_array($rCollectionVariations->Commands->Add)) {
+				$rCollectionVariations->Commands->Add = [$rCollectionVariations->Commands->Add];
 			}
-			// process remote created objects
-			foreach ($rCollectionChanges->Commands->Add as $Altered) {
-				// process create
+			// process remote additions
+			foreach ($rCollectionVariations->Commands->Add as $Altered) {
+				// process addition
 				$as = $this->harmonizeRemoteAltered(
 					$this->Configuration->UserId, 
 					$rcid, 
@@ -219,12 +213,12 @@ class ContactsService {
 				}
 			}
 			// evaluate if modify property is an array and convert to array if needed
-			if (isset($rCollectionChanges->Commands->Modify) && !is_array($rCollectionChanges->Commands->Modify)) {
-				$rCollectionChanges->Commands->Modify = [$rCollectionChanges->Commands->Modify];
+			if (isset($rCollectionVariations->Commands->Modify) && !is_array($rCollectionVariations->Commands->Modify)) {
+				$rCollectionVariations->Commands->Modify = [$rCollectionVariations->Commands->Modify];
 			}
-			// process remote modified objects
-			foreach ($rCollectionChanges->Commands->Modify as $Altered) {
-				// process create
+			// process remote modifications
+			foreach ($rCollectionVariations->Commands->Modify as $Altered) {
+				// process modification
 				$as = $this->harmonizeRemoteAltered(
 					$this->Configuration->UserId, 
 					$rcid, 
@@ -247,11 +241,11 @@ class ContactsService {
 				}
 			}
 			// evaluate if delete property is an array and convert to array if needed
-			if (isset($rCollectionChanges->Commands->Delete) && !is_array($rCollectionChanges->Commands->Delete)) {
-				$rCollectionChanges->Commands->Delete = [$rCollectionChanges->Commands->Delete];
+			if (isset($rCollectionVariations->Commands->Delete) && !is_array($rCollectionVariations->Commands->Delete)) {
+				$rCollectionVariations->Commands->Delete = [$rCollectionVariations->Commands->Delete];
 			}
-			// process remote deleted objects
-			foreach ($rCollectionChanges->Commands->Delete as $Deleted) {
+			// process remote deletions
+			foreach ($rCollectionVariations->Commands->Delete as $Deleted) {
 				// process delete
 				$as = $this->harmonizeRemoteDelete(
 					$this->Configuration->UserId, 
@@ -264,7 +258,7 @@ class ContactsService {
 				}
 			}
 			// update and deposit correlation remote state
-			$correlation->setrostate($rCollectionChanges->SyncKey->getContents());
+			$correlation->setrostate($rCollectionVariations->SyncKey->getContents());
 			$this->CorrelationsService->update($correlation);
 		}
 		
@@ -274,7 +268,7 @@ class ContactsService {
 	}
 
 	/**
-	 * Perform harmonization for locally altered object
+	 * Perform harmonization for locally altered entity
 	 * 
 	 * @since Release 1.0.0
 	 * 
@@ -305,13 +299,13 @@ class ContactsService {
 		$ci = $this->CorrelationsService->findByLocalId($uid, 'CO', $loid, $lcid);
 		// if correlation exists
 		// compare local state to correlation state and stop processing if they match to prevent sync loop
-		if ($ci instanceof \OCA\EAS\Db\Correlation && 
+		if ($ci instanceof \OCA\EAS\Store\Correlation && 
 			$ci->getlostate() == $lo->State) {
 			// return status of action
 			return $status;
 		}
 		// if correlation exists, try to retrieve remote object
-		if ($ci instanceof \OCA\EAS\Db\Correlation && 
+		if ($ci instanceof \OCA\EAS\Store\Correlation && 
 			!empty($ci->getroid())) {		
 			// retrieve remote contact object	
 			$ro = $this->RemoteContactsService->fetchCollectionItem($ci->getroid());
@@ -334,7 +328,7 @@ class ContactsService {
 		if (isset($ro)) {
 			// if correlation DOES NOT EXIST
 			// use selected mode to resolve conflict
-			if (!($ci instanceof \OCA\EAS\Db\Correlation)) {
+			if (!($ci instanceof \OCA\EAS\Store\Correlation)) {
 				// update remote object if
 				// local wins mode selected
 				// chronology wins mode selected and local object is newer
@@ -362,7 +356,7 @@ class ContactsService {
 			// if correlation EXISTS
 			// compare remote object state to correlation state
 			// if states DO NOT MATCH use selected mode to resolve conflict
-			elseif ($ci instanceof \OCA\EAS\Db\Correlation && 
+			elseif ($ci instanceof \OCA\EAS\Store\Correlation && 
 					$ro->State != $ci->getrostate()) {
 				// update remote object if
 				// local wins mode selected
@@ -391,7 +385,7 @@ class ContactsService {
 			// if correlation EXISTS
 			// compare remote object state to correlation state
 			// if states DO MATCH update remote object
-			elseif ($ci instanceof \OCA\EAS\Db\Correlation && 
+			elseif ($ci instanceof \OCA\EAS\Store\Correlation && 
 					$ro->State == $ci->getrostate()) {
 				// delete all previous attachment(s) in remote store
 				// work around for missing update command in eas
@@ -410,7 +404,7 @@ class ContactsService {
 		}
 		// update object correlation if one was found
 		// create object correlation if none was found
-		if ($ci instanceof \OCA\EAS\Db\Correlation) {
+		if ($ci instanceof \OCA\EAS\Store\Correlation) {
 			$ci->setloid($lo->ID); // Local ID
 			$ci->setlostate($lo->State); // Local State
 			$ci->setlcid($lcid); // Local Collection ID
@@ -420,7 +414,7 @@ class ContactsService {
 			$this->CorrelationsService->update($ci);
 		}
 		elseif (isset($lo) && isset($ro)) {
-			$ci = new \OCA\EAS\Db\Correlation();
+			$ci = new \OCA\EAS\Store\Correlation();
 			$ci->settype('CO'); // Correlation Type
 			$ci->setuid($uid); // User ID
 			$ci->setaid($caid); //Affiliation ID
@@ -448,16 +442,14 @@ class ContactsService {
 	 *
 	 * @return string 			what action was performed
 	 */
-	function harmonizeLocalDelete ($uid, $lcid, $loid): string {
+	function harmonizeLocalDelete ($uid, $loid): string {
 
-		// retrieve correlation
-		$ci = $this->CorrelationsService->findByLocalId($uid, 'CO', $loid, $lcid);
+		// find local object by collection and object id
+		$lo = $this->LocalContactsService->fetchEntityByRID($uid, $rcid, $roid);
 		// validate result
-		if ($ci instanceof \OCA\EAS\Db\Correlation) {
+		if ($ci instanceof \OCA\EAS\Store\Correlation) {
 			// destroy remote object
 			$rs = $this->RemoteContactsService->deleteCollectionItem($ci->getroid());
-			// destroy correlation
-			$this->CorrelationsService->delete($ci);
 			// return status of action
 			return 'RD';
 		}
@@ -469,7 +461,7 @@ class ContactsService {
 	}
 
 	/**
-	 * Perform harmonization for remotely altered object
+	 * Perform harmonization for remotely altered entity
 	 * 
 	 * @since Release 1.0.0
 	 * 

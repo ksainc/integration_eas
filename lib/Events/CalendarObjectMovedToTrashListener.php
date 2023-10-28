@@ -31,7 +31,7 @@ use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
 use OCA\DAV\Events\CalendarObjectMovedToTrashEvent;
 
-use OCA\EAS\Db\Correlation;
+use OCA\EAS\Store\Correlation;
 use OCA\EAS\Service\CorrelationsService;
 
 class CalendarObjectMovedToTrashListener implements IEventListener {
@@ -67,7 +67,7 @@ class CalendarObjectMovedToTrashListener implements IEventListener {
 					// retrieve collection correlation
 					$cc = $this->CorrelationsService->findByLocalId($uid, $ccs, $cid);
 					// evaluate, if correlation exists for the local collection
-					if ($cc instanceof \OCA\EAS\Db\Correlation) {
+					if ($cc instanceof \OCA\EAS\Store\Correlation) {
 						$cc->sethaltered(time());
 						$this->CorrelationsService->update($cc);
 					}

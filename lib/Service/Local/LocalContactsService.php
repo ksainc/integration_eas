@@ -28,7 +28,7 @@ namespace OCA\EAS\Service\Local;
 use Datetime;
 use DateTimeZone;
 
-use OCA\EAS\Db\ContactStore;
+use OCA\EAS\Store\ContactStore;
 use OCA\EAS\Objects\ContactCollectionObject;
 use OCA\EAS\Objects\ContactObject;
 
@@ -77,18 +77,21 @@ class LocalContactsService {
     }
 
 	/**
-     * retrieve changes for specific collection from local storage
+     * retrieve the differences for specific collection from a specific point from local storage
      * 
-	 * @param string $cid - Collection Id
-     * @param string $state - Collection Id
+     * @param string $uid		user id
+	 * @param int $cid			collection id
+	 * @param string $stamp		time stamp
+	 * @param int $limit		results limit
+	 * @param int $offset		results offset
 	 * 
-	 * @return array of collection changes
+	 * @return array                Collection of differences
 	 */
-	public function fetchCollectionChanges(string $cid, string $state): array {
+	public function reconcileCollection(string $uid, string $cid, string $stamp, ?int $limit = null, ?int $offset = null): array {
 
-        // retrieve collection chamges
-        $lcc = $this->DataStore->getChangesForAddressBook($cid, $state, null, null);
-        // return collection chamges
+        // retrieve collection differences
+        $lcc = $this->_Store->reminisce($uid, $cid, $stamp, $limit, $offset);
+        // return collection differences
 		return $lcc;
         
     }
