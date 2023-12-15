@@ -63,7 +63,7 @@ class RemoteContactsService {
      * 
 	 * @param string $cht				Collections Hierarchy Synchronization Token
 	 * @param string $chl				Collections Hierarchy Location
-	 * @param string $cid				Collection Id
+	 * @param string $cid				Collection ID
 	 * 
 	 * @return ContactCollectionObject  ContactCollectionObject on success / Null on failure
 	 */
@@ -124,7 +124,7 @@ class RemoteContactsService {
      * 
 	 * @param string $cht				Collections Hierarchy Synchronization Token
 	 * @param string $chl				Collections Hierarchy Location
-	 * @param string $cid				Collection Id
+	 * @param string $cid				Collection ID
 	 * @param string $name				Collection Name
 	 * 
 	 * @return ContactCollectionObject  ContactCollectionObject on success / Null on failure
@@ -152,7 +152,7 @@ class RemoteContactsService {
      * @since Release 1.0.0
      * 
      * @param string $cht				Collections Hierarchy Synchronization Token
-	 * @param string $cid				Collection Id
+	 * @param string $cid				Collection ID
 	 * 
 	 * @return bool 					True on success / Null on failure
 	 */
@@ -174,22 +174,22 @@ class RemoteContactsService {
      * 
      * @since Release 1.0.0
 	 * 
-     * @param string $cid		Collection Id
+     * @param string $cid		Collection ID
 	 * @param string $cst		Collections Synchronization Token
 	 * 
 	 * @return object
 	 */
-	public function syncEntities(string $cid, string $cst): ?object {
+	public function reconcileCollection(string $cid, string $cst): ?object {
 
         // evaluate synchronization token, if empty or 0 retrieve initial synchronization token
         if (empty($cst) || $cst == '0') {
             // execute command
-            $rs = $this->RemoteCommonService->syncEntities($this->DataStore, '0', $cid, []);
+            $rs = $this->RemoteCommonService->reconcileCollection($this->DataStore, '0', $cid, []);
             // extract synchronization token
             $cst = $rs->SyncKey->getContents();
         }
         // execute command
-        $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, ['CHANGES' => 1, 'LIMIT' => 32, 'FILTER' => 0, 'BODY' => EasTypes::BODY_TYPE_TEXT]);
+        $rs = $this->RemoteCommonService->reconcileCollection($this->DataStore, $cst, $cid, ['CHANGES' => 1, 'LIMIT' => 32, 'FILTER' => 0, 'BODY' => EasTypes::BODY_TYPE_TEXT]);
         // evaluate response
 		if (isset($rs->Status) && $rs->Status->getContents() == '1') {
 		    return $rs;
@@ -205,12 +205,13 @@ class RemoteContactsService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param string $cid			Collection Id
-	 * @param string $eid			Entity Id
+	 * @param string $cid			Collection ID
+     * @param string $cst           Collection Signature Token
+	 * @param string $eid			Entity ID
 	 * 
 	 * @return ContactObject        ContactObject on success / Null on failure
 	 */
-	public function fetchEntity(string $cid, string $eid): ?ContactObject {
+	public function fetchEntity(string $cid, string &$cst, string $eid): ?ContactObject {
 
         // execute command
 		$ro = $this->RemoteCommonService->fetchEntity($this->DataStore, $cid, $eid, ['BODY' => EasTypes::BODY_TYPE_TEXT]);
@@ -218,8 +219,11 @@ class RemoteContactsService {
 		if (isset($ro->Status) && $ro->Status->getContents() == '1') {
             // convert to contact object
             $co = $this->toContactObject($ro->Properties);
-            $co->ID = $ro->EntityId->getContents();
-            $co->CID = $ro->CollectionId->getContents();
+            $co->Origin = 'R';
+            $co->ID = ($ro->EntityId) ? $ro->EntityId->getContents() : $eid;
+            $co->CID = ($ro->CollectionId) ? $ro->CollectionId->getContents() : $cid;
+            $co->RCID = $co->CID;
+            $co->REID = $co->ID;
             // retrieve attachment(s) from remote data store
 			if (count($co->Attachments) > 0) {
 				// retrieve all attachments
@@ -237,6 +241,9 @@ class RemoteContactsService {
 					}
 				}
 			}
+            // generate a signature for the entity
+			// this a crude but nessary as EAS does not transmit a harmonization signature for entities
+			$co->Signature = $this->generateSignature($co);
             // return object
 		    return $co;
         } else {
@@ -251,29 +258,38 @@ class RemoteContactsService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param string $cid			Collection Id
-	 * @param string $cst			Collection Synchronization Token
+	 * @param string $cid			Collection ID
+	 * @param string $cst			Collection Signature Token
      * @param ContactObject $so     Source Object
 	 * 
 	 * @return ContactObject        ContactObject on success / Null on failure
 	 */
-	public function createEntity(string $cid, string $cst, ContactObject $so): ?ContactObject {
+	public function createEntity(string $cid, string &$cst, ContactObject $so): ?ContactObject {
 
         // convert source ContactObject to EasObject
-        $eo = $this->fromContactObject($so);
+        $ro = $this->fromContactObject($so);
 	    // execute command
-	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_CONTACT, $eo);
+	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_CONTACT, $ro);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
+            // extract signature token
+            $cst = $ro->SyncKey->getContents();
+            //
 			$co = clone $so;
-			$co->ID = $ro->Responses->Add->EntityId->getContents();
-            $co->CID = $ro->CollectionId->getContents();
+            $co->Origin = 'R';
+            $co->ID = ($ro->Responses->Add->EntityId) ? $ro->Responses->Add->EntityId->getContents() : $eid;
+            $co->CID = ($ro->CollectionId) ? $ro->CollectionId->getContents() : $cid;
+            $co->RCID = $co->CID;
+            $co->REID = $co->ID;
 			// deposit attachment(s)
 			if (count($co->Attachments) > 0) {
 				// create attachments in remote data store
 				$co->Attachments = $this->createCollectionItemAttachment($co->ID, $co->Attachments);
-				$co->State = $co->Attachments[0]->AffiliateState;
+				$co->Signature = $co->Attachments[0]->AffiliateState;
 			}
+            // generate a signature for the entity
+			// this a crude but nessary as EAS does not transmit a harmonization signature for entities
+			$co->Signature = $this->generateSignature($co);
             return $co;
         } else {
             return null;
@@ -286,31 +302,37 @@ class RemoteContactsService {
      * 
      * @since Release 1.0.0
      * 
-     * @param string $cid			Collection Id
-	 * @param string $cst			Collection Synchronization Token
+     * @param string $cid			Collection ID
+	 * @param string $cst			Collection Signature Token
+     * @param string $eid           Entity ID
      * @param ContactObject $so     Source Object
 	 * 
 	 * @return ContactObject        ContactObject on success / Null on failure
 	 */
-	public function updateEntity(string $cid, string $cst, ContactObject $so): ?ContactObject {
+	public function updateEntity(string $cid, string &$cst, string $eid, ContactObject $so): ?ContactObject {
 
-        // extract source object id
-        $eid = $co->ID;
         // convert source ContactObject to EasObject
-        $eo = $this->fromContactObject($so);
+        $ro = $this->fromContactObject($so);
 	    // execute command
-	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $eo);
+	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $ro);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
+            // extract signature token
+            $cst = $ro->SyncKey->getContents();
+            //
 			$co = clone $so;
-			$co->ID = $ro->Responses->Modify->EntityId;
-            $co->CID = $cid;
+			$co->Origin = 'R';
+            $co->ID = ($ro->Responses->Modify->EntityId) ? $ro->Responses->Modify->EntityId->getContents() : $eid;
+            $co->CID = ($ro->CollectionId) ? $ro->CollectionId->getContents() : $cid;
 			// deposit attachment(s)
 			if (count($so->Attachments) > 0) {
 				// create attachments in remote data store
 				$co->Attachments = $this->createCollectionItemAttachment($co->ID, $co->Attachments);
-				$co->State = $co->Attachments[0]->AffiliateState;
+				$co->Signature = $co->Attachments[0]->AffiliateState;
 			}
+            // generate a signature for the entity
+			// this a crude but nessary as EAS does not transmit a harmonization signature for entities
+			$co->Signature = $this->generateSignature($co);
             return $co;
         } else {
             return null;
@@ -329,12 +351,15 @@ class RemoteContactsService {
 	 * 
 	 * @return bool                 True on success / False on failure
 	 */
-    public function deleteEntity(string $cid, string $cst, string $eid): bool {
+    public function deleteEntity(string $cid, string &$cst, string $eid): bool {
         
         // execute command
-        $rs = $this->RemoteCommonService->deleteEntity($this->DataStore, $cid, $cst, $eid);
+        $ro = $this->RemoteCommonService->deleteEntity($this->DataStore, $cid, $cst, $eid);
         // evaluate response
-        if ($rs) {
+        if (isset($ro->Status) && $ro->Status->getContents() == '1') {
+            // extract signature token
+            $cst = $ro->SyncKey->getContents();
+            //
             return true;
         } else {
             return false;
@@ -542,7 +567,7 @@ class RemoteContactsService {
         }
         // Anniversary Day
         if (!empty($so->Anniversary)) {
-            $co->AnniversaryDay =  new DateTime($so->Anniversary->getContents());
+            $co->NuptialDay =  new DateTime($so->Anniversary->getContents());
         }
         // Address(es)
         // Work
@@ -671,13 +696,13 @@ class RemoteContactsService {
         }
         // Email(s)
         if (!empty($so->Email1Address)) {
-            $co->addEmail('WORK', $so->Email1Address->getContents());
+            $co->addEmail('WORK', $this->sanitizeEmail($so->Email1Address->getContents()));
         }
         if (!empty($so->Email2Address)) {
-            $co->addEmail('HOME', $so->Email2Address->getContents());
+            $co->addEmail('HOME', $this->sanitizeEmail($so->Email2Address->getContents()));
         }
         if (!empty($so->Email3Address)) {
-            $co->addEmail('OTHER', $so->Email3Address->getContents());
+            $co->addEmail('OTHER', $this->sanitizeEmail($so->Email3Address->getContents()));
         }
         // IMPP(s)
         if (!empty($so->IMAddress)) {
@@ -814,8 +839,8 @@ class RemoteContactsService {
             $eo->Spouse = new EasProperty('Contacts', $so->Partner);
         }
         // Anniversary Day
-        if (!empty($so->AnniversaryDay)) {
-            $eo->Anniversary = new EasProperty('Contacts', $so->AnniversaryDay->format('Y-m-d\\T11:59:00.000\\Z')); //2018-01-01T11:59:00.000Z
+        if (!empty($so->NuptialDay)) {
+            $eo->Anniversary = new EasProperty('Contacts', $so->NuptialDay->format('Y-m-d\\T11:59:00.000\\Z')); //2018-01-01T11:59:00.000Z
         }
         // Address(es)
         if (count($so->Address) > 0) {
@@ -914,6 +939,9 @@ class RemoteContactsService {
                 'Cell' => true,
             );
             foreach ($so->Phone as $entry) {
+                if (empty($entry->Number)) {
+                    continue;
+                }
                 if ($entry->Type == 'WORK' && $entry->SubType == 'VOICE' && $types['WorkVoice1']) {
                     $eo->BusinessPhoneNumber = new EasProperty('Contacts', $entry->Number);
                     $types['WorkVoice1'] = false;
@@ -934,11 +962,11 @@ class RemoteContactsService {
                     $eo->Home2PhoneNumber = new EasProperty('Contacts', $entry->Number);
                     $types['HomeVoice2'] = false;
                 }
-                elseif ($entry->Type == 'WORK' && $entry->SubType == 'FAX' && $types['HomeFax']) {
+                elseif ($entry->Type == 'HOME' && $entry->SubType == 'FAX' && $types['HomeFax']) {
                     $eo->HomeFaxNumber = new EasProperty('Contacts', $entry->Number);
                     $types['HomeFax'] = false;
                 }
-                elseif ($entry->Type == 'CELL' && $types['Cell'] != true) {
+                elseif ($entry->Type == 'CELL' && $types['Cell']) {
                     $eo->MobilePhoneNumber = new EasProperty('Contacts', $entry->Number);
                     $types['Cell'] = false;
                 }
@@ -993,25 +1021,20 @@ class RemoteContactsService {
             $eo->OfficeLocation = new EasProperty('Contacts', $so->Occupation->Location);
         }
         // Tag(s)
-        /*
-        if (isset($so->Categories)) {
-            if (is_array($so->Categories->Category)) {
-                foreach($so->Categories->Category as $entry) {
-                    $co->addTag($entry->getContents());
-                }
-            }
-            else {
-                $co->addTag($so->Categories->Category->getContents());
+        if (count($so->Tags) > 0) {
+            $eo->Categories = new EasObject('Contacts');
+            $eo->Categories->Category = new EasCollection('Contacts');
+            foreach($so->Tags as $entry) {
+                $eo->Categories->Category[] = new EasProperty('Contacts', $entry);
             }
         }
-        */
-
         // Notes
-        /*
-        if (!empty($so->Body)) {
-            $co->Notes = $so->Body->Data->getContents();
+        if (!empty($so->Notes)) {
+            $eo->Body = new EasObject('AirSyncBase');
+            $eo->Body->Type = new EasProperty('AirSyncBase', EasTypes::BODY_TYPE_TEXT);
+            //$eo->Body->EstimatedDataSize = new EasProperty('AirSyncBase', strlen($so->Notes));
+            $eo->Body->Data = new EasProperty('AirSyncBase', $so->Notes);
         }
-        */
         // URL / Website
         if (!empty($so->URI)) {
             $eo->WebPage = new EasProperty('Contacts', $so->URI);
@@ -1019,6 +1042,39 @@ class RemoteContactsService {
         
 		return $eo;
 
+    }
+
+    public function generateSignature(ContactObject $eo): string {
+        
+        // clone self
+        $o = clone $eo;
+        // remove non needed values
+        unset($o->ID, $o->CID, $o->UUID, $o->RCID, $o->REID, $o->Origin, $o->Signature, $o->CreatedOn, $o->ModifiedOn);
+        // generate signature
+        return md5(json_encode($o));
+
+    }
+
+    public function sanitizeEmail(string $address): string|null {
+
+        // evaluate if address is empty
+        if (!(strlen(trim($address)) > 0)) {
+            return null;
+        }
+        // evaluate if address is already a valid mail address
+        if (\OCA\EAS\Utile\Validator::email($address)) {
+            return $address;
+        }
+        // evaluate if address is in mailbox format
+        if (str_contains($address, '<') && str_contains($address, '>')) {
+            preg_match_all("/[\._a-zA-Z0-9-]+@[\._a-zA-Z0-9-]+/i", $address, $matches);
+            if (count($matches[0]) > 0) {
+                return $matches[0][0];
+            }
+        }
+        // if all fails return null
+        return null;
+        
     }
 
 }

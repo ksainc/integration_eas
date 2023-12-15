@@ -30,36 +30,32 @@ use DateTimeZone;
 
 class EventObject {
 
-    private bool $Journaling = false;
-
-    private $Data = null;
-
-    private ?string $Origin = null;                 // Source System / L - Local / R - Remote
-    private ?string $ID = null;                     // Source System Id
-    private ?string $UUID = null;                   // Object UUID
-    private ?string $CID = null;                    // Source System Object Collection Affiliation Id
-    private ?string $State = null;                  // Source System Object State
-    private ?DateTime $CreatedOn = null;            // Source System Creation Date/Time
-    private ?DateTime $ModifiedOn = null;           // Source System Modification Date/Time
-    private ?DateTime $StartsOn = null;             // Event Start Date/Time
-    private ?DateTimeZone $StartsTZ = null;         // Event Start Time Zone
-    private ?DateTime $EndsOn = null;               // Event End Date/Time
-    private ?DateTimeZone $EndsTZ = null;           // Event End Time Zone
-    private ?DateTimeZone $TimeZone = null;         // Event Time Zone
-    private ?string $Label = null;                  // Event Title/Summary
-    private ?string $Notes = null;                  // Event Notes
-    private ?string $Location = null;               // Event Location
-    private ?string $Availability = null;           // Event Free Busy Status / F - Free / B - Busy
-    private ?string $Priority = null;               // Event Priority / 0 - Low / 1 - Normal / 2 - High
-    private ?string $Sensitivity = null;            // Event Sensitivity / 0 - Normal / 1 - Personnal / 2 - Private / 3 - Confidential
-    private ?string $Color = null;                  // Event Display Color
-    private array $Tags = [];                       // Event Categories
-    private ?EventOrganizerObject $Organizer;       // Event Organizer Name/Email
-    private array $Attendee = [];                   // Event Attendees Name/Email/Attendance
-    private array $Notifications = [];              // Event Reminders/Alerts
-    private ?EventOccurrenceObject $Occurrence = null; // Event Recurrance Data
-    private array $Attachments = [];                // Event Attachments
-    private ?array $Other = [];
+    public ?string $Origin = null;                 // Source System / L - Local / R - Remote
+    public ?string $ID = null;                     // Source System Id
+    public ?string $UUID = null;                   // Object UUID
+    public ?string $CID = null;                    // Source System Object Collection Affiliation Id
+    public ?string $Signature = null;              // Source System Object State
+    public ?DateTime $CreatedOn = null;            // Source System Creation Date/Time
+    public ?DateTime $ModifiedOn = null;           // Source System Modification Date/Time
+    public ?DateTime $StartsOn = null;             // Event Start Date/Time
+    public ?DateTimeZone $StartsTZ = null;         // Event Start Time Zone
+    public ?DateTime $EndsOn = null;               // Event End Date/Time
+    public ?DateTimeZone $EndsTZ = null;           // Event End Time Zone
+    public ?DateTimeZone $TimeZone = null;         // Event Time Zone
+    public ?string $Label = null;                  // Event Title/Summary
+    public ?string $Notes = null;                  // Event Notes
+    public ?string $Location = null;               // Event Location
+    public ?string $Availability = null;           // Event Free Busy Status / F - Free / B - Busy
+    public ?string $Priority = null;               // Event Priority / 0 - Low / 1 - Normal / 2 - High
+    public ?string $Sensitivity = null;            // Event Sensitivity / 0 - Normal / 1 - Personnal / 2 - Private / 3 - Confidential
+    public ?string $Color = null;                  // Event Display Color
+    public array $Tags = [];                       // Event Categories
+    public ?EventOrganizerObject $Organizer;       // Event Organizer Name/Email
+    public array $Attendee = [];                   // Event Attendees Name/Email/Attendance
+    public array $Notifications = [];              // Event Reminders/Alerts
+    public ?EventOccurrenceObject $Occurrence = null; // Event Recurrance Data
+    public array $Attachments = [];                // Event Attachments
+    public ?array $Other = [];
 	
 	public function __construct($data = null) {
         $this->Data = (object) array();
@@ -68,31 +64,6 @@ class EventObject {
         $this->Organizer = new EventOrganizerObject();
         $this->Occurrence = new EventOccurrenceObject();
 	}
-
-    public function __set($name, $value) {
-        $this->$name = $value;
-        if ($this->Journalling) {
-            $this->Data->Changed->$name = $this->$name;
-        } else {
-            $this->Data->Original->$name = $this->$name;
-        }
-    }
-
-    public function __get($name) {
-        if (isset($this->$name)) {
-            return $this->$name;
-        } else {
-            return null;
-        }
-    }
-
-    public function __isset($name) {
-        return isset($this->$name);
-    }
-
-    public function activateJournal() {
-        $this->Journaling = true;
-    }
 
     public function addAttachment(string $store, string $id = null, ?string $name = null, ?string $type = null, ?string $encoding = null, ?string $size = null, ?string $data = null) {
         $this->Attachments[] = new EventAttachmentObject($store, $id, $name, $type, $encoding, $size, $data);

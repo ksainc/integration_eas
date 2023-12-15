@@ -62,7 +62,7 @@ class LocalEventsService {
 	 * 
 	 * @return EventCollectionObject  EventCollectionObject on success / null on fail
 	 */
-	public function fetchCollection(string $id): ?EventCollectionObject {
+	public function fetchCollection(int $id): ?EventCollectionObject {
 
         // retrieve object properties
         $lo = $this->_Store->fetchCollection($id);
@@ -87,11 +87,11 @@ class LocalEventsService {
      * 
      * @param string $uid           User ID
 	 * @param string $cid           Collection ID
-     * @param string $state         
+     * @param string $stamp         
 	 * 
 	 * @return array                Collection of differences
 	 */
-	public function reconcileCollection(string $uid, string $cid, string $stamp): array {
+	public function reconcileCollection(string $uid, int $cid, string $stamp): array {
 
         // retrieve collection differences
         $lcc = $this->_Store->reminisce($uid, $cid, $stamp);
@@ -107,7 +107,7 @@ class LocalEventsService {
 	 * 
 	 * @return EventObject        EventObject on success / null on fail
 	 */
-	public function fetchEntity(string $id): ?EventObject {
+	public function fetchEntity(int $id): ?EventObject {
 
         // retrieve object properties
         $lo = $this->_Store->fetchEntity($id);
@@ -120,10 +120,9 @@ class LocalEventsService {
             $eo->ID = $lo['id'];
             $eo->UUID = $lo['uuid'];
             $eo->CID = $lo['cid'];
-            $eo->State = trim($lo['state'],'"');
+            $eo->Signature = trim($lo['signature'],'"');
             $eo->RCID = $lo['rcid'];
             $eo->REID = $lo['reid'];
-            $eo->RState = $lo['rcid'];
             // return contact object
             return $eo;
         } else {
@@ -155,10 +154,9 @@ class LocalEventsService {
             $eo->ID = $lo['id'];
             $eo->UUID = $lo['uuid'];
             $eo->CID = $lo['cid'];
-            $eo->State = trim($lo['state'],'"');
+            $eo->Signature = trim($lo['signature'],'"');
             $eo->RCID = $lo['rcid'];
             $eo->REID = $lo['reid'];
-            $eo->RState = $lo['rcid'];
             // return contact object
             return $eo;
         } else {
@@ -177,7 +175,7 @@ class LocalEventsService {
 	 * 
 	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function createEntity(string $uid, string $cid, EventObject $so): ?object {
+	public function createEntity(string $uid, int $cid, EventObject $so): ?object {
 
         // initilize data place holder
         $lo = [];
@@ -188,9 +186,8 @@ class LocalEventsService {
         $lo['cid'] = $cid;
         $lo['rcid'] = $so->RCID;
         $lo['reid'] = $so->REID;
-        $lo['rstate'] = $so->RState;
         $lo['size'] = strlen($lo['data']);
-        $lo['state'] = md5($lo['data']);
+        $lo['signature'] = md5($lo['data']);
         $lo['label'] = $so->Label;
         $lo['notes'] = $so->Notes;
         $lo['startson'] = $so->StartsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
@@ -199,7 +196,7 @@ class LocalEventsService {
         $id = $this->_Store->createEntity($lo);
         // return status object or null
         if ($id) {
-            return (object) array('ID' => $id, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+            return (object) array('ID' => $id, 'Signature' => $lo['signature']);
         } else {
             return null;
         }
@@ -216,7 +213,7 @@ class LocalEventsService {
 	 * 
 	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function updateEntity(string $uid, string $cid, string $eid, EventObject $so): ?object {
+	public function updateEntity(string $uid, int $cid, int $eid, EventObject $so): ?object {
 
         // evaluate if collection or entity id is missing - must contain id to update
         if (empty($uid) || empty($cid) || empty($eid)) {
@@ -231,9 +228,8 @@ class LocalEventsService {
         $lo['cid'] = $cid;
         $lo['rcid'] = $so->RCID;
         $lo['reid'] = $so->REID;
-        $lo['rstate'] = $so->RState;
         $lo['size'] = strlen($lo['data']);
-        $lo['state'] = md5($lo['data']);
+        $lo['signature'] = md5($lo['data']);
         $lo['label'] = $so->Label;
         $lo['notes'] = $so->Notes;
         $lo['startson'] = $so->StartsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
@@ -242,7 +238,7 @@ class LocalEventsService {
         $rs = $this->_Store->modifyEntity($eid, $lo);
         // return status object or null
         if ($rs) {
-            return (object) array('ID' => $eid, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+            return (object) array('ID' => $eid, 'Signature' => $lo['signature']);
         } else {
             return null;
         }
@@ -258,7 +254,7 @@ class LocalEventsService {
 	 * 
 	 * @return bool                 true - successfully delete / false - failed to delete
 	 */
-	public function deleteEntity(string $uid, string $cid, string $eid): bool {
+	public function deleteEntity(string $uid, int $cid, int $eid): bool {
 
         // evaluate if collection or entity id is missing - must contain id to delete
         if (empty($uid) || empty($cid) || empty($eid)) {
@@ -959,25 +955,25 @@ class LocalEventsService {
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param sting $level - local class value
+	 * @param string $value         local class value
 	 * 
-	 * @return int|null event object sensitivity value
+	 * @return string               event object sensitivity value
 	 */
-    private function fromClass(?string $level): int {
+    private function fromClass(?string $value): string {
 		
-        // class conversion reference
+        // transposition matrix
 		$_tm = array(
-			'PUBLIC' => 0,
-			'PRIVATE' => 2,
-			'CONFIDENTIAL' => 3
+			'PUBLIC' => 'N',
+			'PRIVATE' => 'P',
+			'CONFIDENTIAL' => 'C'
 		);
-        // evaluate if class value exists
-		if (isset($_tm[$level])) {
-			// return converted sensitivity value
-			return $_tm[$level];
+        // evaluate if value exists
+		if (isset($_tm[$value])) {
+			// return transposed value
+			return $_tm[$value];
 		} else {
-            // return default sensitivity value
-			return 0;
+			// return default value
+			return 'N';
 		}
 		
 	}
@@ -987,27 +983,28 @@ class LocalEventsService {
 	 * 
      * @since Release 1.0.0
      * 
-	 * @param int $level - event object sensitivity value
+	 * @param string $value         event object sensitivity value
 	 * 
-	 * @return string|null local class value
+	 * @return string               local class value
 	 */
-	private function toClass(?int $level): string {
+	private function toClass(?string $value): string {
 
         // sensitivity conversion reference
 		$_tm = array(
-			0 => 'PUBLIC',
-			1 => 'PRIVATE',
-			2 => 'PRIVATE',
-			3 => 'CONFIDENTIAL'
+			'N' => 'PUBLIC',
+			'I' => 'PRIVATE',
+			'P' => 'PRIVATE',
+			'C' => 'CONFIDENTIAL'
 		);
-        // evaluate if sensitivity value exists
-		if (isset($_tm[$level])) {
-			// return converted class value
-			return $_tm[$level];
+        // evaluate if value exists
+		if (isset($_tm[$value])) {
+			// return transposed value
+			return $_tm[$value];
 		} else {
-            // return default class value
+			// return default value
 			return 'PUBLIC';
 		}
+
 	}
 
     /**

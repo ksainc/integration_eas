@@ -420,7 +420,7 @@ class ConfigurationService {
 		// trim whitespace
 		$value = trim($value);
 		// evaluate if parameter is on the secure list
-		if (isset(self::_USER_SECURE[$key]) && !empty($value)) {
+		if (isset(self::_USER_SECURE[$key]) && strlen($value) != 0) {
 			$value = $this->_cs->encrypt($value);
 		}
 		// deposit user configuration parameter value
@@ -1115,4 +1115,5 @@ class ConfigurationService {
 		return $this->_cs->decrypt($value);
 
 	}
+	
 }

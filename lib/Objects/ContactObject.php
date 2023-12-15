@@ -29,80 +29,48 @@ use DateTime;
 
 class ContactObject {
 
-    private bool $Journalling = false;
-
-    private $Data = null;
-
-    private ?string $ID = null;
-	private ?string $UUID = null;
-    private ?string $CID = null;
-    private ?string $State = null;
-    private ?DateTime $CreatedOn = null;
-    private ?DateTime $ModifiedOn = null;
-    private ?string $Label = null;
-	private ?ContactNameObject $Name = null;
-    private ?string $Aliases = null;
-    private ?ContactPhotoObject $Photo = null;
-    private ?DateTime $BirthDay = null;
-    private ?string $Gender = null;
-    private ?string $Partner = null;
-	private ?DateTime $AnniversaryDay = null;
-	private array $Address = [];
-	private array $Phone = [];
-    private array $Email = [];
-    private array $IMPP = [];
-    private ?string $TimeZone = null;
-    private ?string $Geolocation = null;
-    private ?string $Manager = null;
-    private ?string $Assistant = null;
-    private ?ContactOccupationObject $Occupation = null;
-    private ?array $Relation = [];
-    private array $Tags = [];
-    private ?string $Notes = null;
-    private ?string $Sound = null;
-    private ?string $URI = null;
-    private array $Attachments = [];
-    private ?array $Other = [];
+    public ?string $Origin = null;                  // Source System / L - Local / R - Remote
+    public ?string $ID = null;                      // Source System Id
+    public ?string $UUID = null;                    // Object UUID
+    public ?string $CID = null;                     // Source System Collection Id
+    public ?string $Signature = null;               // Source System Object Signature
+    public ?DateTime $CreatedOn = null;             // Source System Creation Date/Time
+    public ?DateTime $ModifiedOn = null;            // Source System Modification Date/Time
+    public ?string $Label = null;                   // Contact Display Label
+    public ?string $Notes = null;                   // Contact Notes
+	public ?ContactNameObject $Name = null;         // Contact Name(s)
+    public ?ContactPhotoObject $Photo = null;       // Contact Photo
+    public ?DateTime $BirthDay = null;              // Contact Birth Day
+    public ?string $Gender = null;                  // Contact Gender
+    public ?string $Partner = null;                 // Contact Partner/Spouse
+	public ?DateTime $NuptialDay = null;            // Contact Matrimonial Day
+	public array $Address = [];
+	public array $Phone = [];
+    public array $Email = [];
+    public array $IMPP = [];
+    public ?string $TimeZone = null;
+    public ?string $Geolocation = null;
+    public ?string $Manager = null;
+    public ?string $Assistant = null;
+    public ?ContactOccupationObject $Occupation = null;
+    public ?array $Relation = [];
+    public array $Tags = [];                       // Contact Categories
+    public ?string $Sound = null;
+    public ?string $URI = null;
+    public array $Attachments = [];
+    public ?array $Other = [];
 	
-	public function __construct($data = null) {
-        $this->Data = (object) array();
-        $this->Data->Original = (object) array();
-        $this->Data->Changed = (object) array();
+	public function __construct() {
         $this->Name = new ContactNameObject();
         $this->Photo = new ContactPhotoObject();
         $this->Occupation = new ContactOccupationObject();
 	}
 
-    public function __set($name, $value) {
-        $this->$name = $value;
-        if ($this->Journalling) {
-            $this->Data->Changed->$name = $this->$name;
-        } else {
-            $this->Data->Original->$name = $this->$name;
-        }
-    }
-
-    public function __get($name) {
-        if (isset($this->$name)) {
-            return $this->$name;
-        } else {
-            return null;
-        }
-    }
-
-    public function __isset($name) {
-        return isset($this->$name);
-    }
-
-    public function activateJournal() {
-        $this->Journalling = true;
-    }
-
     public function addEmail(string $type, string $address) {
         $this->Email[] = new ContactEmailObject($type, $address);
     }
 
-    public function addPhone(string $type, ?string $subtype, string $number) {
+    public function addPhone(string $type, ?string $subtype, ?string $number) {
         $this->Phone[] = new ContactPhoneObject($type, $subtype, $number);
     }
 
@@ -125,4 +93,5 @@ class ContactObject {
     public function addAttachment(string $id, ?string $name = null, ?string $type = null, ?string $encoding = null, ?string $flag = null, ?string $size = null,  ?string $data = null) {
         $this->Attachments[] = new ContactAttachmentObject($id, $name, $type, $encoding, $flag, $size, $data);
     }
+
 }

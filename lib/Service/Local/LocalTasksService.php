@@ -87,7 +87,7 @@ class LocalTasksService {
      * 
      * @param string $uid           User ID
 	 * @param string $cid           Collection ID
-     * @param string $state         
+     * @param string $stamp      
 	 * 
 	 * @return array                Collection of differences
 	 */
@@ -120,10 +120,9 @@ class LocalTasksService {
             $eo->ID = $lo['id'];
             $eo->UUID = $lo['uuid'];
             $eo->CID = $lo['cid'];
-            $eo->State = trim($lo['state'],'"');
+            $eo->Signature = trim($lo['signature'],'"');
             $eo->RCID = $lo['rcid'];
             $eo->REID = $lo['reid'];
-            $eo->RState = $lo['rcid'];
             // return contact object
             return $eo;
         } else {
@@ -155,10 +154,9 @@ class LocalTasksService {
             $eo->ID = $lo['id'];
             $eo->UUID = $lo['uuid'];
             $eo->CID = $lo['cid'];
-            $eo->State = trim($lo['state'],'"');
+            $eo->Signature = trim($lo['signature'],'"');
             $eo->RCID = $lo['rcid'];
             $eo->REID = $lo['reid'];
-            $eo->RState = $lo['rcid'];
             // return contact object
             return $eo;
         } else {
@@ -188,9 +186,8 @@ class LocalTasksService {
         $lo['cid'] = $cid;
         $lo['rcid'] = $so->RCID;
         $lo['reid'] = $so->REID;
-        $lo['rstate'] = $so->RState;
         $lo['size'] = strlen($lo['data']);
-        $lo['state'] = md5($lo['data']);
+        $lo['signature'] = md5($lo['data']);
         $lo['label'] = $so->Label;
         $lo['notes'] = $so->Notes;
         $lo['startson'] = $so->StartsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
@@ -199,7 +196,7 @@ class LocalTasksService {
         $id = $this->_Store->createEntity($lo);
         // return status object or null
         if ($id) {
-            return (object) array('ID' => $id, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+            return (object) array('ID' => $id, 'UUID' => $lo['uuid'], 'signature' => $lo['signature']);
         } else {
             return null;
         }
@@ -231,9 +228,8 @@ class LocalTasksService {
         $lo['cid'] = $cid;
         $lo['rcid'] = $so->RCID;
         $lo['reid'] = $so->REID;
-        $lo['rstate'] = $so->RState;
         $lo['size'] = strlen($lo['data']);
-        $lo['state'] = md5($lo['data']);
+        $lo['signature'] = md5($lo['data']);
         $lo['label'] = $so->Label;
         $lo['notes'] = $so->Notes;
         $lo['startson'] = $so->StartsOn->setTimezone(new DateTimeZone('UTC'))->format('U');
@@ -242,7 +238,7 @@ class LocalTasksService {
         $rs = $this->_Store->modifyEntity($eid, $lo);
         // return status object or null
         if ($rs) {
-            return (object) array('ID' => $eid, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+            return (object) array('ID' => $eid, 'UUID' => $lo['uuid'], 'signature' => $lo['signature']);
         } else {
             return null;
         }

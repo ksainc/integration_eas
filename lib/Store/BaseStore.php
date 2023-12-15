@@ -96,6 +96,27 @@ class BaseStore {
 	}
 
 	/**
+	 * delete collections for a specific user from data store
+	 * 
+	 * @since Release 1.0.0
+	 * 
+	 * @param string $uid		user id
+	 * 
+	 * @return mixed
+	 */
+	public function deleteCollectionsByUser(string $uid): mixed {
+
+		// construct data store command
+		$cmd = $this->_Store->getQueryBuilder();
+		$cmd->delete($this->_CollectionTable)
+			->where($cmd->expr()->eq('uid', $cmd->createNamedParameter($uid)))
+			->andWhere($cmd->expr()->eq('type', $cmd->createNamedParameter($this->_CollectionIdentifier)));
+		// execute command and return result
+		return $cmd->executeStatement();
+
+	}
+
+	/**
 	 * confirm collection exists in data store
 	 * 
 	 * @since Release 1.0.0
@@ -681,7 +702,7 @@ class BaseStore {
 	}
 
 	/**
-	 * chronicle a change to an entity to the data store
+	 * chronicle a operation to an entity to the data store
 	 * 
 	 * @since Release 1.0.0
 	 * 
@@ -713,10 +734,9 @@ class BaseStore {
 		return base64_encode((string) $stamp);
 		
 	}
-
-
+	
 	/**
-	 * reminisce changes to entities in data store
+	 * reminisce operations to entities in data store
 	 * 
 	 * @since Release 1.0.0
 	 * 
@@ -741,6 +761,7 @@ class BaseStore {
 		$cmd->executeQuery()->closeCursor();
 		// decode nadir stamp
 		$stampNadir = base64_decode($stamp);
+		$initial = !is_numeric($stampNadir);
 
 		// retrieve additions
 		$cmd = $this->_Store->getQueryBuilder();
@@ -750,8 +771,13 @@ class BaseStore {
 			->andWhere($cmd->expr()->eq('tag', $cmd->createNamedParameter($this->_EntityIdentifier)))
 			->andWhere($cmd->expr()->eq('cid', $cmd->createNamedParameter($cid)))
 			->groupBy('eid');
-		// evaluate if valid nadir stamp exists
-		if (is_numeric($stampNadir)) {
+		// evaluate if this is a initial reconciliation
+		if ($initial) {
+			// select only entries that are not deleted
+			$cmd->having(new Literal('MAX(operation) != 3'));
+		}
+		else {
+			// select entries between nadir and apex
 			$cmd->andWhere($cmd->expr()->gt('stamp', $cmd->createNamedParameter($stampNadir)));
 			$cmd->andWhere($cmd->expr()->lte('stamp', $cmd->createNamedParameter($stampApex)));
 		}
@@ -772,6 +798,7 @@ class BaseStore {
 		// process result
 		while (($entry = $rs->fetch()) !== false) {
 			switch ($entry['operation']) {
+				case $initial:
 				case 1:
 					$chronicle['additions'][] = ['id' => $entry['eid'], 'uuid' => $entry['euuid']];
 					break;

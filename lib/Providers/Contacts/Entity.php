@@ -7,7 +7,7 @@ class Entity implements \Sabre\CardDAV\ICard, \Sabre\DAVACL\IACL {
 	private Collection $_collection;
 	private string $_id;
 	private string $_uuid;
-	private string $_label;
+	private ?string $_label;
 	private array $_data;
 
 	/**
@@ -16,7 +16,7 @@ class Entity implements \Sabre\CardDAV\ICard, \Sabre\DAVACL\IACL {
 	 * @param Collection $calendar
 	 * @param string $name
 	 */
-	public function __construct(Collection &$collection, string $id, string $uuid, string $label, array $data) {
+	public function __construct(Collection &$collection, string $id, string $uuid, ?string $label, array $data) {
 		$this->_collection = $collection;
 		$this->_id = $id;
 		$this->_uuid = $uuid;
@@ -97,7 +97,7 @@ class Entity implements \Sabre\CardDAV\ICard, \Sabre\DAVACL\IACL {
 	 * @inheritDoc
 	 */
 	function getETag() {
-		return $this->_data['state'];
+		return $this->_data['signature'];
 	}
 
 	/**

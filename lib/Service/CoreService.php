@@ -314,36 +314,9 @@ class CoreService {
 		// perform folder fetch
 		$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 		// evaluate, response status
-		if ($rs->Status->getContents() == '142') {
-			// Step 1
-			// initilize provisioning
-			$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
-			// evaluate response status
-			if (isset($rs->Status) && $rs->Status->getContents() != '1') {
-				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Status);
-			}
-			// step 2
-			// retrieve device policy token
-			$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
-			// assign device policy token
-			$RemoteStore->setDeviceKey($account_device_key);
-			// accept provisioning
-			$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_device_key);
-			// evaluate response status
-			if (isset($rs->Policies->Policy->Status) && $rs->Policies->Policy->Status->getContents() != '1') {
-				throw new Exception("Failed to provision account. Unexpected error occured", $rs->Policies->Policy->Status);
-			}
-			// step 3
-			// retrieve device policy token
-			$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
-			// assign device policy token
-			$RemoteStore->setDeviceKey($account_device_key);
-			// perform folder fetch
-			$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
-			// evaluate response status
-			if ($rs->Status->getContents() != '1') {
-				throw new Exception("Failed to provision account.");
-			}
+		if ($rs->Status->getContents() == '142' || $rs->Status->getContents() == '144') {
+			// execute provisioning
+			$account_device_key = $this->connectProvision($RemoteStore);
 		}
 
 		// deposit authentication to datastore
@@ -417,37 +390,10 @@ class CoreService {
 			// perform folder fetch
 			$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
 			// evaluate, response status
-			if ($rs->Status->getContents() == '142') {
-				// Step 1
-				// initilize provisioning
-				$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
-				// evaluate response status
-				if (isset($rs->Status) && $rs->Status->getContents() != '1') {
-					throw new Exception("Failed to provision account. Unexpected error occured", $rs->Status);
-				}
-				// step 2
-				// retrieve device policy token
-				$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
-				// assign device policy token
-				$RemoteStore->setDeviceKey($account_device_key);
-				// accept provisioning
-				$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_device_key);
-				// evaluate response status
-				if (isset($rs->Policies->Policy->Status) && $rs->Policies->Policy->Status->getContents() != '1') {
-					throw new Exception("Failed to provision account. Unexpected error occured", $rs->Policies->Policy->Status);
-				}
-				// step 3
-				// retrieve device policy token
-				$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
-				// assign device policy token
-				$RemoteStore->setDeviceKey($account_device_key);
-				// perform folder fetch
-				$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
-				// evaluate response status
-				if ($rs->Status->getContents() != '1') {
-					throw new Exception("Failed to provision account.");
-				}
-			}
+			//if ($rs->Status->getContents() == '142' || $rs->Status->getContents() == '144') {
+				// execute provisioning
+				$account_device_key = $this->connectProvision($RemoteStore);
+			//}
 			
 			// deposit authentication to datastore
 			$this->ConfigurationService->depositProvider($uid, ConfigurationService::ProviderMS365);
@@ -469,6 +415,43 @@ class CoreService {
 			return false;
 		}
 
+	}
+
+	public function connectProvision($RemoteStore): string {
+
+		// define default device key
+		$account_device_key = '0';
+		// Step 1
+		// initilize provisioning
+		$rs = $this->RemoteCommonService->provisionInit($RemoteStore, 'NextcloudEAS', 'Nextcloud EAS Connector', $RemoteStore->getTransportAgent());
+		// evaluate response status
+		if (isset($rs->Status) && $rs->Status->getContents() != '1') {
+			throw new Exception("Failed to provision account. Unexpected error occured", $rs->Status->getContents());
+		}
+		// step 2
+		// retrieve device policy token
+		$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
+		// assign device policy token
+		$RemoteStore->setDeviceKey($account_device_key);
+		// accept provisioning
+		$rs = $this->RemoteCommonService->provisionAccept($RemoteStore, $account_device_key);
+		// evaluate response status
+		if (isset($rs->Policies->Policy->Status) && $rs->Policies->Policy->Status->getContents() != '1') {
+			throw new Exception("Failed to provision account. Unexpected error occured", $rs->Policies->Policy->Status->getContents());
+		}
+		// step 3
+		// retrieve device policy token
+		$account_device_key = $rs->Policies->Policy->PolicyKey->getContents();
+		// assign device policy token
+		$RemoteStore->setDeviceKey($account_device_key);
+		// perform folder fetch
+		$rs = $this->RemoteCommonService->syncCollections($RemoteStore, '0');
+		// evaluate response status
+		if ($rs->Status->getContents() != '1') {
+			throw new Exception("Failed to provision account.");
+		}
+
+		return $account_device_key;
 	}
 
 	/**
@@ -525,6 +508,24 @@ class CoreService {
 		$this->TaskService->remove(\OCA\EAS\Tasks\HarmonizationLauncher::class, ['uid' => $uid]);
 		// terminate harmonization thread
 		$this->HarmonizationThreadService->terminate($uid);
+		// initialize contacts data store
+		$DataStore = \OC::$server->get(\OCA\EAS\Store\ContactStore::class);
+		// delete local entities
+		$DataStore->deleteEntitiesByUser($uid);
+		// delete local collection
+		$DataStore->deleteCollectionsByUser($uid);
+		// initialize events data store
+		$DataStore = \OC::$server->get(\OCA\EAS\Store\EventStore::class);
+		// delete local entities
+		$DataStore->deleteEntitiesByUser($uid);
+		// delete local collection
+		$DataStore->deleteCollectionsByUser($uid);
+		// initialize tasks data store
+		$DataStore = \OC::$server->get(\OCA\EAS\Store\TaskStore::class);
+		// delete local entities
+		$DataStore->deleteEntitiesByUser($uid);
+		// delete local collection
+		$DataStore->deleteCollectionsByUser($uid);
 		// delete correlations
 		$this->CorrelationsService->deleteByUserId($uid);
 		// delete configuration
@@ -655,6 +656,15 @@ class CoreService {
 		$RemoteStore = $this->createClient($uid);
 		// retrieve remote collections
 		$ro = $this->RemoteCommonService->syncCollections($RemoteStore);
+		// evaluate if command returned status 142
+		if ($ro->Status->getContents() == '142') {
+			// execute provisioning
+			$account_device_key = $this->connectProvision($RemoteStore);
+			// deposit new device key
+			$this->ConfigurationService->depositUserValue($uid, 'account_device_key', $account_device_key);
+			// retrieve remote collections again
+			$ro = $this->RemoteCommonService->syncCollections($RemoteStore);
+		}
 		// construct response object
 		$data = ['ContactCollections' => [], 'EventCollections' => [], 'TaskCollections' => []];
 		// evaluate response status and structure
@@ -684,7 +694,7 @@ class CoreService {
 				// extract id's
 				$a = array_map(function($a) {return ['cid' => $a['id'], 'cst' => 0];}, $group);
 				// retrieve initial syncronization token(s)
-				$ro = $this->RemoteCommonService->syncEntitiesVarious($RemoteStore, $a, []);
+				$ro = $this->RemoteCommonService->reconcileCollectionVarious($RemoteStore, $a, []);
 				// extract id's and tokens
 				$a = array_map(function($a) {
 					return ['cid' => $a->CollectionId->getContents(), 'cst' => $a->SyncKey->getContents()];

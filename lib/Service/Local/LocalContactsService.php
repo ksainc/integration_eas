@@ -52,11 +52,11 @@ class LocalContactsService {
 	/**
      * retrieve collection object from local storage
      * 
-	 * @param string $id            Collection ID
+	 * @param int $id            Collection ID
 	 * 
 	 * @return ContactCollectionObject  ContactCollectionObject on success / null on fail
 	 */
-	public function fetchCollection(string $id): ?ContactCollectionObject {
+	public function fetchCollection(int $id): ?ContactCollectionObject {
 
         // retrieve object properties
         $lo = $this->_Store->fetchCollection($id);
@@ -79,15 +79,15 @@ class LocalContactsService {
 	/**
      * retrieve the differences for specific collection from a specific point from local storage
      * 
-     * @param string $uid		user id
-	 * @param int $cid			collection id
-	 * @param string $stamp		time stamp
-	 * @param int $limit		results limit
-	 * @param int $offset		results offset
+     * @param string $uid		    User ID
+	 * @param int $cid			    Collection ID
+	 * @param string $stamp		    Time Stamp
+	 * @param int $limit		    Results Limit
+	 * @param int $offset		    Results Offset
 	 * 
 	 * @return array                Collection of differences
 	 */
-	public function reconcileCollection(string $uid, string $cid, string $stamp, ?int $limit = null, ?int $offset = null): array {
+	public function reconcileCollection(string $uid, int $cid, string $stamp, ?int $limit = null, ?int $offset = null): array {
 
         // retrieve collection differences
         $lcc = $this->_Store->reminisce($uid, $cid, $stamp, $limit, $offset);
@@ -99,11 +99,11 @@ class LocalContactsService {
 	/**
      * retrieve entity object from local storage
      * 
-     * @param string $id            Entity ID
+     * @param int $id               Entity ID
 	 * 
 	 * @return ContactObject        ContactObject on success / null on fail
 	 */
-	public function fetchEntity(string $id): ?ContactObject {
+	public function fetchEntity(int $id): ?ContactObject {
 
         // retrieve object properties
         $lo = $this->_Store->fetchEntity($id);
@@ -114,10 +114,9 @@ class LocalContactsService {
             $co->ID = $lo['id'];
             $co->UUID = $lo['uuid'];
             $co->CID = $lo['cid'];
-            $co->State = trim($lo['state'],'"');
+            $co->Signature = trim($lo['signature'],'"');
             $co->RCID = $lo['rcid'];
             $co->REID = $lo['reid'];
-            $co->RState = $lo['rcid'];
             // return contact object
             return $co;
         } else {
@@ -130,7 +129,7 @@ class LocalContactsService {
     /**
      * retrieve entity object by remote id from local storage
      * 
-     * @param string $uid           User Id
+     * @param string $uid           User ID
 	 * @param string $rcid          Remote Collection ID
      * @param string $reid          Remote Entity ID
 	 * 
@@ -147,10 +146,9 @@ class LocalContactsService {
             $co->ID = $lo['id'];
             $co->UUID = $lo['uuid'];
             $co->CID = $lo['cid'];
-            $co->State = trim($lo['state'],'"');
+            $co->Signature = trim($lo['signature'],'"');
             $co->RCID = $lo['rcid'];
             $co->REID = $lo['reid'];
-            $co->RState = $lo['rcid'];
             // return contact object
             return $co;
         } else {
@@ -163,13 +161,13 @@ class LocalContactsService {
     /**
      * create entity in local storage
      * 
-	 * @param string $uid           User Id
-	 * @param string $cid           Collection ID
+	 * @param string $uid           User ID
+	 * @param int $cid              Collection ID
      * @param ContactObject $so     Source Object
 	 * 
 	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function createEntity(string $uid, string $cid, ContactObject $so): ?object {
+	public function createEntity(string $uid, int $cid, ContactObject $so): ?object {
 
         // initilize data place holder
         $lo = [];
@@ -180,15 +178,14 @@ class LocalContactsService {
         $lo['cid'] = $cid;
         $lo['rcid'] = $so->RCID;
         $lo['reid'] = $so->REID;
-        $lo['rstate'] = $so->RState;
-        $lo['label'] = $so->Label;
         $lo['size'] = strlen($lo['data']);
-        $lo['state'] = md5($lo['data']);
+        $lo['signature'] = md5($lo['data']);
+        $lo['label'] = $so->Label;
         // create entry in data store
         $id = $this->_Store->createEntity($lo);
         // return status object or null
         if ($id) {
-            return (object) array('ID' => $id, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+            return (object) array('ID' => $id, 'Signature' => $lo['signature']);
         } else {
             return null;
         }
@@ -199,13 +196,13 @@ class LocalContactsService {
      * update entity in local storage
      * 
 	 * @param string $uid           User ID
-	 * @param string $cid           Collection ID
-	 * @param string $eid           Entity ID
+	 * @param int $cid              Collection ID
+	 * @param int $eid              Entity ID
      * @param ContactObject $so     Source Object
 	 * 
 	 * @return object               Status Object - item id, item uuid, item state token / Null - failed to create
 	 */
-	public function updateEntity(string $uid, string $cid, string $eid, ContactObject $so): ?object {
+	public function updateEntity(string $uid, int $cid, int $eid, ContactObject $so): ?object {
 
         // evaluate if collection or entity id is missing - must contain id to update
         if (empty($uid) || empty($cid) || empty($eid)) {
@@ -220,15 +217,14 @@ class LocalContactsService {
         $lo['cid'] = $cid;
         $lo['rcid'] = $so->RCID;
         $lo['reid'] = $so->REID;
-        $lo['rstate'] = $so->RState;
-        $lo['label'] = $so->Label;
         $lo['size'] = strlen($lo['data']);
-        $lo['state'] = md5($lo['data']);
+        $lo['signature'] = md5($lo['data']);
+        $lo['label'] = $so->Label;
         // modify entry in data store
         $rs = $this->_Store->modifyEntity($eid, $lo);
         // return status object or null
         if ($rs) {
-            return (object) array('ID' => $eid, 'UUID' => $lo['uuid'], 'State' => $lo['state']);
+            return (object) array('ID' => $eid, 'Signature' => $lo['signature']);
         } else {
             return null;
         }
@@ -239,12 +235,12 @@ class LocalContactsService {
      * delete entity from local storage
      * 
 	 * @param string $uid           User ID
-	 * @param string $cid           Collection ID
-	 * @param string $eid           Entity ID
+	 * @param int $cid              Collection ID
+	 * @param int $eid              Entity ID
 	 * 
 	 * @return bool                 true - successfully delete / false - failed to delete
 	 */
-	public function deleteEntity(string $uid, string $cid, string $eid): bool {
+	public function deleteEntity(string $uid, int $cid, int $eid): bool {
 
         // evaluate if collection or entity id is missing - must contain id to delete
         if (empty($uid) || empty($cid) || empty($eid)) {
@@ -274,32 +270,32 @@ class LocalContactsService {
 		$co = new ContactObject();
         // UUID
         if (isset($vo->UID)) {
-            $co->UID = trim($vo->UID->getValue());
+            $co->UUID = $this->sanitizeString($vo->UID->getValue());
         }
         // Label
         if (isset($vo->FN)) {
-            $co->Label = trim($vo->FN->getValue());
+            $co->Label = $this->sanitizeString($vo->FN->getValue());
         }
 		// Name
         if (isset($vo->N)) {
             $p = $vo->N->getParts();
-            $co->Name->Last = trim($p[0]);
-            $co->Name->First = trim($p[1]);
-            $co->Name->Other = trim($p[2]);
-            $co->Name->Prefix = trim($p[3]);
-            $co->Name->Suffix = trim($p[4]);
-            $co->Name->PhoneticLast = trim($p[6]);
-            $co->Name->PhoneticFirst = trim($p[7]);
-            $co->Name->Aliases = trim($p[5]);
+            $co->Name->Last = $this->sanitizeString($p[0]);
+            $co->Name->First = $this->sanitizeString($p[1]);
+            $co->Name->Other = $this->sanitizeString($p[2]);
+            $co->Name->Prefix = $this->sanitizeString($p[3]);
+            $co->Name->Suffix = $this->sanitizeString($p[4]);
+            $co->Name->PhoneticLast = $this->sanitizeString($p[6]);
+            $co->Name->PhoneticFirst = $this->sanitizeString($p[7]);
+            $co->Name->Aliases = $this->sanitizeString($p[5]);
             unset($p);
         }
         // Aliases
         if (isset($vo->NICKNAME)) {
             if (empty($co->Name->Aliases)) {
-                $co->Name->Aliases .= trim($vo->NICKNAME->getValue());
+                $co->Name->Aliases .= $this->sanitizeString($vo->NICKNAME->getValue());
             }
             else {
-                $co->Name->Aliases .= ' ' . trim($vo->NICKNAME->getValue());
+                $co->Name->Aliases .= ' ' . $this->sanitizeString($vo->NICKNAME->getValue());
             }
         }
         // Photo
@@ -324,13 +320,13 @@ class LocalContactsService {
                 }
             } elseif (str_starts_with($p, 'uri:')) {
                 $co->Photo->Type = 'uri';
-                $co->Photo->Data = trim(substr($p,4));
+                $co->Photo->Data = $this->sanitizeString(substr($p,4));
             }
             unset($p);
         }
         // Gender
         if (isset($vo->GENDER)) {
-            $co->Gender = trim($vo->GENDER->getValue());
+            $co->Gender = $this->sanitizeString($vo->GENDER->getValue());
         }
         // Birth Day
         if (isset($vo->BDAY)) {
@@ -338,39 +334,42 @@ class LocalContactsService {
         }
         // Anniversary Day
         if (isset($vo->ANNIVERSARY)) {
-            $co->AnniversaryDay =  new DateTime($vo->ANNIVERSARY->getValue());
+            $co->NuptialDay =  new DateTime($vo->ANNIVERSARY->getValue());
         }
         // Address(es)
         if (isset($vo->ADR)) {
             foreach($vo->ADR as $entry) {
-                $p = $entry->getParts();
+                $type  = $entry->parameters()['TYPE']->getValue();
+                [$pob, $unit, $street, $locality, $region, $code, $country] = $entry->getParts();
                 $co->addAddress(
-                    strtoupper($entry->parameters()['TYPE']->getValue()),
-                    trim($p[2]),
-                    trim($p[3]),
-                    trim($p[4]),
-                    trim($p[5]),
-                    trim($p[6])
+                    strtoupper($type),
+                    $this->sanitizeString($street),
+                    $this->sanitizeString($locality),
+                    $this->sanitizeString($region),
+                    $this->sanitizeString($code),
+                    $this->sanitizeString($country)
                 );
-                unset($p);
             }
+            unset($type, $pob, $unit, $street, $locality, $region, $code, $country);
         }
         // Phone(s)
         if (isset($vo->TEL)) {
             foreach($vo->TEL as $entry) {
+                [$primary, $secondary] = explode(',', trim($entry->parameters()['TYPE']->getValue()));
                 $co->addPhone(
-                    strtoupper(trim($entry->parameters()['TYPE']->getValue())),
-                    null, 
-                    trim($entry->getValue())
+                    $primary,
+                    $secondary, 
+                    $this->sanitizeString($entry->getValue())
                 );
             }
+            unset($primary, $secondary);
         }
         // Email(s)
         if (isset($vo->EMAIL)) {
             foreach($vo->EMAIL as $entry) {
                 $co->addEmail(
                     strtoupper(trim($entry->parameters()['TYPE']->getValue())), 
-                    trim($entry->getValue())
+                    $this->sanitizeString($entry->getValue())
                 );
             }
         }
@@ -379,71 +378,71 @@ class LocalContactsService {
             foreach($vo->IMPP as $entry) {
                 $co->addIMPP(
                     strtoupper(trim($entry->parameters()['TYPE']->getValue())), 
-                    trim($entry->getValue())
+                    $this->sanitizeString($entry->getValue())
                 );
             }
         }
         // Time Zone
         if (isset($vo->TZ)) {
-            $co->TimeZone = trim($vo->TZ->getValue());
+            $co->TimeZone = $this->sanitizeString($vo->TZ->getValue());
         }
         // Geolocation
         if (isset($vo->GEO)) {
-            $co->Geolocation = trim($vo->GEO->getValue());
+            $co->Geolocation = $this->sanitizeString($vo->GEO->getValue());
         }
         // Manager
 		if (isset($vo->{'X-MANAGERSNAME'})) {
-			$co->Manager = trim($vo->{'X-MANAGERSNAME'}->getValue());
+			$co->Manager = $this->sanitizeString($vo->{'X-MANAGERSNAME'}->getValue());
 		}
         // Assistant
 		if (isset($vo->{'X-ASSISTANTNAME'})) {
-			$co->Assistant = trim($vo->{'X-ASSISTANTNAME'}->getValue());
+			$co->Assistant = $this->sanitizeString($vo->{'X-ASSISTANTNAME'}->getValue());
 		}
         // Occupation Organization
         if (isset($vo->ORG)) {
-			$co->Occupation->Organization = trim($vo->ORG->getValue());
+			$co->Occupation->Organization = $this->sanitizeString($vo->ORG->getValue());
 		}
 		// Occupation Title
         if (isset($vo->TITLE)) { 
-			$co->Occupation->Title = trim($vo->TITLE->getValue()); 
+			$co->Occupation->Title = $this->sanitizeString($vo->TITLE->getValue()); 
 		}
 		// Occupation Role
 		if (isset($vo->ROLE)) {
-			$co->Occupation->Role = trim($vo->ROLE->getValue());
+			$co->Occupation->Role = $this->sanitizeString($vo->ROLE->getValue());
 		}
 		// Occupation Logo
 		if (isset($vo->LOGO)) {
-			$co->Occupation->Logo = trim($vo->LOGO->getValue());
+			$co->Occupation->Logo = $this->sanitizeString($vo->LOGO->getValue());
 		}
                 
         // Relation
         if (isset($vo->RELATED)) {
             $co->addRelation(
 				strtoupper(trim($vo->RELATED->parameters()['TYPE']->getValue())),
-				trim($vo->RELATED->getValue())
+				sanitizeString($vo->RELATED->getValue())
 			);
         }
         // Tag(s)
         if (isset($vo->CATEGORIES)) {
             foreach($vo->CATEGORIES->getParts() as $entry) {
                 $co->addTag(
-                    trim($entry)
+                    $this->sanitizeString($entry)
                 );
             }
         }
         // Notes
         if (isset($vo->NOTE)) {
             if (!empty(trim($vo->NOTE->getValue()))) {
-                $co->Notes = trim($vo->NOTE->getValue());
+                $co->Notes = $this->sanitizeString($vo->NOTE->getValue());
             }
         }
         // Sound
         if (isset($vo->SOUND)) {
-            $co->Sound = trim($vo->SOUND->getValue());
+            $co->Sound = $this->sanitizeString($vo->SOUND->getValue());
         }
         // URL / Website
         if (isset($vo->URL)) {
-            $co->URI = trim($vo->URL->getValue());
+            $co->URI = $this->sanitizeString($vo->URL->getValue());
         }
 
         // return contact object
@@ -463,8 +462,8 @@ class LocalContactsService {
         // construct vcard object
         $vo = new VCard();
         // UID
-        if (isset($co->UID)) {
-            $vo->UID->setValue($co->UID);
+        if (isset($co->UUID)) {
+            $vo->UID->setValue($co->UUID);
         } else {
             $vo->UID->setValue(\OCA\EAS\Utile\UUID::v4());
         }
@@ -529,10 +528,10 @@ class LocalContactsService {
             );
         }
         // Anniversary Day
-        if (isset($co->AnniversaryDay)) {
+        if (isset($co->NuptialDay)) {
             $vo->add(
                 'ANNIVERSARY',
-                $co->AnniversaryDay->format('Y-m-d\TH:i:s\Z')
+                $co->NuptialDay->format('Y-m-d\TH:i:s\Z')
             );
         }
         // Address(es)
@@ -561,7 +560,7 @@ class LocalContactsService {
                     'TEL', 
                     $entry->Number,
                     array (
-                        'TYPE'=>$entry->Type
+                        'TYPE'=> (isset($entry->SubType)) ? ($entry->Type . ',' . $entry->SubType) : $entry->Type
                     )
                 );
             }
@@ -689,4 +688,13 @@ class LocalContactsService {
 
     }
     
+    public function sanitizeString($value): string|null {
+
+        // remove white space
+        $value = trim($value);
+        // return value or null
+        return $value === '' ? null : $value;
+        
+    }
+
 }

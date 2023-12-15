@@ -223,7 +223,7 @@ class EasXmlDecoder{
 			0x30 => 'MonthOfYear',
 			0x31 => 'StartTime',
 			0x32 => 'Sensitivity',
-			0x33 => 'TimeZone',
+			0x33 => 'Timezone',
 			0x34 => 'GlobalObjId',
 			0x35 => 'ThreadTopic',
 			0x36 => 'MIMEData',
@@ -897,7 +897,7 @@ class EasXmlDecoder{
      */
     protected function _readBodyToObject($stream, $page): mixed {
 		// construct object place holder
-		$node = new EasObject();
+		$node = new EasObject(self::$_namespaces[$page]);
 
 		while(!feof($stream)) {
 			
@@ -922,7 +922,7 @@ class EasXmlDecoder{
 					$node = $this->_readData($stream);
 					$type = 'O';
 					break;
-				// According to MS-ASWBXML, these features aren't used
+				// According to MS-ASWBXML, these features are not used
 				case EasXml::ENTITY:
 				case EasXml::EXT_0:
 				case EasXml::EXT_1:
@@ -969,7 +969,7 @@ class EasXmlDecoder{
 					else {
 						$token = "UNKNOWN_TAG_$token";
 					}
-					$node->setNamespace($namespace);
+					//$node->setNamespace($namespace);
 
 					if ($hasContents) {
 						// read next object

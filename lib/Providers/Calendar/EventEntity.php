@@ -7,7 +7,7 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	private EventCollection $_collection;
 	private string $_id;
 	private string $_uuid;
-	private string $_label;
+	private ?string $_label;
 	private array $_data;
 
 	/**
@@ -16,7 +16,7 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	 * @param Collection $calendar
 	 * @param string $name
 	 */
-	public function __construct(EventCollection $collection, string $id, string $uuid, string $label, array $data) {
+	public function __construct(EventCollection $collection, string $id, string $uuid, ?string $label, array $data) {
 		$this->_collection = $collection;
 		$this->_id = $id;
 		$this->_uuid = $uuid;
@@ -76,7 +76,7 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	 * @inheritDoc
 	 */
 	function put($data) {
-		return $this->_collection->modifyFile($this->_id, $data);
+		return $this->_collection->modifyFile($this->_id, $this->_uuid, $data);
 	}
 
 	/**
@@ -97,7 +97,7 @@ class EventEntity implements \Sabre\CalDAV\ICalendarObject, \Sabre\DAVACL\IACL {
 	 * @inheritDoc
 	 */
 	function getETag() {
-		return $this->_data['state'];
+		return $this->_data['signature'];
 	}
 
 	/**

@@ -39,14 +39,14 @@ use OCP\AppFramework\Db\Entity;
  * @method setaid(string $aid): void
  * @method getloid(): string
  * @method setloid(string $loid): void
- * @method getlostate(): string
- * @method setlostate(string $token): void
+ * @method getlosignature(): string
+ * @method setlosignature(string $token): void
  * @method getlcid(): string
  * @method setlcid(string $lcid): void
  * @method getroid(): string
  * @method setroid(string $roid): void
- * @method getrostate(): string
- * @method setrostate(string $token): void
+ * @method getrosignature(): string
+ * @method setrosignature(string $token): void
  * @method getrcid(): string
  * @method setrcid(string $rcid): void
  * @method gethlock(): int
@@ -68,12 +68,12 @@ class Correlation extends Entity implements JsonSerializable {
 	protected ?string $lpid = null;
 	protected string $loid = '';
 	protected ?string $lcid = null;
-	protected ?string $lostate = null;
+	protected ?string $losignature = null;
 	protected string $rid = '';
 	protected ?string $rpid = null;
 	protected string $roid = '';
 	protected ?string $rcid = null;
-	protected ?string $rostate = null;
+	protected ?string $rosignature = null;
 	protected int $hlock = 0;
 	protected int $hlockhd = 0;
 	protected int $hlockhb = 0;
@@ -87,10 +87,10 @@ class Correlation extends Entity implements JsonSerializable {
 			'aid' => $this->aid,
 			'loid' => $this->loid,
 			'lcid' => $this->lcid,
-			'lostate' => $this->lostate,
+			'losignature' => $this->losignature,
 			'roid' => $this->roid,
 			'rcid' => $this->rcid,
-			'rostate' => $this->rostate,
+			'rosignature' => $this->rosignature,
 			'hlock' => $this->hlock,
 			'hlockhd' => $this->hlockhd,
 			'hlockhb' => $this->hlockhb,

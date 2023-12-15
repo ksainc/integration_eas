@@ -536,7 +536,7 @@ class HarmonizationService {
 		}
 
 		// return response
-		return (object) ['Id' => $id, 'Token' => $token, 'State' => $state];
+		return (object) ['Id' => $id, 'Token' => $token, 'signature' => $state];
 
 	}
 

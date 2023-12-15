@@ -38,7 +38,7 @@ class TaskObject {
     private ?string $ID = null;                     // Source System Id
     private ?string $UUID = null;                   // Object UUID
     private ?string $CID = null;                    // Source System Object Collection Affiliation Id
-    private ?string $State = null;                  // Source System Object State
+    private ?string $Signature = null;                  // Source System Object State
     private ?DateTime $CreatedOn = null;            // Source System Creation Date/Time
     private ?DateTime $ModifiedOn = null;           // Source System Modification Date/Time
     private ?DateTime $StartsOn = null;             // Task Start Date/Time

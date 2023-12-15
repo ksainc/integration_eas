@@ -84,64 +84,57 @@ class TasksService {
 	}
 
 	/**
-	 * Perform harmonization for all events collection correlations
+	 * Perform harmonization for all contacts collection correlations
 	 * 
 	 * @since Release 1.0.0
 	 *
 	 * @return HarmonizationStatisticsObject
 	 */
-	public function performHarmonization($correlation, $configuration) : object {
-
-		// construct statistics object
-		$statistics = new HarmonizationStatisticsObject();
+	public function performHarmonization($correlation, $configuration): HarmonizationStatisticsObject {
 		
-		// set local and remote collection id's
-		$caid = (string) $correlation->getid();
+		// define statistics object
+		$statistics = new HarmonizationStatisticsObject();
+		// extract required id's
+		$caid = $correlation->getid();
 		$lcid = $correlation->getloid();
+		$lcst = (string) $correlation->getlosignature();
 		$rcid = $correlation->getroid();
+		$rcst = (string) $correlation->getrosignature();
 		// delete and skip collection correlation if remote id or local id is missing
 		if (empty($lcid) || empty($rcid)){
-			$this->CorrelationsService->deleteByAffiliationId($this->Configuration->UserId, $caid);
 			$this->CorrelationsService->delete($correlation);
-			$this->logger->debug('EAS - Deleted Tasks collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote ID or Local ID');
+			$this->logger->debug('EAS - Deleted tasks collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote ID or Local ID');
 			return $statistics;
 		}
-
-		// retrieve list of local changed objects
-		$lCollectionChanges = [];
-		//$lCollectionChanges = $this->LocalTasksService->fetchCollectionChanges($correlation->getloid(), (string) $correlation->getlostate());
-		
 		// delete and skip collection correlation if local collection is missing
-		//$lcollection = $this->LocalTasksService->fetchCollection($lcid);
-		//if (!isset($lcollection) || ($lcollection->Id != $lcid)) {
-		//	$this->CorrelationsService->deleteByAffiliationId($this->Configuration->UserId, $caid);
+		$lcollection = $this->LocalTasksService->fetchCollection($lcid);
+		if (!isset($lcollection) || ($lcollection->Id != $lcid)) {
+			$this->CorrelationsService->delete($correlation);
+			$this->logger->debug('EAS - Deleted tasks collection correlation for ' . $this->Configuration->UserId . ' due to missing Local Collection');
+			return $statistics;
+		}
+		// delete and skip collection correlation if remote collection is missing
+		//$rcollection = $this->RemoteTasksService->fetchCollection(0, 0, $rcid);
+		//if (!isset($rcollection) || ($rcollection->Id != $rcid)) {
 		//	$this->CorrelationsService->delete($correlation);
-		//	$this->logger->debug('EAS - Deleted Tasks collection correlation for ' . $this->Configuration->UserId . ' due to missing Local Collection');
+		//	$this->logger->debug('EAS - Deleted tasks collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote Collection');
 		//	return $statistics;
 		//}
 
-		// retrieve list of remote changed object
-		$rCollectionChanges = $this->RemoteTasksService->syncEntities($correlation->getroid(), (string) $correlation->getrostate());
-		
-		// delete and skip collection correlation if remote collection is missing
-		//$rcollection = $this->RemoteTasksService->fetchCollection($rcid);
-		//if (!isset($rcollection) || ($rcollection->Id != $rcid)) {
-		//	$this->CorrelationsService->deleteByAffiliationId($this->Configuration->UserId, $caid);
-		//	$this->CorrelationsService->delete($correlation);
-		//	$this->logger->debug('EAS - Deleted Tasks collection correlation for ' . $this->Configuration->UserId . ' due to missing Remote Collection');
-		//	return $statistics;
-		//}
-		
-		// evaluate if local mutations object was returned
-		if (isset($lCollectionChanges['syncToken'])) {
-			// process local created objects
-			foreach ($lCollectionChanges['added'] as $iid) {
-				// process create
+		// retrieve a collection of local entity variations
+		//$lCollectionDelta = [];
+		$lCollectionDelta = $this->LocalTasksService->reconcileCollection($this->Configuration->UserId, $lcid, $lcst);
+		// evaluate if local entity variations exist
+		if (isset($lCollectionDelta['stamp'])) {
+			// process local additions
+			foreach ($lCollectionDelta['additions'] as $variant) {
+				// process addition
 				$as = $this->harmonizeLocalAltered(
 					$this->Configuration->UserId, 
 					$lcid, 
-					$iid, 
-					$rcid, 
+					$variant['id'], 
+					$rcid,
+					$rcst,
 					$caid
 				);
 				// increment statistics
@@ -157,14 +150,15 @@ class TasksService {
 						break;
 				}
 			}
-			// process local modified items
-			foreach ($lCollectionChanges['modified'] as $iid) {
-				// process create
+			// process local modifications
+			foreach ($lCollectionDelta['modifications'] as $variant) {
+				// process modification
 				$as = $this->harmonizeLocalAltered(
-					$this->Configuration->UserId, 
-					$lcid, 
-					$iid, 
-					$rcid, 
+					$this->Configuration->UserId,
+					$lcid,
+					$variant['id'],
+					$rcid,
+					$rcst,
 					$caid
 				);
 				// increment statistics
@@ -180,40 +174,47 @@ class TasksService {
 						break;
 				}
 			}
-			// process local deleted items
-			foreach ($lCollectionChanges['deleted'] as $iid) {
-				// process delete
+			// process local deletions
+			foreach ($lCollectionDelta['deletions'] as $variant) {
+				// process deletion
 				$as = $this->harmonizeLocalDelete(
 					$this->Configuration->UserId, 
-					$lcid, 
-					$iid
+					$lcid,
+					$variant['id'],
+					$rcst
 				);
 				if ($as == 'RD') {
 					// assign status
 					$statistics->RemoteDeleted += 1;
 				}
 			}
-			// Make sure to store this for the next sync.
-			$correlation->setlostate($lCollectionChanges['syncToken']);
+			// update and deposit correlation local state
+			$correlation->setlosignature($lCollectionDelta['stamp']);
+			$correlation->setrosignature($rcst);
 			$this->CorrelationsService->update($correlation);
 		}
 
-		// evaluate if remote mutations object was returned
+		// retrieve a collection of remote entity variations
+		//$rCollectionDelta = [];
+		$rCollectionDelta = $this->RemoteTasksService->reconcileCollection($rcid, $rcst);
+		// evaluate if remote entity variations exist
 		// according to the EAS spec the change object can be blank if there is no changes 
-		if (isset($rCollectionChanges->SyncKey)) {
+		if (isset($rCollectionDelta->SyncKey)) {
+			//
+			$rcst = $rCollectionDelta->SyncKey->getContents();
 			// evaluate if add property is an array and convert to array if needed
-			if (isset($rCollectionChanges->Commands->Add) && !is_array($rCollectionChanges->Commands->Add)) {
-				$rCollectionChanges->Commands->Add = [$rCollectionChanges->Commands->Add];
+			if (isset($rCollectionDelta->Commands->Add) && !is_array($rCollectionDelta->Commands->Add)) {
+				$rCollectionDelta->Commands->Add = [$rCollectionDelta->Commands->Add];
 			}
-			// process remote created objects
-			foreach ($rCollectionChanges->Commands->Add as $Altered) {
-				// process create
+			// process remote additions
+			foreach ($rCollectionDelta->Commands->Add as $variant) {
+				// process addition
 				$as = $this->harmonizeRemoteAltered(
-					$this->Configuration->UserId, 
-					$rcid, 
-					$Altered->EntityId->getContents(),
-					$Altered->Data, 
-					$lcid, 
+					$this->Configuration->UserId,
+					$rcid,
+					$variant->EntityId->getContents(),
+					$variant->Data,
+					$lcid,
 					$caid
 				);
 				// increment statistics
@@ -230,12 +231,12 @@ class TasksService {
 				}
 			}
 			// evaluate if modify property is an array and convert to array if needed
-			if (isset($rCollectionChanges->Commands->Modify) && !is_array($rCollectionChanges->Commands->Modify)) {
-				$rCollectionChanges->Commands->Modify = [$rCollectionChanges->Commands->Modify];
+			if (isset($rCollectionDelta->Commands->Modify) && !is_array($rCollectionDelta->Commands->Modify)) {
+				$rCollectionDelta->Commands->Modify = [$rCollectionDelta->Commands->Modify];
 			}
-			// process remote modified objects
-			foreach ($rCollectionChanges->Commands->Modify as $Altered) {
-				// process create
+			// process remote modifications
+			foreach ($rCollectionDelta->Commands->Modify as $Altered) {
+				// process modification
 				$as = $this->harmonizeRemoteAltered(
 					$this->Configuration->UserId, 
 					$rcid, 
@@ -258,11 +259,11 @@ class TasksService {
 				}
 			}
 			// evaluate if delete property is an array and convert to array if needed
-			if (isset($rCollectionChanges->Commands->Delete) && !is_array($rCollectionChanges->Commands->Delete)) {
-				$rCollectionChanges->Commands->Delete = [$rCollectionChanges->Commands->Delete];
+			if (isset($rCollectionDelta->Commands->Delete) && !is_array($rCollectionDelta->Commands->Delete)) {
+				$rCollectionDelta->Commands->Delete = [$rCollectionDelta->Commands->Delete];
 			}
-			// process remote deleted objects
-			foreach ($rCollectionChanges->Commands->Delete as $Deleted) {
+			// process remote deletions
+			foreach ($rCollectionDelta->Commands->Delete as $Deleted) {
 				// process delete
 				$as = $this->harmonizeRemoteDelete(
 					$this->Configuration->UserId, 
@@ -275,10 +276,10 @@ class TasksService {
 				}
 			}
 			// update and deposit correlation remote state
-			$correlation->setrostate($rCollectionChanges->SyncKey->getContents());
+			$correlation->setrosignature($rcst);
 			$this->CorrelationsService->update($correlation);
 		}
-
+		
 		// return statistics
 		return $statistics;
 
@@ -289,184 +290,137 @@ class TasksService {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid	nextcloud user id
-	 * @param string $lcid	local collection id
-	 * @param string $loid	local object id
-	 * @param string $rcid	remote collection id
-	 * @param string $caid	correlation affiliation id
+	 * @param string $uid		User ID
+	 * @param int $lcid			Local Collection ID
+	 * @param int $loid			Local Entity ID
+	 * @param string $rcid		Remote Collection ID
+	 * @param string $rcst		Remote Collection Signature Token
+	 * @param int $caid			Correlation Affiliation ID
 	 *
-	 * @return string what action was performed
+	 * @return string 			what action was performed
 	 */
-	function harmonizeLocalAltered ($uid, $lcid, $loid, $rcid, $caid): string {
-		
-		// create harmonize status place holder
+	function harmonizeLocalAltered ($uid, $lcid, $leid, $rcid, &$rcst, $caid): string {
+
+		// // define default operation status
 		$status = 'NA'; // no actions
-		// create/reset local object place holder
+		// define local entity place holder
 		$lo = null;
-		// create/reset remote object place holder
+		// define remote entity place holder
 		$ro = null;
-		// retrieve local events object
-		$lo = $this->LocalTasksService->fetchCollectionItem($lcid, $loid);
-		// evaluate, if local event object was returned
+		// retrieve local contact object
+		$lo = $this->LocalTasksService->fetchEntity($leid);
+		// evaluate, if local contact entity was returned
 		if (!($lo instanceof \OCA\EAS\Objects\TaskObject)) {
-			// return status of action
+			// return default operation status
 			return $status;
 		}
-		// try to retrieve correlation for remote and local object
-		$ci = $this->CorrelationsService->findByLocalId($uid, 'TO', $loid, $lcid);
+		// retrieve correlation for remote and local entity
+		$ci = $this->CorrelationsService->findByLocalId($uid, CorrelationsService::TaskEntity, $leid, $lcid);
 		// if correlation exists
-		// compare local state to correlation state and stop processing if they match to prevent sync loop
+		// compare local signature to correlation signature and stop processing if they match
+		// this is nessary to prevent synconization feedback loop
 		if ($ci instanceof \OCA\EAS\Store\Correlation && 
-			$ci->getlostate() == $lo->State) {
-			// return status of action
+			$ci->getlosignature() == $lo->Signature) {
+			// return default operation status
 			return $status;
 		}
-		// if correlation exists, try to retrieve remote object
+		// if correlation exists, try to retrieve remote entity
 		if ($ci instanceof \OCA\EAS\Store\Correlation && 
 			!empty($ci->getroid())) {
-			// retrieve remote event object
-			$ro = $this->RemoteTasksService->fetchCollectionItem($ci->getroid());
+			// retrieve entity
+			$ro = $this->RemoteTasksService->fetchEntity($ci->getrcid(), $rcst, $ci->getroid());
+			// generate a signature for the data
+			// this a crude but nessary as EAS does not transmit a harmonization signature for entities
+			$ro->Signature = $this->generateSignature($ro);
 		}
-		// if remote object retrieve failed, try to retrieve remote object by UUID
-		if (!isset($ro) && !empty($lo->UUID)) {
-			// retrieve list of remote ids and uids
-			if (!isset($this->RemoteUUIDs)) {
-				$this->RemoteUUIDs = $this->RemoteTasksService->fetchCollectionItemsUUID($rcid);
+		// modify remote entity if one EXISTS
+		// create remote entity if one DOES NOT EXIST
+		if ($ro instanceof \OCA\EAS\Objects\TaskObject) {
+			// if correlation EXISTS
+			// compare remote entity state to correlation signature
+			// if signatures DO MATCH modify remote entity
+			if ($ci instanceof \OCA\EAS\Store\Correlation && $ro->Signature == $ci->getrosignature()) {
+				// update remote entity
+				$ro = $this->RemoteTasksService->updateEntity($ci->getrcid(), $rcst, $ci->getroid(), $lo);
+				// assign operation status
+				$status = 'RU'; // Remote Update
 			}
-			// search for uuid
-			$k = array_search($lo->UUID, array_column($this->RemoteUUIDs, 'UUID'));
-			if ($k !== false) {
-				// retrieve remote event object
-				$ro = $this->RemoteTasksService->fetchCollectionItem($this->RemoteUUIDs[$k]['ID']);
-			}
-		}
-		// create remote object if none was found
-		// update remote object if one was found
-		if (isset($ro)) {
-			// if correlation DOES NOT EXIST
+			// if correlation DOES NOT EXIST or signatures DO NOT MATCH
 			// use selected mode to resolve conflict
-			if (!($ci instanceof \OCA\EAS\Store\Correlation)) {
-				// update remote object if
-				// local wins mode selected
-				// chronology wins mode selected and local object is newer
-				if ($this->Configuration->TasksPrevalence == 'L' || 
-					($this->Configuration->TasksPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
-					// delete all previous attachment(s) in remote store
-					// work around for missing update command in eas
-					$this->RemoteTasksService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
-					// update remote object
-					$ro = $this->RemoteTasksService->updateCollectionItem($rcid, $ro->ID, $lo);
-					// assign status
+			else {
+				// update local entity if remote wins mode selected
+				if ($this->Configuration->TasksPrevalence == 'R') {
+					// append missing remote parameters from local object
+					$ro->UUID = $lo->UUID;
+					// update local entity
+					$lo = $this->LocalTasksService->updateEntity($uid, $lcid, $lo->ID, $ro);
+					// assign operation status
+					$status = 'LU'; // Local Update
+				}
+				// update remote entity if local wins mode selected
+				if ($this->Configuration->TasksPrevalence == 'L') {
+					// update remote entity
+					$ro = $this->RemoteTasksService->updateEntity($rcid, $rcst, $ro->ID, $lo);
+					// assign operation status
 					$status = 'RU'; // Remote Update
 				}
-				// update local object if
-				// remote wins mode selected
-				// chronology wins mode selected and remote object is newer
-				if ($this->Configuration->TasksPrevalence == 'R' || 
-					($this->Configuration->TasksPrevalence == 'C' && ($ro->ModifiedOn > $lo->ModifiedOn))) {
-					// update local object
-					$lo = $this->LocalTasksService->updateCollectionItem($lcid, $lo->ID, $ro);
-					// assign status
-					$status = 'LU'; // Local Update
-				}
-			}
-			// if correlation EXISTS
-			// compare remote object state to correlation state
-			// if states DO NOT MATCH use selected mode to resolve conflict
-			elseif ($ci instanceof \OCA\EAS\Store\Correlation && 
-				$ro->State != $ci->getrostate()) {
-				// update remote object if
-				// local wins mode selected
-				// chronology wins mode selected and local object is newer
-				if ($this->Configuration->TasksPrevalence == 'L' || 
-				   ($this->Configuration->TasksPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
-					// delete all previous attachment(s) in remote store
-					// work around for missing update command in eas
-					$this->RemoteTasksService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
-					// update remote object
-					$ro = $this->RemoteTasksService->updateCollectionItem($rcid, $ro->ID, $lo);
-					// assign status
-					$status = 'RU'; // Rocal Update
-				}
-				// update local object if
-				// remote wins mode selected
-				// chronology wins mode selected and remote object is newer
-				if ($this->Configuration->TasksPrevalence == 'R' || 
-				   ($this->Configuration->TasksPrevalence == 'C' && ($ro->ModifiedOn > $lo->ModifiedOn))) {
-					// update local object
-					$lo = $this->LocalTasksService->updateCollectionItem($lcid, $lo->ID, $ro);
-					// assign status
-					$status = 'LU'; // Local Update
-				}
-			}
-			// if correlation EXISTS
-			// compare remote object state to correlation state
-			// if states DO MATCH update remote object
-			elseif ($ci instanceof \OCA\EAS\Store\Correlation && 
-					$ro->State == $ci->getrostate()) {
-				// delete all previous attachment(s) in remote store
-				// work around for missing update command in eas
-				$this->RemoteTasksService->deleteCollectionItemAttachment(array_column($ro->Attachments, 'Id'));
-				// update remote object
-				$ro = $this->RemoteTasksService->updateCollectionItem($rcid, $ro->ID, $lo);
-				// assign status
-				$status = 'RU'; // Remote Update
 			}
 		}
 		else {
-			// create remote object
-			$ro = $this->RemoteTasksService->createCollectionItem($rcid, $lo);
-			// assign status
+			// create remote entity
+			$ro = $this->RemoteTasksService->createEntity($rcid, $rcst, $lo);
+			// assign operation status
 			$status = 'RC'; // Remote Create
 		}
-		// update object correlation if one was found
-		// create object correlation if none was found
+		// update entity correlation if one EXISTS
+		// create entity correlation if one DOES NOT EXIST
 		if ($ci instanceof \OCA\EAS\Store\Correlation) {
 			$ci->setloid($lo->ID); // Local ID
-			$ci->setlostate($lo->State); // Local State
-			$ci->setlcid($lcid); // Local Parent ID
+			$ci->setlosignature($lo->Signature); // Local Signature
+			$ci->setlcid($lcid); // Local Collection ID
 			$ci->setroid($ro->ID); // Remote ID
-			$ci->setrostate($ro->State); // Remote State
-			$ci->setrcid($rcid); // Remote Parent ID
+			$ci->setrosignature($ro->Signature); // Remote Signature
+			$ci->setrcid($rcid); // Remote Collection ID
 			$this->CorrelationsService->update($ci);
 		}
-		elseif (isset($lo) && isset($ro)) {
+		elseif (isset($ro) && isset($lo)) {
 			$ci = new \OCA\EAS\Store\Correlation();
-			$ci->settype('TO'); // Correlation Type
+			$ci->settype(CorrelationsService::TaskEntity); // Correlation Type
 			$ci->setuid($uid); // User ID
 			$ci->setaid($caid); //Affiliation ID
 			$ci->setloid($lo->ID); // Local ID
-			$ci->setlostate($lo->State); // Local State
-			$ci->setlcid($lcid); // Local Parent ID
+			$ci->setlosignature($lo->Signature); // Local Signature
+			$ci->setlcid($lcid); // Local Collection ID
 			$ci->setroid($ro->ID); // Remote ID
-			$ci->setrostate($ro->State); // Remote State
-			$ci->setrcid($rcid); // Remote Parent ID
+			$ci->setrosignature($ro->Signature); // Remote Signature
+			$ci->setrcid($rcid); // Remote Collection ID
 			$this->CorrelationsService->create($ci);
 		}
-		// return status of action
+		// return operation status
 		return $status;
 
 	}
 
 	/**
-	 * Perform harmonization for locally deleted object
+	 * Perform harmonization for locally deleted entity
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid	nextcloud user id
+	 * @param string $uid	user id
 	 * @param string $lcid	local collection id
-	 * @param string $loid	local object id
+	 * @param string $loid	local entity id
+	 * @param string $rcst	remote collection signature token
 	 *
 	 * @return string what action was performed
 	 */
-	function harmonizeLocalDelete ($uid, $lcid, $loid): string {
-		
+	function harmonizeLocalDelete ($uid, $lcid, $leid, &$rcst): string {
+
 		// retrieve correlation
-		$ci = $this->CorrelationsService->findByLocalId($uid, 'TO', $loid, $lcid);
-		// evaluate correlation object
+		$ci = $this->CorrelationsService->findByLocalId($uid, CorrelationsService::TaskEntity, $leid, $lcid);
+		// validate result
 		if ($ci instanceof \OCA\EAS\Store\Correlation) {
-			// destroy remote object
-			$rs = $this->RemoteTasksService->deleteCollectionItem($ci->getroid());
+			// destroy remote entity
+			$rs = $this->RemoteTasksService->deleteEntity($ci->getrcid(), $rcst, $ci->getroid());
 			// destroy correlation
 			$this->CorrelationsService->delete($ci);
 			// return status of action
@@ -476,72 +430,126 @@ class TasksService {
 			// return status of action
 			return 'NA';
 		}
-
+			
 	}
 
 	/**
-	 * Perform harmonization for remotely altered object
+	 * Perform harmonization for remotely altered entity
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid		nextcloud user id
+	 * @param string $uid		User id
 	 * @param string $rcid		remote collection id
-	 * @param string $ro		remote object
+	 * @param string $reid		remote object id
 	 * @param string $lcid		local collection id
 	 * @param string $caid		correlation affiliation id
 	 *
 	 * @return string 			what action was performed
 	 */
-	function harmonizeRemoteAltered ($uid, $rcid, $roid, $rdata, $lcid, $caid): string {
+	function harmonizeRemoteAltered ($uid, $rcid, $reid, $rdata, $lcid, $caid): string {
 		
-		// create harmonize status place holder
+		// define default operation status
 		$status = 'NA'; // no acction
-		// create/reset local object place holder
+		// define remote entity place holder
+		$ro = null;
+		// define local entity place holder
 		$lo = null;
-		// convert remote object to contact object
+		// convert remote data to contact object
 		$ro = $this->RemoteTasksService->toTaskObject($rdata);
-		$ro->ID = $rcid;
-		$ro->CID = $roid;
-		$ro->RCID = $rcid;
-		$ro->REID = $roid;
 		// evaluate, if remote contact object was returned
 		if (!($ro instanceof \OCA\EAS\Objects\TaskObject)) {
-			// return status of action
+			// return default operation status
 			return $status;
 		}
-		// find local object by remote collection and object id
-		$lo = $this->LocalTasksService->fetchEntityByRID($uid, $rcid, $roid);
-		// update local object if one was found
-		// create local object if none was found
-		if (isset($lo)) {
-			// update local object if
-			// remote wins mode selected
-			// chronology wins mode selected and remote object is newer
-			if ($this->Configuration->TasksPrevalence == 'R' || 
-				($this->Configuration->TasksPrevalence == 'C' && ($ro->ModifiedOn > $lo->ModifiedOn))) {
-				// update local object
-				$lo = $this->LocalTasksService->updateEntity($uid, $lo->CID, $lo->ID, $ro);
-				// assign status
+		// append missing remote parameters from passed parameters
+		$ro->ID = $reid;
+		$ro->CID = $rcid;
+		$ro->RCID = $rcid;
+		$ro->REID = $reid;
+		// generate a signature for the data
+        // this a crude but nessary as EAS does not transmit a harmonization signature for entities
+        $ro->Signature = $this->generateSignature($ro);
+		// retrieve correlation for remote and local entity
+		$ci = $this->CorrelationsService->findByRemoteId($uid, CorrelationsService::TaskEntity, $reid, $rcid);
+		// if correlation exists
+		// compare remote generated signature to correlation signature and stop processing if they match
+		// this is nessary to prevent synconization feedback loop
+		if ($ci instanceof \OCA\EAS\Store\Correlation && 
+			$ci->getrosignature() == $ro->Signature) {
+			// return default operation status
+			return $status;
+		}
+		// if correlation exists, try to retrieve local entity
+		if ($ci instanceof \OCA\EAS\Store\Correlation && 
+			$ci->getloid()) {			
+			$lo = $this->LocalTasksService->fetchEntity($ci->getloid());
+		}
+		// modify local entity if one EXISTS
+		// create local entity if one DOES NOT EXIST
+		if ($lo instanceof \OCA\EAS\Objects\TaskObject) {
+			// if correlation EXISTS
+			// compare local entity signature to correlation signature
+			// if signatures DO MATCH modify local enitity
+			if ($ci instanceof \OCA\EAS\Store\Correlation && $lo->Signature == $ci->getlosignature()) {
+				// append missing remote parameters from local object
+				$ro->UUID = $lo->UUID;
+				// update local enitity
+				$lo = $this->LocalTasksService->updateEntity($uid, $ci->getlcid(), $ci->getloid(), $ro);
+				// assign operation status
 				$status = 'LU'; // Local Update
 			}
-			// update remote object if
-			// local wins mode selected
-			// chronology wins mode selected and local object is newer
-			elseif ($this->Configuration->TasksPrevalence == 'L' || 
-				($this->Configuration->TasksPrevalence == 'C' && ($lo->ModifiedOn > $ro->ModifiedOn))) {
-				// update remote object
-				$ro = $this->RemoteTasksService->updateCollectionItem($rcid, $ro->ID, $lo);
-				// assign status
-				$status = 'RU'; // Remote Update
+			// if correlation DOES NOT EXIST or signatures DO NOT MATCH
+			// use selected mode to resolve conflict
+			else {
+				// update local entity if remote wins mode selected
+				if ($this->Configuration->TasksPrevalence == 'R') {
+					// append missing remote parameters from local object
+					$ro->UUID = $lo->UUID;
+					// update local entity
+					$lo = $this->LocalTasksService->updateEntity($uid, $lcid, $lo->ID, $ro);
+					// assign operation status
+					$status = 'LU'; // Local Update
+				}
+				// update remote entiry if local wins mode selected
+				if ($this->Configuration->TasksPrevalence == 'L') {
+					// update remote entity
+					$ro = $this->RemoteTasksService->updateEntity($rcid, $ro->ID, '', $lo);
+					// assign operation status
+					$status = 'RU'; // Remote Update
+				}
 			}
 		}
 		else {
-			// create local object
+			// create local entity
 			$lo = $this->LocalTasksService->createEntity($uid, $lcid, $ro);
-			// assign status
+			// assign operation status
 			$status = 'LC'; // Local Create
 		}
-		// return status of action
+		// update entity correlation if one EXISTS
+		// create entity correlation if one DOES NOT EXIST
+		if ($ci instanceof \OCA\EAS\Store\Correlation) {
+			$ci->setloid($lo->ID); // Local ID
+			$ci->setlosignature($lo->Signature); // Local Signature
+			$ci->setlcid($lcid); // Local Collection ID
+			$ci->setroid($ro->ID); // Remote ID
+			$ci->setrosignature($ro->Signature); // Remote Signature
+			$ci->setrcid($rcid); // Remote Collection ID
+			$this->CorrelationsService->update($ci);
+		}
+		elseif (isset($ro) && isset($lo)) {
+			$ci = new \OCA\EAS\Store\Correlation();
+			$ci->settype(CorrelationsService::TaskEntity); // Correlation Type
+			$ci->setuid($uid); // User ID
+			$ci->setaid($caid); //Affiliation ID
+			$ci->setloid($lo->ID); // Local ID
+			$ci->setlosignature($lo->Signature); // Local Signature
+			$ci->setlcid($lcid); // Local Collection ID
+			$ci->setroid($ro->ID); // Remote ID
+			$ci->setrosignature($ro->Signature); // Remote Signature
+			$ci->setrcid($rcid); // Remote Collection ID
+			$this->CorrelationsService->create($ci);
+		}
+		// return operation status
 		return $status;
 
 	}
@@ -551,28 +559,41 @@ class TasksService {
 	 * 
 	 * @since Release 1.0.0
 	 * 
-	 * @param string $uid		nextcloud user id
-	 * @param string $rcid		remote collection id
-	 * @param string $roid		remote object id
+	 * @param string $uid	nextcloud user id
+	 * @param string $rcid	local collection id
+	 * @param string $reid	local object id
 	 *
-	 * @return string 			what action was performed
+	 * @return string what action was performed
 	 */
-	function harmonizeRemoteDelete ($uid, $rcid, $roid): string {
+	function harmonizeRemoteDelete ($uid, $rcid, $reid): string {
 
-		// find local object by remote collection and object id
-		$lo = $this->LocalTasksService->fetchEntityByRID($uid, $rcid, $roid);
+		// find correlation
+		$ci = $this->CorrelationsService->findByRemoteId($uid, CorrelationsService::TaskEntity, $reid, $rcid);
 		// evaluate correlation object
-		if (isset($lo)) {
-			// destroy local object
-			$rs = $this->LocalTasksService->deleteEntity($uid, $lo->CID, $lo->ID);
-			// return status of action
+		if ($ci instanceof \OCA\EAS\Store\Correlation) {
+			// destroy local entity
+			$rs = $this->LocalTasksService->deleteEntity($uid, $ci->getlcid(), $ci->getloid());
+			// destroy correlation
+			$this->CorrelationsService->delete($ci);
+			// return operation status
 			return 'LD';
 		}
 		else {
-			// return status of action
+			// return operation status
 			return 'NA';
 		}
 
 	}
-	
+
+	public function generateSignature($eo): string {
+        
+        // clone self
+        $o = clone $eo;
+        // remove non needed values
+        unset($o->ID, $o->CID, $o->UUID, $o->RCID, $o->REID, $o->Signature, $o->CreatedOn, $o->ModifiedOn);
+        // generate signature
+        return md5(json_encode($o));
+
+    }
+
 }

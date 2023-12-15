@@ -178,30 +178,35 @@ class RemoteEventsService {
      * 
      * @since Release 1.0.0
 	 * 
-     * @param string $cid		Collection Id
+     * @param string $cid		Collection ID
 	 * @param string $cst		Collections Synchronization Token
 	 * 
 	 * @return object
 	 */
-	public function syncEntities(string $cid, string $cst): ?object {
+	public function reconcileCollection(string $cid, string $cst): ?object {
 
         // evaluate synchronization token, if empty or 0 retrieve initial synchronization token
         if (empty($cst) || $cst == '0') {
             // execute command
-            $rs = $this->RemoteCommonService->syncEntities($this->DataStore, '0', $cid, []);
+            $rs1 = $this->RemoteCommonService->reconcileCollection($this->DataStore, '0', $cid, []);
             // extract synchronization token
-            $cst = $rs->SyncKey->getContents();
+            $cst = $rs1->SyncKey->getContents();
         }
         // execute command
-        $rs = $this->RemoteCommonService->syncEntities($this->DataStore, $cst, $cid, ['CHANGES' => 1, 'LIMIT' => 32, 'FILTER' => 0, 'BODY' => EasTypes::BODY_TYPE_TEXT]);
-        // evaluate response
-		if (isset($rs->Status) && $rs->Status->getContents() == '1') {
-		    return $rs;
-		} else {
+        $rs2 = $this->RemoteCommonService->reconcileCollection($this->DataStore, $cst, $cid, ['CHANGES' => 1, 'LIMIT' => 32, 'FILTER' => 0, 'BODY' => EasTypes::BODY_TYPE_TEXT]);
+        // evaluate response(s)
+		// return collection delta response
+		if (isset($rs2->Status) && $rs2->Status->getContents() == '1') {
+		    return $rs2;
+		}
+		// return initial response if normal response was null (work around for empty collection null responses)
+		elseif (isset($rs1->Status) && $rs1->Status->getContents() == '1') {
+		    return $rs1;
+		}
+		else {
 			return null;
 		}
-
-
+		
     }
 
 	/**
@@ -209,12 +214,13 @@ class RemoteEventsService {
      * 
      * @since Release 1.0.0
      * 
-	 * @param string $cid			Collection Id
-	 * @param string $eid			Entity Id
+	 * @param string $cid			Collection ID
+     * @param string $cst           Collection Signature Token
+	 * @param string $eid			Entity ID
 	 * 
-	 * @return EventObject       	EventObject on success / Null on failure
+	 * @return EventObject        EventObject on success / Null on failure
 	 */
-	public function fetchEntity(string $cid, string $eid): ?EventObject {
+	public function fetchEntity(string $cid, string &$cst, string $eid): ?EventObject {
 
         // execute command
 		$ro = $this->RemoteCommonService->fetchEntity($this->DataStore, $cid, $eid, ['BODY' => EasTypes::BODY_TYPE_TEXT]);
@@ -222,8 +228,13 @@ class RemoteEventsService {
 		if (isset($ro->Status) && $ro->Status->getContents() == '1') {
             // convert to contact object
             $eo = $this->toEventObject($ro->Properties);
-            $eo->ID = $ro->EntityId->getContents();
-            $eo->CID = $ro->CollectionId->getContents();
+            $eo->ID = ($ro->EntityId) ? $ro->EntityId->getContents() : $eid;
+            $eo->CID = ($ro->CollectionId) ? $ro->CollectionId->getContents() : $cid;
+            $eo->RCID = $eo->CID;
+            $eo->REID = $eo->ID;
+            // generate a signature for the data
+            // this a crude but nessary as EAS does not transmit a harmonization signature for entities
+            $eo->Signature = $this->generateSignature($eo);
             // retrieve attachment(s) from remote data store
 			if (count($eo->Attachments) > 0) {
 				// retrieve all attachments
@@ -261,23 +272,32 @@ class RemoteEventsService {
 	 * 
 	 * @return EventObject        	EventObject on success / Null on failure
 	 */
-	public function createEntity(string $cid, string $cst, EventObject $so): ?EventObject {
+	public function createEntity(string $cid, string &$cst, EventObject $so): ?EventObject {
 
         // convert source EventObject to EasObject
         $eo = $this->fromEventObject($so);
 	    // execute command
-	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_EVENT, $eo);
+	    $ro = $this->RemoteCommonService->createEntity($this->DataStore, $cid, $cst, EasTypes::ENTITY_TYPE_CALENDAR, $eo);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
+            // extract signature token
+            $cst = $ro->SyncKey->getContents();
+            //
 			$eo = clone $so;
-			$eo->ID = $ro->Responses->Add->EntityId->getContents();
-            $eo->CID = $ro->CollectionId->getContents();
+            $eo->Origin = 'R';
+            $eo->ID = ($ro->Responses->Add->EntityId) ? $ro->Responses->Add->EntityId->getContents() : $eid;
+            $eo->CID = ($ro->CollectionId) ? $ro->CollectionId->getContents() : $cid;
+            $eo->RCID = $eo->CID;
+            $eo->REID = $eo->ID;
 			// deposit attachment(s)
 			if (count($eo->Attachments) > 0) {
 				// create attachments in remote data store
 				$eo->Attachments = $this->createCollectionItemAttachment($eo->ID, $eo->Attachments);
-				$eo->State = $eo->Attachments[0]->AffiliateState;
+				$eo->Signature = $eo->Attachments[0]->AffiliateState;
 			}
+            // generate a signature for the entity
+			// this a crude but nessary as EAS does not transmit a harmonization signature for entities
+			$eo->Signature = $this->generateSignature($eo);
             return $eo;
         } else {
             return null;
@@ -290,31 +310,37 @@ class RemoteEventsService {
      * 
      * @since Release 1.0.0
      * 
-     * @param string $cid			Collection Id
-	 * @param string $cst			Collection Synchronization Token
+     * @param string $cid			Collection ID
+	 * @param string $cst			Collection Signature Token
+     * @param string $eid           Entity ID
      * @param EventObject $so     	Source Object
 	 * 
 	 * @return EventObject        	EventObject on success / Null on failure
 	 */
-	public function updateEntity(string $cid, string $cst, EventObject $so): ?EventObject {
+	public function updateEntity(string $cid, string &$cst, string $eid, EventObject $so): ?EventObject {
 
-        // extract source object id
-        $eid = $eo->ID;
-        // convert source EventObject to EasObject
-        $eo = $this->fromEventObject($so);
+		// convert source EventObject to EasObject
+        $ro = $this->fromEventObject($so);
 	    // execute command
-	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $eo);
+	    $ro = $this->RemoteCommonService->updateEntity($this->DataStore, $cid, $cst, $eid, $ro);
         // evaluate response
         if (isset($ro->Status) && $ro->Status->getContents() == '1') {
+            // extract signature token
+            $cst = $ro->SyncKey->getContents();
+            //
 			$eo = clone $so;
-			$eo->ID = $ro->Responses->Modify->EntityId;
-            $eo->CID = $cid;
+			$eo->Origin = 'R';
+            $eo->ID = ($ro->Responses->Modify->EntityId) ? $ro->Responses->Modify->EntityId->getContents() : $eid;
+            $eo->CID = ($ro->CollectionId) ? $ro->CollectionId->getContents() : $cid;
 			// deposit attachment(s)
 			if (count($so->Attachments) > 0) {
 				// create attachments in remote data store
 				$eo->Attachments = $this->createCollectionItemAttachment($eo->ID, $eo->Attachments);
-				$eo->State = $eo->Attachments[0]->AffiliateState;
+				$eo->Signature = $eo->Attachments[0]->AffiliateState;
 			}
+            // generate a signature for the entity
+			// this a crude but nessary as EAS does not transmit a harmonization signature for entities
+			$eo->Signature = $this->generateSignature($eo);
             return $eo;
         } else {
             return null;
@@ -492,20 +518,12 @@ class RemoteEventsService {
         if (!empty($so->DtStamp)) {
             $eo->ModifiedOn = new DateTime($so->DtStamp->getContents());
         }
-		// Start Time Zone
-        if (!empty($so->StartTimeZone)) {
-			$eo->StartsTZ = $this->fromTimeZone($so->StartTimeZone->getContents());
-        }
-		// End Time Zone
-		if (!empty($so->EndTimeZone)) {
-			$eo->EndsTZ = $this->fromTimeZone($so->EndTimeZone->getContents());
-		}
 		// Time Zone
         if (!empty($so->Timezone)) {
         	$eo->TimeZone = $this->fromTimeZone($so->Timezone->getContents());
 			if (isset($eo->TimeZone)) {
 				if (!isset($eo->StartsTZ)) { $eo->StartsTZ = clone $eo->TimeZone; }
-				//if (!isset($eo->EndsTZ)) { $eo->EndsTZ = clone $eo->TimeZone; }
+				if (!isset($eo->EndsTZ)) { $eo->EndsTZ = clone $eo->TimeZone; }
 			}
         }
 		// Start Date/Time
@@ -537,13 +555,11 @@ class RemoteEventsService {
 		}
 		// Availability
 		if (!empty($so->BusyStatus)) {
-			$v = (int) $so->BusyStatus->getContents();
-			$eo->Availability = ($v > -1 && $v < 5) ? $v : 2;
+			$eo->Availability = $this->fromAvailability($so->BusyStatus->getContents());
 		}
 		// Sensitivity
 		if (!empty($so->Sensitivity)) {
-			$v = (int) $so->Sensitivity->getContents();
-			$eo->Sensitivity = ($v > -1 && $v < 4) ? $v : 0;
+			$eo->Sensitivity = $this->fromSensitivity($so->Sensitivity->getContents());
 		}
 		// Tag(s)
         if (isset($so->Categories)) {
@@ -722,238 +738,158 @@ class RemoteEventsService {
 
 		// create object
 		$eo = new EasObject('AirSync');
-        // Label
+		// Time Zone
+        if (!empty($so->TimeZone)) {
+        	$eo->Timezone = new EasProperty('Calendar', $this->toTimeZone($so->TimeZone, $so->StartsOn));
+			//$eo->Timezone = new EasProperty('Calendar', 'LAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAsAAAABAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAACAAIAAAAAAAAAxP///w==');
+        }
+		elseif (!empty($so->StartsTZ)) {
+			$eo->Timezone = new EasProperty('Calendar', $this->toTimeZone($so->StartsTZ, $so->StartsOn));
+			//$eo->Timezone = new EasProperty('Calendar', 'LAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAsAAAABAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAACAAIAAAAAAAAAxP///w==');
+		}
+		// Start Date/Time
+		if (!empty($so->StartsOn)) {
+			$dt = (clone $so->StartsOn)->setTimezone(new DateTimeZone('UTC'));
+			$eo->StartTime = new EasProperty('Calendar', $dt->format('Ymd\\THisp')); // YYYYMMDDTHHMMSSZ
+		}
+		// End Date/Time
+		if (!empty($so->EndsOn)) {
+			$dt = (clone $so->EndsOn)->setTimezone(new DateTimeZone('UTC'));
+			$eo->EndTime = new EasProperty('Calendar', $dt->format('Ymd\\THisp')); // YYYYMMDDTHHMMSSZ
+		}
+		// All Day Event
+		if((fmod(($so->EndsOn->getTimestamp() - $so->StartsOn->getTimestamp()), 86400) == 0)) {
+			$eo->AllDayEvent = new EasProperty('Calendar', 1);
+		}
+		else {
+			$eo->AllDayEvent = new EasProperty('Calendar', 0);
+		}
+		// Label
         if (!empty($so->Label)) {
-            $eo->FileAs = new EasProperty('Contacts', $so->Label);
+            $eo->Subject = new EasProperty('Calendar', $so->Label);
         }
-		// Name - Last
-        if (!empty($so->Name->Last)) {
-            $eo->LastName = new EasProperty('Contacts', $so->Name->Last);
+		// Sensitivity
+        if (!empty($so->Sensitivity)) {
+            $eo->Sensitivity = new EasProperty('Calendar', $this->toSensitivity($so->Sensitivity));
         }
-        // Name - First
-        if (!empty($so->Name->First)) {
-            $eo->FirstName = new EasProperty('Contacts', $so->Name->First);
+		else {
+			$eo->Sensitivity = new EasProperty('Calendar', '2');
+		}
+
+		// Notes
+        if (!empty($so->Notes)) {
+            $eo->Body = new EasObject('AirSyncBase');
+            $eo->Body->Type = new EasProperty('AirSyncBase', EasTypes::BODY_TYPE_TEXT);
+            //$eo->Body->EstimatedDataSize = new EasProperty('AirSyncBase', strlen($so->Notes));
+            $eo->Body->Data = new EasProperty('AirSyncBase', $so->Notes);
         }
-        // Name - Other
-        if (!empty($so->Name->Other)) {
-            $eo->MiddleName = new EasProperty('Contacts', $so->Name->Other);
+		else {
+			$eo->Body = new EasObject('AirSyncBase');
+            $eo->Body->Type = new EasProperty('AirSyncBase', EasTypes::BODY_TYPE_TEXT);
+            $eo->Body->Data = new EasProperty('AirSyncBase', ' ');
+		}
+		
+		// Location
+        if (!empty($so->Location)) {
+            $eo->Location = new EasProperty('AirSyncBase', $so->Location);
         }
-        // Name - Prefix
-        if (!empty($so->Name->Prefix)) {
-            $eo->Title = new EasProperty('Contacts', $so->Name->Prefix);
+		// Availability
+        if (!empty($so->Availability)) {
+            $eo->BusyStatus = new EasProperty('Calendar', $this->toAvailability($so->Availability));
         }
-        // Name - Suffix
-        if (!empty($so->Name->Suffix)) {
-            $eo->Suffix = new EasProperty('Contacts', $so->Name->Suffix);
+		else {
+			$eo->BusyStatus = new EasProperty('Calendar', 2);
+		}
+		// Notifications
+        if (count($so->Notifications) > 0) {
+			$eo->Reminder = new \OCA\EAS\Utile\Eas\EasProperty('Calendar', 10);
         }
-        // Name - Phonetic - Last
-        if (!empty($so->Name->PhoneticLast)) {
-            $eo->YomiLastName = new EasProperty('Contacts', $so->Name->PhoneticLast);
-        }
-        // Name - Phonetic - First
-        if (!empty($so->Name->PhoneticFirst)) {
-            $eo->YomiFirstName = new EasProperty('Contacts', $so->Name->PhoneticFirst);
-        }
-        // Name - Aliases
-        if (!empty($so->Name->Aliases)) {
-            $eo->NickName = new EasProperty('Contacts', $so->Name->Aliases);
-        }
-        // Birth Day
-        if (!empty($so->BirthDay)) {
-            $eo->Birthday = new EasProperty('Contacts', $so->BirthDay->format('Y-m-d\\T11:59:00.000\\Z')); //2018-01-01T11:59:00.000Z
-        }
-        // Partner
-        if (!empty($so->Partner)) {
-            $eo->Spouse = new EasProperty('Contacts', $so->Partner);
-        }
-        // Anniversary Day
-        if (!empty($so->AnniversaryDay)) {
-            $eo->Anniversary = new EasProperty('Contacts', $so->AnniversaryDay->format('Y-m-d\\T11:59:00.000\\Z')); //2018-01-01T11:59:00.000Z
-        }
-        // Address(es)
-        if (count($so->Address) > 0) {
-            $types = [
-                'WORK' => true,
-                'HOME' => true,
-                'OTHER' => true
-            ];
-            foreach ($so->Address as $entry) {
-                // Address - Work
-                if ($entry->Type == 'WORK' && $types[$entry->Type]) {
-                    // Street
-                    if (!empty($entry->Street)) {
-                        $eo->BusinessAddressStreet = new EasProperty('Contacts', $entry->Street);
-                    }
-                    // Locality
-                    if (!empty($entry->Locality)) {
-                        $eo->BusinessAddressCity = new EasProperty('Contacts', $entry->Locality);
-                    }
-                    // Region
-                    if (!empty($entry->Region)) {
-                        $eo->BusinessAddressState = new EasProperty('Contacts', $entry->Region);
-                    }
-                    // Code
-                    if (!empty($entry->Code)) {
-                        $eo->BusinessAddressPostalCode = new EasProperty('Contacts', $entry->Code);
-                    }
-                    // Country
-                    if (!empty($entry->Country)) {
-                        $eo->BusinessAddressCountry = new EasProperty('Contacts', $entry->Country);
-                    }
-                    // disable type
-                    $types[$entry->Type] = false;
-                }
-                // Address - Home
-                if ($entry->Type == 'HOME' && $types[$entry->Type]) {
-                    // Street
-                    if (!empty($entry->Street)) {
-                        $eo->HomeAddressStreet = new EasProperty('Contacts', $entry->Street);
-                    }
-                    // Locality
-                    if (!empty($entry->Locality)) {
-                        $eo->HomeAddressCity = new EasProperty('Contacts', $entry->Locality);
-                    }
-                    // Region
-                    if (!empty($entry->Region)) {
-                        $eo->HomeAddressState = new EasProperty('Contacts', $entry->Region);
-                    }
-                    // Code
-                    if (!empty($entry->Code)) {
-                        $eo->HomeAddressPostalCode = new EasProperty('Contacts', $entry->Code);
-                    }
-                    // Country
-                    if (!empty($entry->Country)) {
-                        $eo->HomeAddressCountry = new EasProperty('Contacts', $entry->Country);
-                    }
-                    // disable type
-                    $types[$entry->Type] = false;
-                }
-                // Address - Other
-                if ($entry->Type == 'OTHER' && $types[$entry->Type]) {
-                    // Street
-                    if (!empty($entry->Street)) {
-                        $eo->OtherAddressStreet = new EasProperty('Contacts', $entry->Street);
-                    }
-                    // Locality
-                    if (!empty($entry->Locality)) {
-                        $eo->OtherAddressCity = new EasProperty('Contacts', $entry->Locality);
-                    }
-                    // Region
-                    if (!empty($entry->Region)) {
-                        $eo->OtherAddressState = new EasProperty('Contacts', $entry->Region);
-                    }
-                    // Code
-                    if (!empty($entry->Code)) {
-                        $eo->OtherAddressPostalCode = new EasProperty('Contacts', $entry->Code);
-                    }
-                    // Country
-                    if (!empty($entry->Country)) {
-                        $eo->OtherAddressCountry = new EasProperty('Contacts', $entry->Country);
-                    }
-                    // disable type
-                    $types[$entry->Type] = false;
-                }
+		else {
+			$eo->Reminder = new \OCA\EAS\Utile\Eas\EasProperty('Calendar', 0);
+		}
+		// MeetingStatus
+		$eo->MeetingStatus = new \OCA\EAS\Utile\Eas\EasProperty('Calendar', 0);
+
+		// Tag(s)
+        if (count($so->Tags) > 0) {
+            $eo->Categories = new EasObject('Calendar');
+            $eo->Categories->Category = new EasCollection('Calendar');
+            foreach($so->Tags as $entry) {
+                $eo->Categories->Category[] = new EasProperty('Calendar', $entry);
             }
         }
-        // Phone(s)
-        if (count($so->Phone) > 0) {
-            $types = array(
-                'WorkVoice1' => true,
-                'WorkVoice2' => true,
-                'WorkFax' => true,
-                'HomeVoice1' => true,
-                'HomeVoice2' => true,
-                'HomeFax' => true,
-                'Cell' => true,
-            );
-            foreach ($so->Phone as $entry) {
-                if ($entry->Type == 'WORK' && $entry->SubType == 'VOICE' && $types['WorkVoice1']) {
-                    $eo->BusinessPhoneNumber = new EasProperty('Contacts', $entry->Number);
-                    $types['WorkVoice1'] = false;
-                }
-                elseif ($entry->Type == 'WORK' && $entry->SubType == 'VOICE' && $types['WorkVoice2']) {
-                    $eo->Business2PhoneNumber = new EasProperty('Contacts', $entry->Number);
-                    $types['WorkVoice2'] = false;
-                }
-                elseif ($entry->Type == 'WORK' && $entry->SubType == 'FAX' && $types['WorkFax']) {
-                    $eo->BusinessFaxNumber = new EasProperty('Contacts', $entry->Number);
-                    $types['WorkFax'] = false;
-                }
-                elseif ($entry->Type == 'HOME' && $entry->SubType == 'VOICE' && $types['HomeVoice1']) {
-                    $eo->HomePhoneNumber = new EasProperty('Contacts', $entry->Number);
-                    $types['HomeVoice1'] = false;
-                }
-                elseif ($entry->Type == 'HOME' && $entry->SubType == 'VOICE' && $types['HomeVoice2']) {
-                    $eo->Home2PhoneNumber = new EasProperty('Contacts', $entry->Number);
-                    $types['HomeVoice2'] = false;
-                }
-                elseif ($entry->Type == 'WORK' && $entry->SubType == 'FAX' && $types['HomeFax']) {
-                    $eo->HomeFaxNumber = new EasProperty('Contacts', $entry->Number);
-                    $types['HomeFax'] = false;
-                }
-                elseif ($entry->Type == 'CELL' && $types['Cell'] != true) {
-                    $eo->MobilePhoneNumber = new EasProperty('Contacts', $entry->Number);
-                    $types['Cell'] = false;
-                }
-            }
-        }
-        // Email(s)
-        if (count($so->Email) > 0) {
-            $types = array(
-                'WORK' => true,
-                'HOME' => true,
-                'OTHER' => true
-            );
-            foreach ($so->Email as $entry) {
-                if (isset($types[$entry->Type]) && $types[$entry->Type] == true && !empty($entry->Address)) {
-                    switch ($entry->Type) {
-                        case 'WORK':
-                            $eo->Email1Address = new EasProperty('Contacts', $entry->Address);
-                            break;
-                        case 'HOME':
-                            $eo->Email2Address = new EasProperty('Contacts', $entry->Address);
-                            break;
-                        case 'OTHER':
-                            $eo->Email3Address = new EasProperty('Contacts', $entry->Address);
-                            break;
-                    }
-                    $types[$entry->Type] = false;
-                }
-            }
-        }
-        // Manager Name
-        if (!empty($so->Name->Manager)) {
-            $eo->ManagerName = new EasProperty('Contacts', $so->Name->Manager);
-        }
-        // Assistant Name
-        if (!empty($so->Name->Assistant)) {
-            $eo->AssistantName = new EasProperty('Contacts', $so->Name->Assistant);
-        }
-        // Occupation Organization
-        if (!empty($so->Occupation->Organization)) {
-            $eo->CompanyName = new EasProperty('Contacts', $so->Occupation->Organization);
-        }
-        // Occupation Department
-        if (!empty($so->Occupation->Department)) {
-            $eo->Department = new EasProperty('Contacts', $so->Occupation->Department);
-        }
-        // Occupation Title
-        if (!empty($so->Occupation->Title)) {
-            $eo->JobTitle = new EasProperty('Contacts', $so->Occupation->Title);
-        }
-        // Occupation Location
-        if (!empty($so->Occupation->Location)) {
-            $eo->OfficeLocation = new EasProperty('Contacts', $so->Occupation->Location);
-        }
-        // URL / Website
-        if (!empty($so->URI)) {
-            $eo->WebPage = new EasProperty('Contacts', $so->URI);
-        }
+		
+
+		
+		// Occurrence
+		if (isset($so->Occurrence) && !empty($so->Occurrence->Precision)) {
+			$eo->Recurrence = new EasObject('Calendar');
+			// Occurrence Interval
+			if (isset($so->Occurrence->Interval)) {
+				$eo->Recurrence->Interval = new EasProperty('Calendar', $so->Occurrence->Interval);
+			}
+			// Occurrence Iterations
+			if (!empty($so->Occurrence->Iterations)) {
+				$eo->Recurrence->Occurrences = new EasProperty('Calendar', $so->Occurrence->Iterations);
+			}
+			// Occurrence Conclusion
+			if (!empty($so->Occurrence->Concludes)) {
+				$eo->Recurrence->Until = new EasProperty('Calendar', $so->Occurrence->Concludes->format('Ymd\\THis')); // YYYY-MM-DDTHH:MM:SS.MSSZ);
+			}
+			// Based on Precision
+			// Occurrence Daily
+			if ($so->Occurrence->Precision == 'D') {
+				$eo->Recurrence->Type = new EasProperty('Calendar', 0);
+			}
+			// Occurrence Weekly
+			elseif ($so->Occurrence->Precision == 'W') {
+				$eo->Recurrence->Type = new EasProperty('Calendar', 1);
+				$eo->Recurrence->DayOfWeek = new EasProperty('Calendar', $this->toDaysOfWeek($so->Occurrence->OnDayOfWeek));
+			}
+			// Occurrence Monthly
+			elseif ($so->Occurrence->Precision == 'M') {
+				if ($so->Occurrence->Pattern == 'A') {
+					$eo->Recurrence->Type = new EasProperty('Calendar', 2);
+					$eo->Recurrence->DayOfMonth = new EasProperty('Calendar', $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth));
+				}
+				elseif ($so->Occurrence->Pattern == 'R') {
+					$eo->Recurrence->Type = new EasProperty('Calendar', 3);
+					$eo->Recurrence->DayOfWeek = new EasProperty('Calendar', $this->toDaysOfWeek($so->Occurrence->OnDayOfWeek));
+					$eo->Recurrence->DayOfMonth = new EasProperty('Calendar', $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth));
+				}
+			}
+			// Occurrence Yearly
+			elseif ($so->Occurrence->Precision == 'Y') {
+				if ($so->Occurrence->Pattern == 'A') {
+					$eo->Recurrence->Type = new EasProperty('Calendar', 5);
+					$eo->Recurrence->DayOfMonth = new EasProperty('Calendar', $this->toDaysOfMonth($so->Occurrence->OnDayOfMonth));
+					$eo->Recurrence->MonthOfYear = new EasProperty('Calendar', $this->toMonthOfYear($so->Occurrence->OnMonthOfYear));
+				}
+				elseif ($so->Occurrence->Pattern == 'R') {
+					$eo->Recurrence->Type = new EasProperty('Calendar', 6);
+					$eo->Recurrence->DayOfWeek = new EasProperty('Calendar', $this->toDaysOfWeek($so->Occurrence->OnDayOfWeek));
+					$eo->Recurrence->WeekOfMonth = new EasProperty('Calendar', $this->toDaysOfMonth($so->Occurrence->OnWeekOfMonth));
+					$eo->Recurrence->MonthOfYear = new EasProperty('Calendar', $this->toMonthOfYear($so->Occurrence->OnMonthOfYear));
+				}
+			}
+		}
         
 		return $eo;
 
     }
 
+	
+    public function generateSignature(EventObject $eo): string {
+        
+        // clone self
+        $o = clone $eo;
+        // remove non needed values
+        unset($o->ID, $o->CID, $o->UUID, $o->RCID, $o->REID, $o->Origin, $o->Signature, $o->CreatedOn, $o->ModifiedOn);
+        // generate signature
+        return md5(json_encode($o));
+
+    }
+	
 	/**
      * Converts EAS (Microsoft/Windows) time zone to DateTimeZone object
      * 
@@ -968,14 +904,12 @@ class RemoteEventsService {
 		// decode zone from bae64 format
 		$zone = base64_decode($zone);
 		// convert byte string to array
-		$zone = unpack("lbias/a64tzname/vdstendyear/vdstendmonth/vdstendday/vdstendweek/vdstendhour/"
-                        ."vdstendminute/vdstendsecond/vdstendmillis/lstdbias/a64tznamedst/vdststartyear/"
-                        ."vdststartmonth/vdststartday/vdststartweek/vdststarthour/vdststartminute/"
-                        ."vdststartsecond/vdststartmillis/ldstbias", $zone);
+		$zone = unpack('lbias/a64stdname/vstdyear/vstdmonth/vstdday/vstdweek/vstdhour/vstdminute/vstdsecond/vstdmillis/lstdbias/'
+					       . 'a64dstname/vdstyear/vdstmonth/vdstday/vdstweek/vdsthour/vdstminute/vdstsecond/vdstmillis/ldstbias', $zone);
 		// extract zone name from array and convert to UTF8
-		$name = trim(@iconv('UTF-16', 'UTF-8', $zone['tzname']));
+		$name = trim(@iconv('UTF-16', 'UTF-8', $zone['stdname']));
 		// convert EWS time zone name to DateTimeZone object
-		return \OCA\EAS\Utile\TimeZoneEWS::toDateTimeZone($name);
+			return \OCA\EAS\Utile\TimeZoneEAS::toDateTimeZone($name);
 		
 	}
 
@@ -988,10 +922,180 @@ class RemoteEventsService {
      * 
      * @return string valid EWS time zone name on success, or null on failure
      */ 
-	public function toTimeZone(DateTimeZone $zone): ?string {
+	public function toTimeZone(DateTimeZone $zone, DateTime $date = null): string {
 
-		// convert DateTimeZone object to EWS time zone name
-		return \OCA\EAS\Utile\TimeZoneEWS::fromDateTimeZone($zone);
+		// convert IANA time zone name to EAS time zone name
+		$zone = \OCA\EAS\Utile\TimeZoneEAS::fromIANA($zone->getName());
+		// retrieve time mutation
+		$mutation = \OCA\EAS\Utile\TimeZoneEAS::findZoneMutation($zone, $date, true);
+
+		if (isset($mutation)) {
+			if ($mutation->Type == 'Static') {
+				$stdName = $zone;
+				$stdBias = $mutation->Alterations[0]->Bias;
+				$stdMonth = 0;
+				$stdWeek = 0;
+				$stdDay = 0;
+				$stdHour = 0;
+				$stdMinute = 0;
+				$dstName = $zone;
+				$dstBias = 0;
+				$dstMonth = 0;
+				$dstWeek = 0;
+				$dstDay = 0;
+				$dstHour = 0;
+				$dstMinute = 0;
+			}
+			else {
+				foreach ($mutation->Alterations as $entry) {
+					switch ($entry->Class) {
+						case 'Daylight':
+							$dstName = $zone;
+							$dstBias = $entry->Bias;
+							$dstMonth = $entry->Month;
+							$dstWeek = $entry->Week;
+							$dstDay = $entry->Day;
+							$dstHour = $entry->Hour;
+							$dstMinute = $entry->Minute;
+							break;
+						default:
+							$stdName = $zone;
+							$stdBias = $entry->Bias;
+							$stdMonth = $entry->Month;
+							$stdWeek = $entry->Week;
+							$stdDay = $entry->Day;
+							$stdHour = $entry->Hour;
+							$stdMinute = $entry->Minute;
+							break;
+					}
+				}
+				// convert DST bias to reletive from standard
+				$dstBias = ($dstBias - $stdBias) * -1;
+			}
+
+			return base64_encode(pack('la64vvvvvvvvla64vvvvvvvvl', $stdBias, $stdName, 0, $stdMonth, $stdDay, $stdWeek, $stdHour, $stdMinute, 0, 0, 0, $dstName, 0, $dstMonth, $dstDay, $dstWeek, $dstHour, $dstMinute, 0, 0, $dstBias));
+		}
+		else {
+			return base64_encode(pack('la64vvvvvvvvla64vvvvvvvvl', 0, 'UTC', 0, 0, 0, 0, 0, 0, 0, 0, 0, 'UTC', 0, 0, 0, 0, 0, 0, 0, 0, 0));
+		}
+
+	}
+
+	/**
+     * convert remote availability status to event object availability status
+	 * 
+     * @since Release 1.0.0
+     * 
+	 * @param string $value		remote availability status value
+	 * 
+	 * @return string			event object availability status value
+	 */
+	private function fromAvailability(?string $value): string {
+		
+		// transposition matrix
+		$_tm = array(
+			'0' => 'F', // Free
+			'1' => 'T',	// Tentative
+			'2' => 'B',	// Busy
+			'3' => 'O',	// Out of Office
+			'4' => 'E'	// Working elsewhere
+		);
+		// evaluate if value exists
+		if (isset($_tm[$value])) {
+			// return transposed value
+			return $_tm[$value];
+		} else {
+			// return default value
+			return 'B';
+		}
+		
+	}
+
+	/**
+     * convert event object availability status to remote availability status
+	 * 
+     * @since Release 1.0.0
+     * 
+	 * @param string $value		event object availability status value
+	 * 
+	 * @return string	 		remote availability status value
+	 */
+	private function toAvailability(?string $value): string {
+		
+		// transposition matrix
+		$_tm = array(
+			'F' => '0', // Free
+			'T' => '1',	// Tentative
+			'B' => '2',	// Busy
+			'O' => '3',	// Out of Office
+			'E' => '4'	// Working elsewhere
+		);
+		// evaluate if value exists
+		if (isset($_tm[$value])) {
+			// return transposed value
+			return $_tm[$value];
+		} else {
+			// return default value
+			return '2';
+		}
+
+	}
+
+	/**
+     * convert remote sensitivity status to event object sensitivity status
+	 * 
+     * @since Release 1.0.0
+     * 
+	 * @param string $value		remote sensitivity status value
+	 * 
+	 * @return string			event object sensitivity status value
+	 */
+	private function fromSensitivity(?string $value): string {
+		
+		// transposition matrix
+		$_tm = array(
+			'0' => 'N', // Normal
+			'1' => 'I',	// Personal/Individual
+			'2' => 'P',	// Private
+			'3' => 'C',	// Confidential
+		);
+		// evaluate if value exists
+		if (isset($_tm[$value])) {
+			// return transposed value
+			return $_tm[$value];
+		} else {
+			// return default value
+			return 'N';
+		}
+		
+	}
+
+	/**
+     * convert event object sensitivity status to remote sensitivity status
+	 * 
+     * @since Release 1.0.0
+     * 
+	 * @param string $value		event object sensitivity status value
+	 * 
+	 * @return string	 			remote sensitivity status value
+	 */
+	private function toSensitivity(?string $value): string {
+		
+		// transposition matrix
+		$_tm = array(
+			'N' => '0', // Normal
+			'I' => '1',	// Personal/Individual
+			'P' => '2',	// Private
+			'C' => '3',	// Confidential
+		);
+		// evaluate if value exists
+		if (isset($_tm[$value])) {
+			// return transposed value
+			return $_tm[$value];
+		} else {
+			// return default value
+			return '2';
+		}
 
 	}
 

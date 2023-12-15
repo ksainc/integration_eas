@@ -183,12 +183,12 @@ class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
 		$lo['cid'] = $this->_id;
         $lo['label'] = trim($vo->FN->getValue());
         $lo['size'] = strlen($data);
-        $lo['state'] = md5($data);
+        $lo['signature'] = md5($data);
 		$lo['data'] = $data;
 		// deposit entry to data store
 		$this->_store->createEntity($lo);
 		// return state
-		return $lo['state'];
+		return $lo['signature'];
 
 	}
 
@@ -219,12 +219,12 @@ class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
 		$lo['cid'] = $this->_id;
         $lo['label'] = trim($vo->FN->getValue());
         $lo['size'] = strlen($data);
-        $lo['state'] = md5($data);
+        $lo['signature'] = md5($data);
 		$lo['data'] = $data;
 		// deposit entry to data store
 		$this->_store->modifyEntity($id, $lo);
 		// return state
-		return $lo['state'];
+		return $lo['signature'];
 
 	}
 
@@ -254,7 +254,7 @@ class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
 		// list entries
 		$list = [];
 		foreach ($entries as $entry) {
-			$list[] = new Entity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
+			$list[] = new Entity($this, $entry['id'], $entry['uuid'], (string) $entry['label'], $entry);
 		}
 		// return list
 		return $list;
@@ -276,7 +276,7 @@ class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
 		$entry = $this->_store->fetchEntityByUUID($this->_uid, $id);
 		// evaluate if object properties where retrieved 
 		if (isset($entry['uuid'])) {
-			return new Entity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
+			return new Entity($this, $entry['id'], $entry['uuid'], (string) $entry['label'], $entry);
 		}
 		else {
 			return false;
@@ -301,7 +301,7 @@ class Collection extends ExternalAddressBook implements \Sabre\DAV\IMultiGet {
 			$entry = $this->_store->fetchEntityByUUID($this->_uid, $id);
 			// evaluate if object properties where retrieved 
 			if (isset($entry['uuid'])) {
-				$list[] = new Entity($this, $entry['id'], $entry['uuid'], $entry['label'], $entry);
+				$list[] = new Entity($this, $entry['id'], $entry['uuid'], (string) $entry['label'], $entry);
 			}
 		}
 		

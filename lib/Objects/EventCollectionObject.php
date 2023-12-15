@@ -28,20 +28,20 @@ namespace OCA\EAS\Objects;
 class EventCollectionObject {
     public string $Id;
     public ?string $Name = null;
-    public ?string $State = null;
+    public ?string $Signature = null;
     public ?int $Count = null;
     public ?string $AffiliationId = null;
 
     public function __construct(
         string $id,
         string $name = null,
-        string $state = null,
+        string $signature = null,
         int $count = null,
         string $aid = null
     ) {
         $this->Id = $id;
         $this->Name = $name;
-        $this->State = $state;
+        $this->Signature = $signature;
         $this->Count = $count;
         $this->AffiliationId = $aid;
 	}

@@ -223,7 +223,7 @@ class TaskCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 		$lo['cid'] = $this->_id;
 		// calcualted properties
         $lo['size'] = strlen($data);
-        $lo['state'] = md5($data);
+        $lo['signature'] = md5($data);
 		// extracted properties from data
 		$lo['label'] = (isset($vo->SUMMARY)) ? $this->extractString($vo->SUMMARY) : null;
         $lo['notes'] = (isset($vo->DESCRIPTION)) ? $this->extractString($vo->DESCRIPTION) : null;
@@ -232,7 +232,7 @@ class TaskCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 		// deposit entry to data store
 		$this->_store->createEntity($lo);
 		// return state
-		return $lo['state'];
+		return $lo['signature'];
 
 	}
 
@@ -244,7 +244,7 @@ class TaskCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
      *
      * @return string|null				state on success / Null on fail
      */
-	function modifyFile($id, $data) {
+	function modifyFile($id, $uuid, $data) {
 
 		// evaluate if data was sent as a resource
 		if (is_resource($data)) {
@@ -264,9 +264,12 @@ class TaskCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 		// data store entry
 		$lo = [];
         $lo['data'] = $data;
+		$lo['uuid'] = $uuid;
+		$lo['uid'] = $this->_uid;
+		$lo['cid'] = $this->_id;
 		// calcualted properties
         $lo['size'] = strlen($data);
-        $lo['state'] = md5($data);
+        $lo['signature'] = md5($data);
 		// extracted properties from data
 		$lo['label'] = (isset($vo->SUMMARY)) ? $this->extractString($vo->SUMMARY) : null;
         $lo['notes'] = (isset($vo->DESCRIPTION)) ? $this->extractString($vo->DESCRIPTION) : null;
@@ -275,7 +278,7 @@ class TaskCollection extends ExternalCalendar implements \Sabre\DAV\IMultiGet {
 		// deposit entry to data store
 		$this->_store->modifyEntity($id, $lo);
 		// return state
-		return $lo['state'];
+		return $lo['signature'];
 
 	}
 

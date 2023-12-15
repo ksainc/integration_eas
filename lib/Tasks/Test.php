@@ -77,62 +77,52 @@ try {
 	// initilize required services
 	$ConfigurationService = \OC::$server->get(\OCA\EAS\Service\ConfigurationService::class);
 	$CoreService = \OC::$server->get(\OCA\EAS\Service\CoreService::class);
-	//$HarmonizationService = \OC::$server->get(\OCA\EAS\Service\HarmonizationService::class);
+	$HarmonizationService = \OC::$server->get(\OCA\EAS\Service\HarmonizationService::class);
 	$RemoteCommonService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteCommonService::class);
-	$RemoteContactsService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteContactsService::class);
+	$RemoteEventsService = \OC::$server->get(\OCA\EAS\Service\Remote\RemoteEventsService::class);
 
+	// execute initial harmonization
+	$HarmonizationService->performHarmonization($uid, 'S');
+
+	exit;
+	
 	// construct decoder
 	//$EasXmlEncoder = new \OCA\EAS\Utile\Eas\EasXmlEncoder();
 	//$EasXmlDecoder = new \OCA\EAS\Utile\Eas\EasXmlDecoder();
 	
+	// Load From File
+	//$stream = fopen(__DIR__ . '/EAS-Calendar-Create', 'r');
+	// read data as stream
+	//$msg_ref_obj = $EasXmlDecoder->streamToObject($stream);
+	// read data as string
+	//$msg_ref_raw = stream_get_contents($stream);
+	//$msg_ref_obj = $EasXmlDecoder->stringToObject($msg_ref_raw);
+	//fclose($stream);
+	
+	//exit;
+	
 	// construct remote data store client
 	$EasClient = $CoreService->createClient($uid);
+
 	// assign remote data store to module
-	$RemoteContactsService->DataStore = $EasClient;
+	$RemoteEventsService->initialize($EasClient);
 
 	// perform initial connect
 	$EasClient->performConnect();
 
-	// Load From File
-	//$stream = fopen(__DIR__ . '/EAS-Calendar-Create', 'r');
-	//$msg_ref_raw = stream_get_contents($stream);
-	//$msg_ref_obj = $EasXmlDecoder->streamToObject($stream);
-	//fclose($stream);
-	//exit;
+	$cid = 2;
+	$cst = 0;
 
-	$token = 0;
-
-	// Fetch collections
-	$rs = $RemoteCommonService->syncCollections($EasClient);
+	// retrieve collection delta
+	$rs = $RemoteEventsService->reconcileCollection($cid, $cst);
 	
-	// find contacts collection
-	foreach ($rs->Changes->Add as $entry) {
-		if ($entry->Name->getContents() == 'Contacts') {
-			$cid = $entry->Id->getContents();
-			break;
-		}
+	if (isset($rs->SyncKey)) {
+		$cst = $rs->SyncKey->getContents();
 	}
 
-	// sync collection
-	$rs = $RemoteContactsService->syncEntities($cid, $token);
+	// retrieve collection delta
+	$rs = $RemoteEventsService->reconcileCollection($cid, $cst);
 	
-	$token = $rs->SyncKey->getContents();
-
-	if (isset($rs->Commands)) {
-
-		if (!is_array($rs->Commands->Add)) {
-			$rs->Commands->Add = [$rs->Commands->Add];
-		}
-
-		foreach ($rs->Commands->Add as $entry) {
-			$testid = $entry->EntityId->getContents();
-		}
-	
-	}
-
-	// retrieve entity
-	$rs = $RemoteContactsService->fetchEntity($cid, $testid);
-
 	exit;
 
 } catch (Exception $ex) {

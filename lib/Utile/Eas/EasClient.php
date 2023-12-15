@@ -421,11 +421,11 @@ class EasClient
         $this->_ResponseData = '';
 
         // evaluate if http client is initilized and location is the same
-        if (!isset($this->_client) || curl_getinfo($this->_client, CURLINFO_EFFECTIVE_URL) != $location) {
-            $this->_client = curl_init($location);
-            curl_setopt_array($this->_client, $this->_TransportOptions);
+        if (!isset($this->_client)) {
+            $this->_client = curl_init();
         }
 
+        curl_setopt_array($this->_client, $this->_TransportOptions);
         curl_setopt($this->_client, CURLOPT_HTTPHEADER, array_values($this->_TransportHeader));
         // set request data
         if (!empty($message)) {

@@ -36,11 +36,11 @@ use OCA\EAS\Store\CorrelationMapper;
 class CorrelationsService {
 
 	const ContactCollection = 'CC';
-	const ContactObject = 'CO';
+	const ContactEntity = 'CE';
 	const EventCollection = 'EC';
-	const EventObject = 'EO';
+	const EventEntity = 'EE';
 	const TaskCollection = 'TC';
-	const TaskObject = 'TO';
+	const TaskEntity = 'TE';
 
 	private CorrelationMapper $mapper;
 
